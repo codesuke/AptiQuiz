@@ -47,22 +47,70 @@ const results: FinalResult[] = [
 ];
 
 describe("final results screen", () => {
-  it("shows the podium, full standings, and the Participant's own metrics", () => {
+  it("leads with a Participant's score, rank, and performance metrics", () => {
     const html = renderToStaticMarkup(<FinalResults results={results} viewerId="d" />);
+    const ownResult = html.slice(html.indexOf("Your result"), html.indexOf("Top three"));
+
     expect(html).toContain("Top three");
     expect(html).toContain("Full leaderboard");
-    expect(html).toContain("Your result");
-    expect(html).toContain("Rank 4");
-    expect(html).toContain("0/4 (0%)");
-    expect(html).toContain("Average Effective Response Time");
-    expect(html).toContain("Logic: 0/2 (0%)");
+    expect(ownResult).toContain("Your result");
+    expect(ownResult).toContain("Your rank");
+    expect(ownResult).toContain(">4<");
+    expect(ownResult).toContain("0 points");
+    expect(ownResult).toContain("0/4 (0%)");
+    expect(ownResult).toContain("Average Effective Response Time");
+    expect(ownResult).toContain("Logic: 0/2 (0%)");
     for (const result of results) expect(html).toContain(result.displayName);
   });
 
-  it("does not invent a Host result and keeps Finalizing results visible", () => {
+  it("keeps the Leaderboard compact and gives Participants clear next actions", () => {
+    const html = renderToStaticMarkup(<FinalResults results={results} viewerId="d" />);
+
+    expect(html.match(/Average Effective Response Time/g)).toHaveLength(1);
+    expect(html.match(/Logic: 0\/2 \(0%\)/g)).toHaveLength(1);
+    expect(html).toContain("First place");
+    expect(html).toContain("Second place");
+    expect(html).toContain("Third place");
+    expect(html).toContain("View College League");
+    expect(html).toContain('href="/league"');
+    expect(html).toContain('href="/"');
+    expect(html).toContain('aria-current="true"');
+  });
+
+  it("does not invent a Host result or Participant next actions and keeps Finalizing results visible", () => {
     const host = renderToStaticMarkup(<FinalResults results={results} viewerId={null} />);
     expect(host).not.toContain("Your result");
+    expect(host).not.toContain('href="/league"');
+    expect(host).not.toContain("Average Effective Response Time");
     const finalizing = renderToStaticMarkup(<FinalResults results={undefined} viewerId={null} />);
     expect(finalizing).toContain("Finalizing results");
+  });
+
+  it("keeps a Room-sized Leaderboard readable without repeating detailed metrics", () => {
+    const resultTemplate = results.at(0);
+    if (!resultTemplate) throw new Error("Result fixture is required.");
+    const roomResults = Array.from({ length: 50 }, (_, index) => ({
+      ...resultTemplate,
+      participantId: `participant-${index + 1}`,
+      displayName: `Participant ${index + 1}`,
+      rank: index + 1,
+      totalScore: 5_000 - index * 100,
+    }));
+    const html = renderToStaticMarkup(
+      <FinalResults results={roomResults} viewerId="participant-50" />,
+    );
+
+    expect(html).toContain("Participant 1");
+    expect(html).toContain("Participant 50");
+    expect(html.match(/Average Effective Response Time/g)).toHaveLength(1);
+  });
+
+  it("keeps the actual server rank visible for a non-consecutive podium place", () => {
+    const tiedRankResults = results.map((result) =>
+      result.participantId === "c" ? { ...result, rank: 4 } : result,
+    );
+    const html = renderToStaticMarkup(<FinalResults results={tiedRankResults} viewerId="a" />);
+
+    expect(html).toContain("Place 4");
   });
 });

@@ -2,6 +2,7 @@
 
 import type { FinalResult } from "@aptiquiz/contracts";
 import { motion, useReducedMotion } from "framer-motion";
+import Link from "next/link";
 import {
   AVERAGE_TIME_LABEL,
   accuracyLabel,
@@ -70,8 +71,26 @@ export function FinalResults({ results, viewerId }: FinalResultsProps) {
             id="own-result-heading"
             className="mt-2 font-[family-name:var(--aq-font-display)] text-3xl"
           >
-            {own.displayName} · Rank {own.rank}
+            {own.displayName}
           </h3>
+          <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-[var(--aq-surface)] px-4 py-3">
+              <dt className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[var(--aq-text-muted)]">
+                Your rank
+              </dt>
+              <dd className="mt-1 font-[family-name:var(--aq-font-display)] text-3xl tabular-nums">
+                {own.rank}
+              </dd>
+            </div>
+            <div className="rounded-xl bg-[var(--aq-ink)] px-4 py-3 text-white">
+              <dt className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#b6d8ca]">
+                Your score
+              </dt>
+              <dd className="mt-1 font-[family-name:var(--aq-font-display)] text-3xl tabular-nums">
+                {own.totalScore} points
+              </dd>
+            </div>
+          </dl>
           <ResultMetrics result={own} />
         </section>
       ) : null}
@@ -95,10 +114,10 @@ export function FinalResults({ results, viewerId }: FinalResultsProps) {
                   delay: reduceMotion ? 0 : result.rank * 0.06,
                   ease: [0.2, 0, 0, 1],
                 }}
-                className={`min-w-0 rounded-2xl border p-5 ${result.rank === 1 ? "border-[var(--aq-action)] bg-[#fff5eb]" : "border-[var(--aq-rule)] bg-white"}`}
+                className={`min-w-0 rounded-2xl border p-5 transition-transform duration-300 motion-safe:hover:-translate-y-1 ${podiumPresentation(result.rank).className}`}
               >
                 <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-[var(--aq-action)]">
-                  Place {result.rank}
+                  {podiumPresentation(result.rank).label}
                 </p>
                 <p className="mt-3 break-words font-[family-name:var(--aq-font-display)] text-2xl">
                   {result.displayName}
@@ -133,7 +152,7 @@ export function FinalResults({ results, viewerId }: FinalResultsProps) {
               <li
                 key={result.participantId}
                 aria-current={isOwnResult(result, viewerId) ? "true" : undefined}
-                className={`min-w-0 rounded-xl border bg-white p-4 sm:p-5 ${isOwnResult(result, viewerId) ? "border-[var(--aq-action)]" : "border-[var(--aq-rule)]"}`}
+                className={`min-w-0 rounded-xl border bg-white p-4 sm:p-5 ${isOwnResult(result, viewerId) ? "border-2 border-[var(--aq-action)] bg-[var(--aq-hero-surface)]" : "border-[var(--aq-rule)]"}`}
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="min-w-0 break-words font-semibold">
@@ -145,13 +164,53 @@ export function FinalResults({ results, viewerId }: FinalResultsProps) {
                   </p>
                   <p className="font-mono font-bold tabular-nums">{result.totalScore} points</p>
                 </div>
-                <ResultMetrics result={result} />
               </li>
             ))}
           </ol>
         )}
       </section>
+
+      {own ? (
+        <nav
+          aria-label="Continue after results"
+          className="flex flex-col items-start gap-4 border-t border-[var(--aq-rule)] pt-7 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <Link
+            className="inline-flex min-h-11 items-center rounded-full bg-[var(--aq-action-prominent)] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--aq-action-prominent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--aq-action)]"
+            href="/league"
+          >
+            View College League
+          </Link>
+          <Link
+            className="inline-flex min-h-11 items-center font-semibold text-[var(--aq-ink)] underline decoration-[var(--aq-action)] decoration-2 underline-offset-4 transition-colors hover:text-[var(--aq-action)] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--aq-action)]"
+            href="/"
+          >
+            Back to AptiQuiz home
+          </Link>
+        </nav>
+      ) : null}
     </section>
+  );
+}
+
+const PODIUM_PRESENTATIONS = new Map([
+  [
+    1,
+    {
+      label: "First place",
+      className: "border-[var(--aq-action)] bg-[var(--aq-hero-surface)] sm:-translate-y-3",
+    },
+  ],
+  [2, { label: "Second place", className: "border-[var(--aq-rule)] bg-[var(--aq-surface)]" }],
+  [3, { label: "Third place", className: "border-[var(--aq-rule)] bg-white" }],
+]);
+
+function podiumPresentation(rank: number) {
+  return (
+    PODIUM_PRESENTATIONS.get(rank) ?? {
+      label: `Place ${rank}`,
+      className: "border-[var(--aq-rule)] bg-white",
+    }
   );
 }
 
