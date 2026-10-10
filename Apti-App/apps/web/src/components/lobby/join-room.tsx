@@ -9,11 +9,14 @@ import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
 import {
   createRoomSocket,
   emitRoomJoin,
+  emitRoomResume,
   type JoinResult,
   parseLobbyUpdate,
   parseRoundUpdate,
+  type ResumeResult,
   type RoomSocket,
   type SendRoomJoin,
+  type SendRoomResume,
   type SendRoundAnswer,
 } from "@/lib/room-socket";
 import { type ReceivedRound, receiveRound } from "@/lib/server-clock";
@@ -21,6 +24,7 @@ import { fieldErrorClass, primaryButtonClass, textInputClass } from "./form-styl
 import {
   createIdempotencyKey,
   type FailedJoin,
+  forgetStoredJoin,
   type JoinStorage,
   nextJoinKey,
   readStoredJoin,
@@ -28,6 +32,13 @@ import {
   settleStoredJoin,
 } from "./join-key";
 import { LobbyDetails } from "./lobby-details";
+import {
+  forgetResumeToken,
+  nextReconnectStep,
+  readResumeToken,
+  rememberResumeToken,
+  resumeFallback,
+} from "./resume-token";
 
 type ConnectionStatus = "connecting" | "online" | "offline";
 
@@ -35,12 +46,19 @@ interface JoinedRoom {
   readonly participant: LobbyParticipant;
   readonly lobby: LobbySnapshot;
   readonly round: ReceivedRound | null;
+  /** Points from revealed Rounds, as of the latest resume; a fresh join starts at 0. */
+  readonly score: number;
 }
 
 type JoinSuccess = Extract<JoinResult, { ok: true }>;
+type ResumeSuccess = Extract<ResumeResult, { ok: true }>;
 
-function toJoinedRoom({ participant, lobby, round }: JoinSuccess): JoinedRoom {
-  return { participant, lobby, round: round === null ? null : receiveRound(round, Date.now()) };
+function toJoinedRoom(
+  { participant, lobby, round }: JoinSuccess | ResumeSuccess,
+  score: number,
+): JoinedRoom {
+  const receivedRound = round === null ? null : receiveRound(round, Date.now());
+  return { participant, lobby, round: receivedRound, score };
 }
 
 interface JoinRoomProps {
@@ -51,6 +69,12 @@ interface JoinRoomProps {
 /** Generous cap; the schema enforces 32 after trimming and explains the rule. */
 const DISPLAY_NAME_INPUT_LIMIT = 64;
 const NOT_CONNECTED_MESSAGE = "Still connecting to the game server. Try again in a moment.";
+const RESUME_RETRY_MESSAGE = "Restoring your place in the Room. Retrying…";
+const RESUME_RETRY_DELAY_MS = 2_000;
+/** About ten seconds of retries; after that the page waits for a refresh instead of looping. */
+const MAX_RESUME_RETRIES = 5;
+const RESUME_GAVE_UP_MESSAGE =
+  "We couldn't restore your place in the Room. Refresh the page to try again.";
 
 /** Resolves `sessionStorage` per call so a blocked storage throws inside the join-key guards. */
 const tabJoinStorage: JoinStorage = {
@@ -59,9 +83,22 @@ const tabJoinStorage: JoinStorage = {
   removeItem: (key) => window.sessionStorage.removeItem(key),
 };
 
+/** `localStorage` keeps the Resume Token across a refresh and a closed tab. */
+const resumeTokenStorage: JoinStorage = {
+  getItem: (key) => window.localStorage.getItem(key),
+  setItem: (key, value) => window.localStorage.setItem(key, value),
+  removeItem: (key) => window.localStorage.removeItem(key),
+};
+
 function sendJoinVia(socket: RoomSocket): SendRoomJoin {
   return (payload, acknowledge) => {
     socket.emit("room:join", payload, acknowledge);
+  };
+}
+
+function sendResumeVia(socket: RoomSocket): SendRoomResume {
+  return (payload, acknowledge) => {
+    socket.emit("room:resume", payload, acknowledge);
   };
 }
 
@@ -71,39 +108,119 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
   const [error, setError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
   const socketRef = useRef<RoomSocket | null>(null);
-  const joinedAttemptRef = useRef<RoomJoin | null>(null);
+  /** Covers reconnects of this page when `localStorage` is blocked. */
+  const resumeTokenRef = useRef<string | null>(null);
 
-  const rejoin = useCallback(async (socket: RoomSocket, attempt: RoomJoin) => {
-    const result = await emitRoomJoin(sendJoinVia(socket), attempt);
-    setRestoring(false);
-    setConnection("online");
-
-    if (result.ok) {
-      joinedAttemptRef.current = attempt;
-      setJoined(toJoinedRoom(result));
-      setError(null);
-      return;
-    }
-
-    settleStoredJoin(tabJoinStorage, attempt.joinCode, result.error);
-    setError(joinFailureMessage(result.error));
-  }, []);
+  const keepResumeToken = useCallback(
+    (token: string) => {
+      resumeTokenRef.current = token;
+      // Once the token is stored, the pending join attempt is no longer needed to reclaim.
+      if (rememberResumeToken(resumeTokenStorage, joinCode, token)) {
+        forgetStoredJoin(tabJoinStorage, joinCode);
+      }
+    },
+    [joinCode],
+  );
 
   useEffect(() => {
-    // Read after mount: sessionStorage does not exist during server rendering.
-    if (readStoredJoin(tabJoinStorage, joinCode) !== null) setRestoring(true);
+    // Read after mount: browser storage does not exist during server rendering.
+    const hasStoredPlace =
+      readResumeToken(resumeTokenStorage, joinCode) !== null ||
+      readStoredJoin(tabJoinStorage, joinCode) !== null;
+    if (hasStoredPlace) setRestoring(true);
     const socket = createRoomSocket();
     socketRef.current = socket;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let resumeRetries = 0;
 
-    socket.on("connect", () => {
-      // A reconnect or a page refresh is a new socket on the server: the same key returns the
-      // same Participant and puts this socket back into the Room's channels. Until that rejoin
-      // is acknowledged the socket is not a Participant, so an Answer sent now would be refused.
-      const attempt = joinedAttemptRef.current ?? readStoredJoin(tabJoinStorage, joinCode);
-      if (attempt === null) setConnection("online");
-      else void rejoin(socket, attempt);
+    const isCurrent = () => socketRef.current === socket && socket.connected;
+
+    function dropResumeToken() {
+      resumeTokenRef.current = null;
+      forgetResumeToken(resumeTokenStorage, joinCode);
+    }
+
+    async function rejoin(attempt: RoomJoin) {
+      const result = await emitRoomJoin(sendJoinVia(socket), attempt);
+      if (!isCurrent()) return;
+      setRestoring(false);
+      setConnection("online");
+
+      if (result.ok) {
+        keepResumeToken(result.resumeToken);
+        setJoined((current) => toJoinedRoom(result, current?.score ?? 0));
+        setError(null);
+        return;
+      }
+
+      settleStoredJoin(tabJoinStorage, attempt.joinCode, result.error);
+      setError(joinFailureMessage(result.error));
+    }
+
+    async function resume(resumeToken: string) {
+      const result = await emitRoomResume(sendResumeVia(socket), { joinCode, resumeToken });
+      if (!isCurrent()) return;
+
+      if (result.ok) {
+        resumeRetries = 0;
+        setJoined(toJoinedRoom(result, result.score));
+        setError(null);
+        setRestoring(false);
+        setConnection("online");
+        return;
+      }
+
+      const fallback = resumeFallback(result.error, readStoredJoin(tabJoinStorage, joinCode));
+      if (fallback.kind === "retry") {
+        resumeRetries += 1;
+        if (resumeRetries > MAX_RESUME_RETRIES) {
+          // Keep the token: a refresh tries again, and it may still be good.
+          setRestoring(false);
+          setError(RESUME_GAVE_UP_MESSAGE);
+          return;
+        }
+        // The token may still be good; stay "not online" so no Answer is sent before the reclaim.
+        setError(RESUME_RETRY_MESSAGE);
+        retryTimer = setTimeout(() => void reclaim(), RESUME_RETRY_DELAY_MS);
+        return;
+      }
+
+      dropResumeToken();
+      setJoined(null);
+      if (fallback.kind === "rejoin") {
+        await rejoin(fallback.attempt);
+        return;
+      }
+      setRestoring(false);
+      setConnection("online");
+      setError(joinFailureMessage("invalid_resume_token"));
+    }
+
+    // A reconnect or a page refresh is a new socket on the server. Until the reclaim is
+    // acknowledged the socket is not a Participant, so an Answer sent now would be refused.
+    async function reclaim() {
+      if (!isCurrent()) return;
+      const resumeToken = resumeTokenRef.current ?? readResumeToken(resumeTokenStorage, joinCode);
+      const step = nextReconnectStep(resumeToken, readStoredJoin(tabJoinStorage, joinCode));
+      switch (step.kind) {
+        case "resume":
+          await resume(step.resumeToken);
+          return;
+        case "rejoin":
+          await rejoin(step.attempt);
+          return;
+        case "none":
+          setRestoring(false);
+          setConnection("online");
+          return;
+      }
+    }
+
+    socket.on("connect", () => void reclaim());
+    socket.on("disconnect", () => {
+      clearTimeout(retryTimer);
+      setConnection("offline");
     });
-    socket.on("disconnect", () => setConnection("offline"));
     socket.on("connect_error", () => setConnection("offline"));
     socket.on("room:lobby", (payload) => {
       setJoined((current) => {
@@ -123,20 +240,24 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
     });
 
     return () => {
+      clearTimeout(retryTimer);
       socketRef.current = null;
       socket.disconnect();
     };
-  }, [joinCode, rejoin]);
+  }, [joinCode, keepResumeToken]);
 
   // A missing socket sends nothing, so the acknowledgement timeout reports no_response.
   const sendAnswer = useCallback<SendRoundAnswer>((payload, acknowledge) => {
     socketRef.current?.emit("round:answer", payload, acknowledge);
   }, []);
 
-  const handleJoined = useCallback((attempt: RoomJoin, room: JoinedRoom) => {
-    joinedAttemptRef.current = attempt;
-    setJoined(room);
-  }, []);
+  const handleJoined = useCallback(
+    (result: JoinSuccess) => {
+      keepResumeToken(result.resumeToken);
+      setJoined(toJoinedRoom(result, 0));
+    },
+    [keepResumeToken],
+  );
 
   if (joined === null) {
     return (
@@ -161,8 +282,8 @@ interface DisplayNameFormProps {
   readonly connection: ConnectionStatus;
   readonly defaultDisplayName: string;
   readonly joinCode: string;
-  readonly onJoined: (attempt: RoomJoin, room: JoinedRoom) => void;
-  /** Why replaying this tab's earlier join failed, shown until the form reports its own error. */
+  readonly onJoined: (result: JoinSuccess) => void;
+  /** Why restoring the earlier place in this Room failed, shown until the form reports its own error. */
   readonly restoreError: string | null;
   readonly restoring: boolean;
   readonly socketRef: { readonly current: RoomSocket | null };
@@ -216,7 +337,7 @@ function DisplayNameForm({
 
     if (result.ok) {
       failedRef.current = null;
-      onJoined(attempt, toJoinedRoom(result));
+      onJoined(result);
       return;
     }
 

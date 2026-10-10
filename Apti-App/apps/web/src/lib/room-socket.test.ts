@@ -2,6 +2,8 @@ import type {
   LobbySnapshot,
   RoomJoin,
   RoomJoinResponse,
+  RoomResume,
+  RoomResumeResponse,
   RoundAnswer,
   RoundAnswerResponse,
   RoundView,
@@ -10,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createRoomSocket,
   emitRoomJoin,
+  emitRoomResume,
   emitRoundAnswer,
   parseLobbyUpdate,
   parseRoundUpdate,
@@ -52,6 +55,8 @@ const attempt: RoomJoin = {
   displayName: "Asha",
   idempotencyKey: "4f0c2b8e-8d1a-4f43-9a55-0e6f7d3b2c11",
 };
+
+const resumeToken = "r".repeat(43);
 
 type Listener = (...args: unknown[]) => void;
 
@@ -111,6 +116,7 @@ describe("emitRoomJoin", () => {
       participant: { participantId: "p-1", displayName: "Asha", isGuest: true },
       lobby,
       round: null,
+      resumeToken,
     };
     const send = vi.fn((_payload: RoomJoin, acknowledge: (value: unknown) => void) =>
       acknowledge(response),
@@ -126,6 +132,7 @@ describe("emitRoomJoin", () => {
       participant: { participantId: "p-1", displayName: "Asha", isGuest: true },
       lobby: { ...lobby, phase: "QUESTION_OPEN" },
       round,
+      resumeToken,
     };
     const send = (_payload: RoomJoin, acknowledge: (value: unknown) => void) =>
       acknowledge(response);
@@ -155,6 +162,58 @@ describe("emitRoomJoin", () => {
     const result = emitRoomJoin(() => undefined, attempt, 5_000);
 
     await vi.advanceTimersByTimeAsync(5_000);
+    await expect(result).resolves.toEqual({ ok: false, error: "no_response" });
+  });
+});
+
+describe("emitRoomResume", () => {
+  const resume: RoomResume = { joinCode: "AB3CD9", resumeToken };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns the validated acknowledgement with the restored Participant and score", async () => {
+    const response: RoomResumeResponse = {
+      ok: true,
+      participant: { participantId: "p-1", displayName: "Asha", isGuest: true },
+      lobby,
+      round: null,
+      score: 1_800,
+    };
+    const send = vi.fn((_payload: RoomResume, acknowledge: (value: unknown) => void) =>
+      acknowledge(response),
+    );
+
+    await expect(emitRoomResume(send, resume)).resolves.toEqual(response);
+    expect(send).toHaveBeenCalledWith(resume, expect.any(Function));
+  });
+
+  it("passes a refused Resume Token through", async () => {
+    const send = (_payload: RoomResume, acknowledge: (value: unknown) => void) =>
+      acknowledge({ ok: false, error: "invalid_resume_token" });
+
+    await expect(emitRoomResume(send, resume)).resolves.toEqual({
+      ok: false,
+      error: "invalid_resume_token",
+    });
+  });
+
+  it("treats a malformed acknowledgement as a retryable failure", async () => {
+    const send = (_payload: RoomResume, acknowledge: (value: unknown) => void) =>
+      acknowledge({ ok: true, participant: { participantId: "p-1" }, score: -1 });
+
+    await expect(emitRoomResume(send, resume)).resolves.toEqual({
+      ok: false,
+      error: "join_failed",
+    });
+  });
+
+  it("gives up with no_response when the Game Server does not answer", async () => {
+    vi.useFakeTimers();
+    const result = emitRoomResume(() => undefined, resume, 4_000);
+
+    await vi.advanceTimersByTimeAsync(4_000);
     await expect(result).resolves.toEqual({ ok: false, error: "no_response" });
   });
 });
@@ -250,6 +309,9 @@ describe("parseRoundUpdate", () => {
       result: { correct: true, points: 900 },
       scores: [
         { participantId: "p-1", displayName: "Asha", answered: true, correct: true, points: 900 },
+      ],
+      leaderboard: [
+        { participantId: "p-1", displayName: "Asha", rank: 1, totalScore: 900, movement: null },
       ],
     };
 

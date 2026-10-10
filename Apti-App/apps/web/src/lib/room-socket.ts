@@ -5,9 +5,11 @@ import {
   type LockedAnswer,
   lobbySnapshotSchema,
   type RoomJoin,
+  type RoomResume,
   type RoundAnswer,
   type RoundView,
   roomJoinResponseSchema,
+  roomResumeResponseSchema,
   roundAnswerResponseSchema,
   roundViewSchema,
   type ServerToClientEvents,
@@ -28,10 +30,32 @@ interface RoomSocketDependencies {
 }
 
 export type JoinResult =
-  | { ok: true; participant: LobbyParticipant; lobby: LobbySnapshot; round: RoundView | null }
+  | {
+      ok: true;
+      participant: LobbyParticipant;
+      lobby: LobbySnapshot;
+      round: RoundView | null;
+      /** Kept only by this browser to reclaim the Participant after a reconnect. */
+      resumeToken: string;
+    }
   | { ok: false; error: JoinFailure };
 
 export type SendRoomJoin = (payload: RoomJoin, acknowledge: (response: unknown) => void) => void;
+
+export type ResumeResult =
+  | {
+      ok: true;
+      participant: LobbyParticipant;
+      lobby: LobbySnapshot;
+      round: RoundView | null;
+      score: number;
+    }
+  | { ok: false; error: JoinFailure };
+
+export type SendRoomResume = (
+  payload: RoomResume,
+  acknowledge: (response: unknown) => void,
+) => void;
 
 export type AnswerResult = { ok: true; answer: LockedAnswer } | { ok: false; error: AnswerFailure };
 
@@ -81,6 +105,26 @@ export function emitRoomJoin(
     send(attempt, (response) => {
       clearTimeout(timer);
       const parsed = roomJoinResponseSchema.safeParse(response);
+      resolve(parsed.success ? parsed.data : { ok: false, error: "join_failed" });
+    });
+  });
+}
+
+/**
+ * Sends `room:resume` and validates the acknowledgement. No answer in time becomes
+ * `no_response` and a malformed one `join_failed`; both keep the Resume Token for a retry.
+ */
+export function emitRoomResume(
+  send: SendRoomResume,
+  payload: RoomResume,
+  timeoutMs = JOIN_ACK_TIMEOUT_MS,
+): Promise<ResumeResult> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve({ ok: false, error: "no_response" }), timeoutMs);
+
+    send(payload, (response) => {
+      clearTimeout(timer);
+      const parsed = roomResumeResponseSchema.safeParse(response);
       resolve(parsed.success ? parsed.data : { ok: false, error: "join_failed" });
     });
   });

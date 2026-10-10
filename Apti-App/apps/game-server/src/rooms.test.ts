@@ -277,11 +277,13 @@ describe("room:join", () => {
     });
     expect(store.participants).toEqual([
       {
+        id: expect.any(String),
         roomId: roomA.roomId,
         collegeId: roomA.college.id,
         userId: null,
         displayName: "Asha",
         idempotencyKey: key,
+        resumeTokenHash: expect.any(String),
       },
     ]);
   });

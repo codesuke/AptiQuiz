@@ -26,6 +26,7 @@ const JOIN_FAILURE_MESSAGES: Record<JoinFailure, string> = {
   start_failed: "We couldn't start the match just now. Try again.",
   round_not_revealed: "Wait for this Question to close before moving on.",
   room_finished: "This match has finished.",
+  invalid_resume_token: "Your earlier place in this Room could not be restored. Join again.",
   advance_failed: "We couldn't move to the next Question just now. Try again.",
   no_response: "The game server didn't respond. Check your connection and try again.",
 };

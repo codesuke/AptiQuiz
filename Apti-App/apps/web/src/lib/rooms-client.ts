@@ -36,6 +36,7 @@ const roomErrorMessages: Record<RoomError, string> = {
   start_failed: "The match did not start. Try again.",
   round_not_revealed: "This Question is still open. Wait for the reveal, then try again.",
   room_finished: "This match has finished.",
+  invalid_resume_token: "That place in the Room could not be restored. Join again.",
   advance_failed: "The next Question did not open. Try again.",
 };
 

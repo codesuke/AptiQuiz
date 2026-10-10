@@ -56,6 +56,7 @@ export function createConfiguredRegistry(
       maxDelayCompensationMs: config.maxDelayCompensationMs,
       scoreBucketMs: config.scoreBucketMs,
     },
+    resumeSecret: config.gameServerSecret,
   });
 }
 

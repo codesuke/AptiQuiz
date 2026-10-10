@@ -133,11 +133,15 @@ export async function getHostedRoom(
 }
 
 export type ParticipantRecord = {
+  /** Chosen by the Game Server so it can derive the Resume Token before the write. */
+  readonly id: string;
   readonly roomId: string;
   readonly collegeId: string;
   readonly userId: string | null;
   readonly displayName: string;
   readonly idempotencyKey: string;
+  /** SHA-256 of the Participant's Resume Token; the token itself is never stored. */
+  readonly resumeTokenHash: string;
 };
 
 async function findParticipant(db: PrismaClient, input: ParticipantRecord) {
@@ -151,7 +155,10 @@ async function findParticipant(db: PrismaClient, input: ParticipantRecord) {
   });
 }
 
-/** One Participant per signed-in User per Room, and one per Guest idempotency key. */
+/**
+ * One Participant per signed-in User per Room, and one per Guest idempotency key. A retry or a
+ * lost race returns the existing Participant's id, whose Resume Token hash was stored with it.
+ */
 export async function recordParticipant(
   db: PrismaClient,
   input: ParticipantRecord,

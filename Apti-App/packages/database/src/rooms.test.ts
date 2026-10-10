@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { roomCodeSchema } from "@aptiquiz/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -36,6 +36,10 @@ function textQuestion(text: string) {
     topic: "Logic",
     difficulty: "EASY",
   };
+}
+
+function randomTokenHash() {
+  return createHash("sha256").update(randomUUID()).digest("base64url");
 }
 
 function uniqueJoinCode() {
@@ -231,11 +235,13 @@ describe.skipIf(!databaseUrl)("Rooms", () => {
       const room = await create(starterSetId);
       const join = (userId: string | null, idempotencyKey = randomUUID()) =>
         recordParticipant(db, {
+          id: randomUUID(),
           roomId: room.roomId,
           collegeId,
           userId,
           displayName: userId ? "Signed In" : "Guest Player",
           idempotencyKey,
+          resumeTokenHash: randomTokenHash(),
         });
 
       const member = await join(otherId);
@@ -255,6 +261,37 @@ describe.skipIf(!databaseUrl)("Rooms", () => {
         userId: null,
         collegeId,
       });
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "stores the chosen Participant id and Resume Token hash, and a retry keeps the first ones",
+    async () => {
+      const room = await create(starterSetId);
+      const idempotencyKey = randomUUID();
+      const first = {
+        id: randomUUID(),
+        roomId: room.roomId,
+        collegeId,
+        userId: null,
+        displayName: "Resumable Guest",
+        idempotencyKey,
+        resumeTokenHash: randomTokenHash(),
+      };
+
+      const created = await recordParticipant(db, first);
+      const retried = await recordParticipant(db, {
+        ...first,
+        id: randomUUID(),
+        resumeTokenHash: randomTokenHash(),
+      });
+
+      expect(created.participantId).toBe(first.id);
+      expect(retried.participantId).toBe(first.id);
+      const rows = await db.participant.findMany({ where: { roomId: room.roomId } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.resumeTokenHash).toBe(first.resumeTokenHash);
     },
     TEST_TIMEOUT_MS,
   );

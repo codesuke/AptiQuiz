@@ -41,7 +41,7 @@ export function createInMemoryRoomStore(): InMemoryRoomStore {
       }
 
       participants.push(input);
-      return { participantId: `participant_${participants.length}` };
+      return { participantId: input.id };
     },
     markRoomStarted: async (roomId) => {
       startedRoomIds.push(roomId);

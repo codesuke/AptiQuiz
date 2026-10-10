@@ -2,10 +2,12 @@ import {
   displayNameSchema,
   type LobbySnapshot,
   type RoomError,
+  resumeTokenSchema,
   roomAdvanceSchema,
   roomCodeSchema,
   roomHostSchema,
   roomJoinSchema,
+  roomResumeSchema,
   roomStartSchema,
   roundAnswerSchema,
 } from "@aptiquiz/contracts";
@@ -20,10 +22,11 @@ import type {
   RoundClosure,
   RoundDelivery,
   ValidJoinRequest,
+  ValidResumeRequest,
 } from "./rooms.js";
 
-type JoinValidation =
-  | { readonly ok: true; readonly request: ValidJoinRequest }
+type Validation<Request> =
+  | { readonly ok: true; readonly request: Request }
   | { readonly ok: false; readonly error: RoomError };
 
 interface RoomHandlerDependencies {
@@ -100,6 +103,13 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     registry.connect(roomId, participantId, socket.id);
   };
 
+  /** A join and a resume subscribe the socket alike, so a resumed socket gets every later event. */
+  const followAsParticipant = (roomId: string, participantId: string) => {
+    socket.join([lobbyChannel(roomId), participantChannel(roomId, participantId)]);
+    attachParticipant(roomId, participantId);
+    latency.track(socket);
+  };
+
   socket.on("room:host", (payload, callback) => {
     const acknowledge = safeAcknowledge(callback);
     const parsed = roomHostSchema.safeParse(payload);
@@ -134,7 +144,7 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
       return;
     }
 
-    const { participant, lobby, round } = result;
+    const { participant, lobby, round, resumeToken } = result;
 
     // The socket may have dropped during the database write; tracking it now would leave a
     // connection that never disconnects and block early Round closure.
@@ -142,17 +152,30 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
       return;
     }
 
-    socket.join([
-      lobbyChannel(lobby.roomId),
-      participantChannel(lobby.roomId, participant.participantId),
-    ]);
-    attachParticipant(lobby.roomId, participant.participantId);
-    acknowledge({ ok: true, participant, lobby, round });
-    latency.track(socket);
+    followAsParticipant(lobby.roomId, participant.participantId);
+    acknowledge({ ok: true, participant, lobby, round, resumeToken });
 
     if (result.rosterChanged) {
       publishLobby(io, result.lobby);
     }
+  });
+
+  socket.on("room:resume", (payload, callback) => {
+    const acknowledge = safeAcknowledge(callback);
+    const validation = validateResume(payload);
+
+    if (!validation.ok) {
+      acknowledge({ ok: false, error: validation.error });
+      return;
+    }
+
+    const result = registry.resume(validation.request, socket.data.identity);
+
+    if (result.ok) {
+      followAsParticipant(result.lobby.roomId, result.participant.participantId);
+    }
+
+    acknowledge(result);
   });
 
   socket.on("room:start", async (payload, callback) => {
@@ -243,7 +266,7 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
   });
 }
 
-function validateJoin(payload: unknown): JoinValidation {
+function validateJoin(payload: unknown): Validation<ValidJoinRequest> {
   const request = roomJoinSchema.safeParse(payload);
 
   if (!request.success) {
@@ -270,6 +293,29 @@ function validateJoin(payload: unknown): JoinValidation {
       idempotencyKey: request.data.idempotencyKey,
     },
   };
+}
+
+/** Any token that fails its schema is as unknown as a wrong one, so both get the same refusal. */
+function validateResume(payload: unknown): Validation<ValidResumeRequest> {
+  const request = roomResumeSchema.safeParse(payload);
+
+  if (!request.success) {
+    return { ok: false, error: "invalid_request" };
+  }
+
+  const joinCode = roomCodeSchema.safeParse(request.data.joinCode);
+
+  if (!joinCode.success) {
+    return { ok: false, error: "invalid_join_code" };
+  }
+
+  const resumeToken = resumeTokenSchema.safeParse(request.data.resumeToken);
+
+  if (!resumeToken.success) {
+    return { ok: false, error: "invalid_resume_token" };
+  }
+
+  return { ok: true, request: { joinCode: joinCode.data, resumeToken: resumeToken.data } };
 }
 
 /** The live transition stays authoritative; a failed write is logged rather than undone. */

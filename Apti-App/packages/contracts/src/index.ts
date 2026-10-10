@@ -256,6 +256,7 @@ export const roomErrorSchema = z.enum([
   "start_failed",
   "round_not_revealed",
   "room_finished",
+  "invalid_resume_token",
   "advance_failed",
 ]);
 
@@ -270,6 +271,11 @@ export const roomJoinSchema = z.object({
 export const roomStartSchema = z.object({
   roomId: roomIdSchema,
   idempotencyKey: idempotencyKeySchema,
+});
+
+export const roomResumeSchema = z.object({
+  joinCode: z.string(),
+  resumeToken: z.string(),
 });
 
 /** The Host moves a revealed Room to its next Question, or finishes it after the last one. */
@@ -289,12 +295,17 @@ export const roomHostResponseSchema = z.discriminatedUnion("ok", [
   roomFailureSchema,
 ]);
 
+/** Opaque, high-entropy proof that reclaims one Participant of one Room after a reconnect. */
+export const resumeTokenSchema = z.string().min(32).max(128);
+
 export const roomJoinResponseSchema = z.discriminatedUnion("ok", [
   z.object({
     ok: z.literal(true),
     participant: lobbyParticipantSchema,
     lobby: lobbySnapshotSchema,
     round: roundViewSchema.nullable(),
+    /** Sent only to the joining browser; never broadcast. */
+    resumeToken: resumeTokenSchema,
   }),
   roomFailureSchema,
 ]);
@@ -340,6 +351,19 @@ export const roomAdvanceResponseSchema = z.discriminatedUnion("ok", [
   roomFailureSchema,
 ]);
 
+export const roomResumeResponseSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    participant: lobbyParticipantSchema,
+    lobby: lobbySnapshotSchema,
+    /** The current Round in this Participant's own option order, or null outside a Round. */
+    round: roundViewSchema.nullable(),
+    /** Points from revealed Rounds only, so an open Round never discloses correctness. */
+    score: z.number().int().nonnegative(),
+  }),
+  roomFailureSchema,
+]);
+
 export type RoomQuestion = z.infer<typeof roomQuestionSchema>;
 export type RoomRegistration = z.infer<typeof roomRegistrationSchema>;
 export type RoomRegistrationResponse = z.infer<typeof roomRegistrationResponseSchema>;
@@ -367,6 +391,8 @@ export type RoomStart = z.infer<typeof roomStartSchema>;
 export type RoomHostResponse = z.infer<typeof roomHostResponseSchema>;
 export type RoomJoinResponse = z.infer<typeof roomJoinResponseSchema>;
 export type RoomStartResponse = z.infer<typeof roomStartResponseSchema>;
+export type RoomResume = z.infer<typeof roomResumeSchema>;
+export type RoomResumeResponse = z.infer<typeof roomResumeResponseSchema>;
 export type RoomAdvance = z.infer<typeof roomAdvanceSchema>;
 export type RoomAdvanceResponse = z.infer<typeof roomAdvanceResponseSchema>;
 
@@ -386,6 +412,7 @@ export interface ClientToServerEvents {
   "room:host": (payload: RoomHost, acknowledge: (response: RoomHostResponse) => void) => void;
   "room:join": (payload: RoomJoin, acknowledge: (response: RoomJoinResponse) => void) => void;
   "room:start": (payload: RoomStart, acknowledge: (response: RoomStartResponse) => void) => void;
+  "room:resume": (payload: RoomResume, acknowledge: (response: RoomResumeResponse) => void) => void;
   "room:advance": (
     payload: RoomAdvance,
     acknowledge: (response: RoomAdvanceResponse) => void,

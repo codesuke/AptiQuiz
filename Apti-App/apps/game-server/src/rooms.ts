@@ -30,6 +30,7 @@ import {
   transitionGame,
 } from "@aptiquiz/game-engine";
 import type { Logger } from "pino";
+import { deriveResumeToken, hashResumeToken } from "./resume-token.js";
 import type { RoomStore } from "./room-store.js";
 import type { CancelScheduled, Schedule } from "./scheduler.js";
 
@@ -49,7 +50,20 @@ export type JoinResult =
       readonly participant: LobbyParticipant;
       readonly lobby: LobbySnapshot;
       readonly round: RoundView | null;
+      /** Sent only in the joining socket's acknowledgement; never broadcast. */
+      readonly resumeToken: string;
       readonly rosterChanged: boolean;
+    }
+  | RoomFailure;
+
+export type ResumeResult =
+  | {
+      readonly ok: true;
+      readonly participant: LobbyParticipant;
+      readonly lobby: LobbySnapshot;
+      readonly round: RoundView | null;
+      /** Points from revealed Rounds only. */
+      readonly score: number;
     }
   | RoomFailure;
 
@@ -127,6 +141,19 @@ export interface RecordedAnswer {
   readonly points: number;
 }
 
+/** A resume whose Join Code and Resume Token already passed the public contract schemas. */
+export interface ValidResumeRequest {
+  readonly joinCode: string;
+  readonly resumeToken: string;
+}
+
+/** A joined Participant a Resume Token reclaims, and the User who alone may reclaim it. */
+interface ResumableParticipant {
+  readonly identityKey: string;
+  /** null for a Guest, whom any holder of the token may reclaim. */
+  readonly userId: string | null;
+}
+
 /** A join whose code and display name already passed the public contract schemas. */
 export interface ValidJoinRequest {
   readonly joinCode: string;
@@ -167,6 +194,8 @@ interface LiveRoom {
   readonly answers: Map<string, RecordedAnswer>;
   /** Accepted Answers keyed by `answerReceipt`, so a retried key repeats its result. */
   readonly answerReceipts: Map<string, RecordedAnswer>;
+  /** Joined Participants keyed by the hash of their Resume Token; never the token itself. */
+  readonly resumable: Map<string, ResumableParticipant>;
   /** Live sockets of each joined Participant, keyed by Participant id. */
   readonly connections: Map<string, Set<string>>;
   /** Cancels the open Round's deadline timer; null when no timer is pending. */
@@ -206,12 +235,16 @@ export interface RoomRegistryDependencies {
   readonly now: () => number;
   /** Runs Round deadlines against the same server clock as `now`. */
   readonly schedule: Schedule;
+  /** Keys every Resume Token; the Game Server secret. */
+  readonly resumeSecret: string;
 }
 
 export interface RoomRegistry {
   register(registration: RoomRegistration): RegistrationResult;
   hostLobby(roomId: string, identity: ConnectionIdentity): HostResult;
   join(request: ValidJoinRequest, identity: ConnectionIdentity): Promise<JoinResult>;
+  /** Reclaims a joined Participant without changing the Room; repeating it changes nothing. */
+  resume(request: ValidResumeRequest, identity: ConnectionIdentity): ResumeResult;
   start(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): StartResult;
   /** Opens the next Question after a reveal, or finishes the Room after the last one. */
   advance(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): AdvanceResult;
@@ -239,6 +272,7 @@ const START_FAILED: RoomFailure = { ok: false, error: "start_failed" };
 const ROUND_NOT_REVEALED: RoomFailure = { ok: false, error: "round_not_revealed" };
 const ROOM_FINISHED: RoomFailure = { ok: false, error: "room_finished" };
 const ADVANCE_FAILED: RoomFailure = { ok: false, error: "advance_failed" };
+const INVALID_RESUME_TOKEN: RoomFailure = { ok: false, error: "invalid_resume_token" };
 
 type AnswerFailure = Extract<AnswerResult, { ok: false }>;
 
@@ -251,7 +285,7 @@ const ALREADY_ANSWERED: AnswerFailure = { ok: false, error: "already_answered" }
 const INVALID_OPTION: AnswerFailure = { ok: false, error: "invalid_option" };
 
 export function createRoomRegistry(dependencies: RoomRegistryDependencies): RoomRegistry {
-  const { store, logger, rules, now, schedule } = dependencies;
+  const { store, logger, rules, now, schedule, resumeSecret } = dependencies;
   const timing: TimingPolicy = {
     durationMs: rules.roundDurationMs,
     maxCompensationMs: rules.maxDelayCompensationMs,
@@ -280,6 +314,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       participants: new Map(),
       joinedAt: new Map(),
       pendingJoins: new Map(),
+      resumable: new Map(),
       answers: new Map(),
       answerReceipts: new Map(),
       connections: new Map(),
@@ -308,9 +343,17 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     return round === null ? null : viewRound({ room, round }, receiver, now());
   }
 
+  function findRoomByJoinCode(joinCode: string): LiveRoom | undefined {
+    const roomId = roomIdsByJoinCode.get(joinCode);
+    return roomId === undefined ? undefined : rooms.get(roomId);
+  }
+
+  function resumeTokenFor(room: LiveRoom, participantId: string): string {
+    return deriveResumeToken(resumeSecret, room.registration.roomId, participantId);
+  }
+
   function join(request: ValidJoinRequest, identity: ConnectionIdentity): Promise<JoinResult> {
-    const roomId = roomIdsByJoinCode.get(request.joinCode);
-    const room = roomId === undefined ? undefined : rooms.get(roomId);
+    const room = findRoomByJoinCode(request.joinCode);
 
     if (room === undefined) {
       return Promise.resolve(ROOM_NOT_FOUND);
@@ -325,6 +368,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
         participant: joined,
         lobby: toLobby(room),
         round: currentRoundView(room, participantReceiver(joined)),
+        resumeToken: resumeTokenFor(room, joined.participantId),
         rosterChanged: false,
       });
     }
@@ -354,13 +398,19 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     request: ValidJoinRequest,
     identity: ConnectionIdentity,
   ): Promise<JoinResult> {
+    const userId = identity.kind === "user" ? identity.userId : null;
+    const chosenId = randomUUID();
+
     try {
+      // A retry or race may return an earlier Participant; its token is derived from that id.
       const { participantId } = await store.recordParticipant({
+        id: chosenId,
         roomId: room.registration.roomId,
         collegeId: participantCollegeId(room, identity),
-        userId: identity.kind === "user" ? identity.userId : null,
+        userId,
         displayName: request.displayName,
         idempotencyKey: request.idempotencyKey,
+        resumeTokenHash: hashResumeToken(resumeTokenFor(room, chosenId)),
       });
 
       // The Host may start while the write is in flight. The stored row stays, but the
@@ -374,9 +424,18 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
         displayName: request.displayName,
         isGuest: identity.kind === "guest",
       };
+      const resumeToken = resumeTokenFor(room, participantId);
       room.participants.set(identityKey, participant);
       room.joinedAt.set(participantId, now());
-      return { ok: true, participant, lobby: toLobby(room), round: null, rosterChanged: true };
+      room.resumable.set(hashResumeToken(resumeToken), { identityKey, userId });
+      return {
+        ok: true,
+        participant,
+        lobby: toLobby(room),
+        round: null,
+        resumeToken,
+        rosterChanged: true,
+      };
     } catch (error) {
       logger.error(
         { roomId: room.registration.roomId, err: error },
@@ -386,6 +445,32 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     } finally {
       room.pendingJoins.delete(identityKey);
     }
+  }
+
+  function resume(request: ValidResumeRequest, identity: ConnectionIdentity): ResumeResult {
+    const room = findRoomByJoinCode(request.joinCode);
+
+    if (room === undefined) {
+      return ROOM_NOT_FOUND;
+    }
+
+    const resumable = room.resumable.get(hashResumeToken(request.resumeToken));
+    const participant =
+      resumable !== undefined && mayReclaim(resumable, identity)
+        ? room.participants.get(resumable.identityKey)
+        : undefined;
+
+    if (participant === undefined) {
+      return INVALID_RESUME_TOKEN;
+    }
+
+    return {
+      ok: true,
+      participant,
+      lobby: toLobby(room),
+      round: currentRoundView(room, participantReceiver(participant)),
+      score: revealedScoreOf(room, participant.participantId),
+    };
   }
 
   function start(
@@ -713,6 +798,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     register,
     hostLobby,
     join,
+    resume,
     start,
     advance,
     answer,
@@ -745,6 +831,32 @@ function everyConnectedParticipantAnswered(room: LiveRoom, round: ActiveRound): 
     connected.length > 0 &&
     connected.every((participantId) => recordedAnswerOf(room, round, participantId) !== undefined)
   );
+}
+
+/** A Resume Token never signs anyone in as a different User; a Guest's token is enough alone. */
+function mayReclaim(resumable: ResumableParticipant, identity: ConnectionIdentity): boolean {
+  return (
+    resumable.userId === null || (identity.kind === "user" && identity.userId === resumable.userId)
+  );
+}
+
+/** Points from revealed Rounds, totalled like the Leaderboard so the two always agree. */
+function revealedScoreOf(room: LiveRoom, participantId: string): number {
+  const standing = standingsThrough(room, lastRevealedQuestion(room)).find(
+    (candidate) => candidate.participantId === participantId,
+  );
+  return standing?.totalScore ?? 0;
+}
+
+/** An open Round is not revealed yet, so its points stay out until the reveal. */
+function lastRevealedQuestion(room: LiveRoom): number {
+  const { phase, questionIndex } = room.game;
+
+  if (questionIndex === null) {
+    return -1;
+  }
+
+  return phase === "QUESTION_OPEN" ? questionIndex - 1 : questionIndex;
 }
 
 function hasParticipant(room: LiveRoom, participantId: string): boolean {
