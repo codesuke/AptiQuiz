@@ -79,22 +79,14 @@ export function RoundFrame({
   );
 }
 
-interface RevealedQuestionProps {
+interface RevealedFrameProps {
   readonly view: RevealedRound;
   readonly clockOffsetMs: number;
-  /** The viewing Participant's id, to highlight their row; omitted for the Host. */
-  readonly viewerId?: string;
-  /** Shown between the options and the Leaderboard, e.g. the Participant's own result. */
   readonly children?: ReactNode;
 }
 
-/** A closed Round: options with the correct one and the receiver's pick marked, then the Leaderboard. */
-export function RevealedQuestion({
-  view,
-  clockOffsetMs,
-  viewerId,
-  children,
-}: RevealedQuestionProps) {
+/** A closed Round's Question with the correct option and the receiver's pick marked. */
+function RevealedFrame({ view, clockOffsetMs, children }: RevealedFrameProps) {
   const secondsLeft = useDeadlineCountdown(view.revealEndsAt, clockOffsetMs);
   const nextLabel = view.questionIndex + 1 === view.questionCount ? "Results" : "Next Question";
   return (
@@ -123,8 +115,31 @@ export function RevealedQuestion({
         })}
       </ol>
       {children}
-      <Leaderboard entries={view.leaderboard} viewerId={viewerId ?? null} />
     </RoundFrame>
+  );
+}
+
+interface RevealedQuestionProps {
+  readonly view: RevealedRound;
+  readonly clockOffsetMs: number;
+  /** The viewing Participant's id, to highlight their row. */
+  readonly viewerId: string;
+  /** Shown between the options and the Leaderboard, e.g. the Participant's own result. */
+  readonly children?: ReactNode;
+}
+
+/** A Participant's closed Round: the marked options, then the Leaderboard in the same card. */
+export function RevealedQuestion({
+  view,
+  clockOffsetMs,
+  viewerId,
+  children,
+}: RevealedQuestionProps) {
+  return (
+    <RevealedFrame clockOffsetMs={clockOffsetMs} view={view}>
+      {children}
+      <Leaderboard entries={view.leaderboard} viewerId={viewerId} />
+    </RevealedFrame>
   );
 }
 
@@ -166,13 +181,16 @@ interface RoundQuestionProps {
   readonly round: ReceivedRound;
 }
 
-/** The Host's read-only view: options in the authored order, no answer controls. */
+/**
+ * The Host's read-only Question: options in the authored order, no answer controls. The Host
+ * view shows the revealed Leaderboard in its own section below this card.
+ */
 export function RoundQuestion({ round }: RoundQuestionProps) {
   const { view } = round;
   switch (view.phase) {
     case "QUESTION_OPEN":
       return <OpenHostQuestion round={round} />;
     case "QUESTION_REVEAL":
-      return <RevealedQuestion clockOffsetMs={round.clockOffsetMs} view={view} />;
+      return <RevealedFrame clockOffsetMs={round.clockOffsetMs} view={view} />;
   }
 }

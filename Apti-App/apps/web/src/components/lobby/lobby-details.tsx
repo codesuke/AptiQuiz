@@ -170,22 +170,37 @@ function ParticipantRoster({ participants }: { readonly participants: LobbyParti
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.24, ease: "easeOut" }}
         >
-          <span
-            aria-hidden="true"
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--aq-ink)] text-sm font-semibold text-white"
-          >
-            {participant.displayName.charAt(0).toUpperCase()}
-          </span>
-          <span className="min-w-0 flex-1 truncate font-medium" title={participant.displayName}>
-            {participant.displayName}
-          </span>
-          {participant.isGuest ? (
-            <span className="shrink-0 font-mono text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[#7a857f]">
-              Guest
-            </span>
-          ) : null}
+          <ParticipantIdentity participant={participant} avatarClassName="size-9 text-sm" />
         </motion.li>
       ))}
     </ul>
+  );
+}
+
+interface ParticipantIdentityProps {
+  readonly participant: LobbyParticipant;
+  /** Avatar size and type scale, so dense rosters can use a smaller avatar. */
+  readonly avatarClassName: string;
+}
+
+/** One roster row's content: initial avatar, display name, and the Guest tag. */
+export function ParticipantIdentity({ participant, avatarClassName }: ParticipantIdentityProps) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={`grid shrink-0 place-items-center rounded-full bg-[var(--aq-ink)] font-semibold text-white ${avatarClassName}`}
+      >
+        {participant.displayName.charAt(0).toUpperCase()}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-medium" title={participant.displayName}>
+        {participant.displayName}
+      </span>
+      {participant.isGuest ? (
+        <span className="shrink-0 font-mono text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[#7a857f]">
+          Guest
+        </span>
+      ) : null}
+    </>
   );
 }
