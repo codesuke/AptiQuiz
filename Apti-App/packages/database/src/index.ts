@@ -13,11 +13,14 @@ export function createDatabase(connectionString: string): PrismaClient {
 export { APPROVED_COLLEGES, collegeIdFor, normalizeCollegeName, seedColleges } from "./colleges.js";
 export type { PrismaClient } from "./generated/prisma/client.js";
 export {
+  addQuestion,
   createQuestionSet,
   createQuestionSetSchema,
   getQuestionSet,
   listQuestionSets,
   QUESTION_OPTION_NUMBERS,
   questionInputSchema,
+  questionMediaSchema,
   questionOptionsSchema,
+  seedStarterQuestionSet,
 } from "./question-sets.js";

@@ -119,6 +119,7 @@ model QuestionSet {
 model Question {
   id              String      @id @default(cuid())
   questionSetId   String
+  idempotencyKey  String?
   position        Int
   text            String
   options         Json
@@ -131,6 +132,7 @@ model Question {
   rounds          Round[]
 
   @@unique([questionSetId, position])
+  @@unique([questionSetId, idempotencyKey])
   @@index([questionSetId])
 }
 

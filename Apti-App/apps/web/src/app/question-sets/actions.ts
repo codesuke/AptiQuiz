@@ -1,35 +1,51 @@
 "use server";
 
 import {
+  addQuestion,
   createQuestionSet,
   createQuestionSetSchema,
   QUESTION_OPTION_NUMBERS,
+  questionInputSchema,
+  seedStarterQuestionSet,
 } from "@aptiquiz/database";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 
-export async function createQuestionSetAction(formData: FormData) {
-  const session = await getActiveSession(await headers());
-  if (!session) redirect("/sign-in");
-
+function readQuestion(formData: FormData) {
   const options = QUESTION_OPTION_NUMBERS.map((number) => ({
     id: String(number),
     text: String(formData.get(`option-${number}`) ?? "").trim(),
   })).filter((option) => option.text.length > 0);
+  const imageUrl = String(formData.get("imageUrl") ?? "").trim();
+  const tableText = String(formData.get("table") ?? "").trim();
+  const lines = tableText
+    ? tableText.split(/\r?\n/).map((line) => line.split(",").map((cell) => cell.trim()))
+    : [];
+  const [headers, ...rows] = lines;
+  const media = {
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(tableText ? { table: { headers, rows } } : {}),
+  };
+  return {
+    text: formData.get("text"),
+    options,
+    correctOptionId: formData.get("correctOptionId"),
+    topic: formData.get("topic"),
+    difficulty: formData.get("difficulty"),
+    ...(imageUrl || tableText ? { media } : {}),
+  };
+}
+
+export async function createQuestionSetAction(formData: FormData) {
+  const session = await getActiveSession(await headers());
+  if (!session) redirect("/sign-in");
+
   const input = {
     idempotencyKey: formData.get("idempotencyKey"),
     title: formData.get("title"),
-    questions: [
-      {
-        text: formData.get("text"),
-        options,
-        correctOptionId: formData.get("correctOptionId"),
-        topic: formData.get("topic"),
-        difficulty: formData.get("difficulty"),
-      },
-    ],
+    questions: [readQuestion(formData)],
   };
   const parsed = createQuestionSetSchema.safeParse(input);
   if (!parsed.success) {
@@ -38,5 +54,29 @@ export async function createQuestionSetAction(formData: FormData) {
   }
 
   const set = await createQuestionSet(database, session.user.id, parsed.data);
+  redirect(`/question-sets/${set.id}`);
+}
+
+export async function addQuestionAction(formData: FormData) {
+  const session = await getActiveSession(await headers());
+  if (!session) redirect("/sign-in");
+  const setId = String(formData.get("setId") ?? "");
+  const parsed = questionInputSchema.safeParse(readQuestion(formData));
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Check the Question fields.";
+    redirect(`/question-sets/${encodeURIComponent(setId)}?error=${encodeURIComponent(message)}`);
+  }
+  await addQuestion(database, session.user.id, {
+    setId,
+    idempotencyKey: formData.get("idempotencyKey"),
+    question: parsed.data,
+  });
+  redirect(`/question-sets/${setId}`);
+}
+
+export async function seedStarterQuestionSetAction() {
+  const session = await getActiveSession(await headers());
+  if (!session) redirect("/sign-in");
+  const set = await seedStarterQuestionSet(database, session.user.id);
   redirect(`/question-sets/${set.id}`);
 }

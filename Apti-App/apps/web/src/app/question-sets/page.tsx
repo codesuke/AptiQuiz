@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { listQuestionSets, QUESTION_OPTION_NUMBERS } from "@aptiquiz/database";
+import { listQuestionSets } from "@aptiquiz/database";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
-import { createQuestionSetAction } from "./actions";
+import { createQuestionSetAction, seedStarterQuestionSetAction } from "./actions";
+import { QuestionFields } from "./question-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,14 @@ export default async function QuestionSetsPage({
             <h2 className="text-xl font-semibold" id="your-sets-heading">
               Your sets
             </h2>
+            <form action={seedStarterQuestionSetAction} className="mt-4">
+              <button
+                className="rounded-xl border border-[#e65c00] px-4 py-2 font-semibold text-[#b54800] hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-[#e65c00]"
+                type="submit"
+              >
+                Use starter set
+              </button>
+            </form>
             {sets.length === 0 ? (
               <p className="mt-4 text-stone-600">No Question Sets yet.</p>
             ) : (
@@ -77,71 +86,7 @@ export default async function QuestionSetsPage({
                   required
                 />
               </label>
-              <label className="block text-sm font-medium">
-                Question text
-                <textarea
-                  className="mt-1 min-h-24 w-full rounded-lg border border-stone-300 p-3"
-                  maxLength={4000}
-                  name="text"
-                  required
-                />
-              </label>
-              <fieldset>
-                <legend className="text-sm font-medium">Options (2 to 6)</legend>
-                <p className="mt-1 text-xs text-stone-600">Leave unused options blank.</p>
-                <div className="mt-2 grid gap-2">
-                  {QUESTION_OPTION_NUMBERS.map((number) => (
-                    <label className="flex items-center gap-3 text-sm" key={number}>
-                      <span className="w-5">{number}.</span>
-                      <input
-                        className="w-full rounded-lg border border-stone-300 p-2"
-                        maxLength={500}
-                        name={`option-${number}`}
-                        required={number <= 2}
-                      />
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <label className="block text-sm font-medium">
-                Correct option
-                <select
-                  className="mt-1 w-full rounded-lg border border-stone-300 p-3"
-                  name="correctOptionId"
-                  required
-                >
-                  <option value="">Select an option</option>
-                  {QUESTION_OPTION_NUMBERS.map((number) => (
-                    <option key={number} value={String(number)}>
-                      Option {number}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-medium">
-                  Topic
-                  <input
-                    className="mt-1 w-full rounded-lg border border-stone-300 p-3"
-                    maxLength={100}
-                    name="topic"
-                    required
-                  />
-                </label>
-                <label className="block text-sm font-medium">
-                  Difficulty
-                  <select
-                    className="mt-1 w-full rounded-lg border border-stone-300 p-3"
-                    name="difficulty"
-                    required
-                  >
-                    <option value="">Select difficulty</option>
-                    <option value="EASY">Easy</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HARD">Hard</option>
-                  </select>
-                </label>
-              </div>
+              <QuestionFields />
               <button
                 className="rounded-xl bg-[#e65c00] px-5 py-3 font-semibold text-white hover:bg-[#cc5200] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]"
                 type="submit"
