@@ -5,6 +5,7 @@ import { LobbyDetails, ScoringRuleCard } from "@/components/lobby/lobby-details"
 import { FinalResults } from "@/components/results/final-results";
 import { GettingReady } from "@/components/round/getting-ready";
 import { LiveStage } from "@/components/round/live-motion";
+import { SoundToggle, useLiveSoundCues } from "@/components/round/live-sound-provider";
 import { RoundQuestion } from "@/components/round/round-question";
 import { isMatchFinished } from "@/components/round/round-view";
 import { describeRoomError } from "@/lib/rooms-client";
@@ -32,12 +33,18 @@ export function HostLobby({
   const canStart = inLobby && connection === "online" && !start.pending;
 
   const matchFinished = lobby ? isMatchFinished(lobby) : false;
+  useLiveSoundCues(lobby, round, lobbyReceivedAt);
 
   if (lobby && (lobby.phase === "FINALIZING_RESULTS" || matchFinished)) {
     return (
-      <LiveStage key={lobby.phase}>
-        <FinalResults results={lobby.results} viewerId={null} />
-      </LiveStage>
+      <>
+        <div className="mb-4 flex justify-end">
+          <SoundToggle />
+        </div>
+        <LiveStage key={lobby.phase}>
+          <FinalResults results={lobby.results} viewerId={null} />
+        </LiveStage>
+      </>
     );
   }
 
@@ -61,11 +68,14 @@ export function HostLobby({
             {questionSetTitle} <span aria-hidden="true">·</span> {collegeName}
           </p>
         </div>
-        <RoomStatus
-          connection={connection}
-          registrationFailed={registrationFailed}
-          roomError={roomError}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <SoundToggle />
+          <RoomStatus
+            connection={connection}
+            registrationFailed={registrationFailed}
+            roomError={roomError}
+          />
+        </div>
       </div>
 
       <div

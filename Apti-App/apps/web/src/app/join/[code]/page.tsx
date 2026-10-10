@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { JoinRoom } from "@/components/lobby/join-room";
 import { JoinShell } from "@/components/lobby/join-shell";
+import { LiveSoundProvider } from "@/components/round/live-sound-provider";
 import { getActiveSession } from "@/lib/auth";
 import { joinFailureMessage } from "@/lib/room-errors";
 
@@ -37,7 +38,11 @@ export default async function JoinRoomPage({ params }: JoinRoomPageProps) {
     );
   }
 
-  return <JoinRoom defaultDisplayName={await signedInDisplayName()} joinCode={joinCode.data} />;
+  return (
+    <LiveSoundProvider>
+      <JoinRoom defaultDisplayName={await signedInDisplayName()} joinCode={joinCode.data} />
+    </LiveSoundProvider>
+  );
 }
 
 /** Prefills the form for a signed-in User whose account name is a valid display name. */

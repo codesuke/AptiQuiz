@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { HostLobby } from "@/components/host-lobby/host-lobby";
+import { LiveSoundProvider } from "@/components/round/live-sound-provider";
 import { getActiveSession } from "@/lib/auth";
 import { registerRoom } from "@/lib/game-server-registration";
 import { findHostedRoom } from "@/lib/rooms";
@@ -54,13 +55,15 @@ export default async function HostRoomPage({ params }: { params: Promise<{ roomI
         </div>
       </header>
       <div className="mx-auto max-w-[1672px] px-5 pb-16 pt-9 sm:px-10 sm:pt-12">
-        <HostLobby
-          collegeName={room.registration.college.name}
-          joinCode={room.joinCode}
-          questionSetTitle={room.registration.questionSetTitle}
-          registrationFailed={registrationFailed}
-          roomId={room.roomId}
-        />
+        <LiveSoundProvider>
+          <HostLobby
+            collegeName={room.registration.college.name}
+            joinCode={room.joinCode}
+            questionSetTitle={room.registration.questionSetTitle}
+            registrationFailed={registrationFailed}
+            roomId={room.roomId}
+          />
+        </LiveSoundProvider>
       </div>
     </main>
   );

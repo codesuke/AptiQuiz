@@ -6,6 +6,7 @@ import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from 
 import { FinalResults } from "@/components/results/final-results";
 import { GettingReady } from "@/components/round/getting-ready";
 import { LiveStage } from "@/components/round/live-motion";
+import { SoundToggle, useLiveSoundCues } from "@/components/round/live-sound-provider";
 import { ParticipantRound } from "@/components/round/participant-round";
 import { isMatchFinished, nextRound } from "@/components/round/round-view";
 import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
@@ -488,6 +489,7 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
   const { participant, lobby, lobbyReceivedAt, round, score } = joined;
   const hasStarted = lobby.phase !== "LOBBY";
   const finished = isMatchFinished(lobby);
+  useLiveSoundCues(lobby, round, lobbyReceivedAt);
 
   return (
     <div className="grid gap-5">
@@ -509,6 +511,7 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
           </div>
         </div>
         <p className="font-mono text-sm text-[#fdfbf7]">Score: {score}</p>
+        <SoundToggle />
         <p
           aria-live="polite"
           className="flex items-center gap-2 text-sm text-[#d0ddd5]"

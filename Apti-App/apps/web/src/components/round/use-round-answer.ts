@@ -6,6 +6,7 @@ import { createIdempotencyKey } from "@/components/lobby/join-key";
 import type { AnswerFailure } from "@/lib/room-errors";
 import { emitRoundAnswer, type SendRoundAnswer } from "@/lib/room-socket";
 import { answerKeyFor, lockedAnswerFor } from "./answer-state";
+import { useLiveSound } from "./live-sound-provider";
 
 interface AnswerAttempt {
   readonly questionIndex: number;
@@ -18,6 +19,7 @@ const NO_ATTEMPT = { pending: false, accepted: null, failure: null } as const;
 
 /** Sends this Participant's Answer for the open Question and tracks its outcome. */
 export function useRoundAnswer(view: RoundView, send: SendRoundAnswer) {
+  const { emit } = useLiveSound();
   const keysRef = useRef(new Map<string, string>());
   const pendingRef = useRef(false);
   const [attempt, setAttempt] = useState<AnswerAttempt | null>(null);
@@ -39,6 +41,7 @@ export function useRoundAnswer(view: RoundView, send: SendRoundAnswer) {
         idempotencyKey,
       });
       pendingRef.current = false;
+      if (result.ok) emit("lock", `${roomId}:QUESTION_OPEN:${questionIndex}:lock`);
       setAttempt({
         questionIndex,
         pending: false,
@@ -46,7 +49,7 @@ export function useRoundAnswer(view: RoundView, send: SendRoundAnswer) {
         failure: result.ok ? null : result.error,
       });
     },
-    [view, send],
+    [view, send, emit],
   );
 
   return { locked, pending: current.pending, failure: current.failure, submit };
