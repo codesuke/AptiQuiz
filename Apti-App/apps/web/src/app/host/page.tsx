@@ -11,12 +11,22 @@ import { CreateRoomForm, type HostableQuestionSet } from "./create-room-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function HostPage() {
+export default async function HostPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ questionSetId?: string }>;
+}) {
   const session = await getActiveSession(await headers());
   if (!session) redirect("/sign-in");
+  const query = await searchParams;
 
   const decision = await requireHostCollege(database, session.user.id);
-  if (!decision.ok) redirect(`/college?next=${encodeURIComponent(HOST_PATH)}`);
+  if (!decision.ok) {
+    const returnTo = query.questionSetId
+      ? `${HOST_PATH}?questionSetId=${encodeURIComponent(query.questionSetId)}`
+      : HOST_PATH;
+    redirect(`/college?next=${encodeURIComponent(returnTo)}`);
+  }
 
   await seedStarterQuestionSet(database);
   const questionSets: HostableQuestionSet[] = (
@@ -141,7 +151,10 @@ export default async function HostPage() {
               </p>
             ) : (
               <>
-                <CreateRoomForm questionSets={questionSets} />
+                <CreateRoomForm
+                  questionSets={questionSets}
+                  requestedQuestionSetId={query.questionSetId}
+                />
                 <p className="mt-6 text-sm text-[#d0ddd5]">
                   Need a different set?{" "}
                   <Link

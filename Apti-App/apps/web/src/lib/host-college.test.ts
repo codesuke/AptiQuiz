@@ -17,6 +17,14 @@ describe("host return target", () => {
     expect(resolveHostReturnTarget("/host")).toBe("/host");
   });
 
+  it("preserves a safe selected Question Set through College setup", () => {
+    expect(resolveHostReturnTarget("/host?questionSetId=set_123")).toBe(
+      "/host?questionSetId=set_123",
+    );
+    expect(resolveHostReturnTarget("/host?questionSetId=../admin")).toBeNull();
+    expect(resolveHostReturnTarget("/host?questionSetId=set_123&next=/admin")).toBeNull();
+  });
+
   it.each([
     undefined,
     "",

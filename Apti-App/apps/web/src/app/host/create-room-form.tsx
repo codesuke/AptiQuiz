@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { describeCreateRoomFailure, requestRoomCreation } from "@/lib/rooms-client";
+import { initialQuestionSetId } from "./initial-question-set";
 
 export interface HostableQuestionSet {
   id: string;
@@ -11,10 +12,17 @@ export interface HostableQuestionSet {
   isStarter: boolean;
 }
 
-export function CreateRoomForm({ questionSets }: { questionSets: HostableQuestionSet[] }) {
+export function CreateRoomForm({
+  questionSets,
+  requestedQuestionSetId,
+}: {
+  questionSets: HostableQuestionSet[];
+  requestedQuestionSetId?: string;
+}) {
   const router = useRouter();
-  const firstHostable = questionSets.find((set) => set.questionCount > 0);
-  const [questionSetId, setQuestionSetId] = useState(firstHostable?.id ?? "");
+  const [questionSetId, setQuestionSetId] = useState(() =>
+    initialQuestionSetId(questionSets, requestedQuestionSetId),
+  );
   // One key per creation attempt: a retry after an error reuses it so the server returns the
   // same Room instead of creating a second one. Choosing another set starts a new attempt.
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getQuestionSet, questionOptionsSchema } from "@aptiquiz/database";
+import { ArrowDown, ArrowUp, Check, Pencil } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -8,6 +9,8 @@ import { database } from "@/lib/database";
 import { addQuestionAction, reorderQuestionsAction } from "../actions";
 import { QuestionFields } from "../question-fields";
 import { QuestionMedia } from "../question-media";
+import { QuestionSetShell } from "../question-set-shell";
+import styles from "../question-sets.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +25,13 @@ function MoveButton({
   direction,
   disabled,
   ids,
+  questionNumber,
   setId,
 }: {
-  direction: string;
+  direction: "up" | "down";
   disabled: boolean;
   ids: string[];
+  questionNumber: number;
   setId: string;
 }) {
   return (
@@ -36,11 +41,16 @@ function MoveButton({
         <input key={id} name="questionId" type="hidden" value={id} />
       ))}
       <button
-        className="underline disabled:cursor-not-allowed disabled:text-stone-400 disabled:no-underline"
+        aria-label={`Move question ${questionNumber} ${direction}`}
+        className={styles.control}
         disabled={disabled}
         type="submit"
       >
-        {direction}
+        {direction === "up" ? (
+          <ArrowUp aria-hidden="true" size={16} />
+        ) : (
+          <ArrowDown aria-hidden="true" size={16} />
+        )}
       </button>
     </form>
   );
@@ -61,92 +71,127 @@ export default async function QuestionSetPage({
   const query = await searchParams;
 
   return (
-    <main className="min-h-screen bg-[#fdfbf7] px-6 py-10 text-stone-900">
-      <div className="mx-auto max-w-3xl">
-        <Link className="text-sm font-semibold text-[#b54800] underline" href="/question-sets">
-          All Question Sets
-        </Link>
-        <h1 className="mt-8 text-4xl font-semibold tracking-tight">{set.title}</h1>
-        {set.isStarter ? (
-          <p className="mt-2 text-sm text-stone-600">Shared starter set · Read only</p>
-        ) : null}
-        <ol className="mt-8 space-y-5">
-          {set.questions.map((question, index) => (
-            <li className="rounded-2xl border border-stone-200 bg-white p-6" key={question.id}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#b54800]">
-                {question.topic} · {question.difficulty.toLowerCase()}
-              </p>
-              <h2 className="mt-3 text-xl font-semibold">
-                {question.position + 1}. {question.text}
-              </h2>
-              <QuestionMedia media={question.media} />
-              <ol className="mt-4 space-y-2">
-                {questionOptionsSchema.parse(question.options).map((option) => (
-                  <li
-                    className={
-                      option.id === question.correctOptionId
-                        ? "font-semibold text-green-800"
-                        : "text-stone-700"
-                    }
-                    key={option.id}
-                  >
-                    {option.text}
-                    {option.id === question.correctOptionId ? " · Correct" : ""}
-                  </li>
-                ))}
-              </ol>
-              {!set.isStarter ? (
-                <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold">
-                  <Link
-                    className="text-[#b54800] underline"
-                    href={`/question-sets/${set.id}/questions/${question.id}`}
-                  >
-                    Edit
-                  </Link>
-                  <MoveButton
-                    direction="Move up"
-                    disabled={index === 0}
-                    ids={withMoved(set.questions, index, index - 1)}
-                    setId={set.id}
-                  />
-                  <MoveButton
-                    direction="Move down"
-                    disabled={index === set.questions.length - 1}
-                    ids={withMoved(set.questions, index, index + 1)}
-                    setId={set.id}
-                  />
-                </div>
-              ) : null}
-            </li>
-          ))}
-        </ol>
-        {!set.isStarter ? (
-          <section
-            aria-labelledby="add-question-heading"
-            className="mt-10 rounded-2xl border border-stone-200 bg-white p-6"
+    <QuestionSetShell backHref="/question-sets" backLabel="All question sets">
+      <div className={styles.container}>
+        <div className={`${styles.intro} ${styles.introActions}`}>
+          <div>
+            <p className={styles.eyebrow}>
+              {set.isStarter ? "Shared collection" : "Your collection"}
+            </p>
+            <h1>{set.title}</h1>
+            <div className={styles.introMeta}>
+              <span>
+                {set.questions.length} {set.questions.length === 1 ? "question" : "questions"}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className={styles.status}>{set.isStarter ? "Read only" : "Your set"}</span>
+            </div>
+          </div>
+          <Link
+            className={styles.inlineLink}
+            href={`/host?questionSetId=${encodeURIComponent(set.id)}`}
           >
-            <h2 className="text-xl font-semibold" id="add-question-heading">
-              Add a Question
-            </h2>
-            {query.error ? (
-              <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
-                {query.error}
+            Host with this set <span aria-hidden="true">↗</span>
+          </Link>
+        </div>
+        <div className={styles.detailGrid}>
+          <section aria-label="Questions in this set">
+            {set.questions.length === 0 ? (
+              <p className={styles.empty}>
+                No questions yet. Add the first question using the form.
               </p>
             ) : null}
-            <form action={addQuestionAction} className="mt-6 space-y-4">
-              <input name="setId" type="hidden" value={set.id} />
-              <input name="idempotencyKey" type="hidden" value={randomUUID()} />
-              <QuestionFields />
-              <button
-                className="rounded-xl bg-[#e65c00] px-5 py-3 font-semibold text-white hover:bg-[#cc5200] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]"
-                type="submit"
-              >
-                Add Question
-              </button>
-            </form>
+            <ol className={styles.questions}>
+              {set.questions.map((question, index) => (
+                <li className={styles.question} key={question.id}>
+                  <span aria-hidden="true" className={styles.questionNumber}>
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <p className={styles.questionMeta}>
+                      {question.topic} · {question.difficulty.toLowerCase()}
+                    </p>
+                    <h2>{question.text}</h2>
+                    <QuestionMedia media={question.media} />
+                    <ol className={styles.answers}>
+                      {questionOptionsSchema.parse(question.options).map((option) => {
+                        const isCorrect = option.id === question.correctOptionId;
+                        return (
+                          <li
+                            className={`${styles.answer} ${isCorrect ? styles.correct : ""}`}
+                            key={option.id}
+                          >
+                            {isCorrect ? <Check aria-label="Correct answer" size={16} /> : null}
+                            <span className={styles.answerKey}>{option.id}.</span>
+                            <span>{option.text}</span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                    {!set.isStarter ? (
+                      <div className={styles.questionControls}>
+                        <Link
+                          className={styles.control}
+                          href={`/question-sets/${set.id}/questions/${question.id}`}
+                        >
+                          <Pencil aria-hidden="true" size={14} /> Edit question
+                        </Link>
+                        <MoveButton
+                          direction="up"
+                          disabled={index === 0}
+                          ids={withMoved(set.questions, index, index - 1)}
+                          questionNumber={index + 1}
+                          setId={set.id}
+                        />
+                        <MoveButton
+                          direction="down"
+                          disabled={index === set.questions.length - 1}
+                          ids={withMoved(set.questions, index, index + 1)}
+                          questionNumber={index + 1}
+                          setId={set.id}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ol>
           </section>
-        ) : null}
+          {!set.isStarter ? (
+            <section aria-labelledby="add-question-heading" className={styles.composer}>
+              <h2 id="add-question-heading">Add a question</h2>
+              <p>It will appear at the end of this set.</p>
+              {query.error ? (
+                <p className={styles.error} role="alert">
+                  {query.error}
+                </p>
+              ) : null}
+              <form action={addQuestionAction} className={styles.form}>
+                <input name="setId" type="hidden" value={set.id} />
+                <input name="idempotencyKey" type="hidden" value={randomUUID()} />
+                <QuestionFields />
+                <button className={styles.primary} type="submit">
+                  Add question <span aria-hidden="true">↗</span>
+                </button>
+              </form>
+            </section>
+          ) : (
+            <aside className={styles.editorSide}>
+              <h2>Ready to play?</h2>
+              <p>
+                This shared starter set is ready to use in a room. Host a session and invite others
+                to join.
+              </p>
+              <Link
+                className={styles.inlineLink}
+                href={`/host?questionSetId=${encodeURIComponent(set.id)}`}
+              >
+                Set up a room <span aria-hidden="true">↗</span>
+              </Link>
+            </aside>
+          )}
+        </div>
       </div>
-    </main>
+    </QuestionSetShell>
   );
 }

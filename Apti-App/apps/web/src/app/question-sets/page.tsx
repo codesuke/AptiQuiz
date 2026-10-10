@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { listQuestionSets, seedStarterQuestionSet } from "@aptiquiz/database";
+import { ArrowUpRight, BookOpen, ChevronRight, Layers3 } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -7,6 +8,8 @@ import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { createQuestionSetAction } from "./actions";
 import { QuestionFields } from "./question-fields";
+import { QuestionSetShell } from "./question-set-shell";
+import styles from "./question-sets.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -22,82 +25,87 @@ export default async function QuestionSetsPage({
     listQuestionSets(database, session.user.id),
     searchParams,
   ]);
+  const ownedSets = sets.filter((set) => !set.isStarter);
 
   return (
-    <main className="min-h-screen bg-[#fdfbf7] px-6 py-10 text-stone-900">
-      <div className="mx-auto max-w-5xl">
-        <Link className="text-sm font-semibold text-[#b54800] underline" href="/">
-          AptiQuiz home
-        </Link>
-        <h1 className="mt-8 text-4xl font-semibold tracking-tight">Question Sets</h1>
-        <p className="mt-2 text-stone-600">Build a reusable set for your next Room.</p>
-        <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_1.2fr]">
-          <section aria-labelledby="your-sets-heading">
-            <h2 className="text-xl font-semibold" id="your-sets-heading">
-              Your sets
-            </h2>
-            <div className="mt-4">
-              <Link
-                className="rounded-xl border border-[#e65c00] px-4 py-2 font-semibold text-[#b54800] hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-[#e65c00]"
-                href={`/question-sets/${starter.id}`}
-              >
-                Open starter set
-              </Link>
-            </div>
-            {sets.length === 0 ? (
-              <p className="mt-4 text-stone-600">No Question Sets yet.</p>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {sets.map((set) => (
-                  <li key={set.id}>
-                    <Link
-                      className="block rounded-xl border border-stone-200 bg-white p-4 font-medium hover:border-[#e65c00] focus-visible:outline-2 focus-visible:outline-[#e65c00]"
-                      href={`/question-sets/${set.id}`}
-                    >
-                      {set.title}
-                      <span className="ml-2 text-sm font-normal text-stone-500">
-                        {set.questions.length} Questions{set.isStarter ? " · Starter" : ""}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-          <section
-            aria-labelledby="new-set-heading"
-            className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
-          >
-            <h2 className="text-xl font-semibold" id="new-set-heading">
-              New Question Set
-            </h2>
-            {query.error ? (
-              <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
-                {query.error}
-              </p>
-            ) : null}
-            <form action={createQuestionSetAction} className="mt-6 space-y-4">
-              <input name="idempotencyKey" type="hidden" value={randomUUID()} />
-              <label className="block text-sm font-medium">
-                Set title
-                <input
-                  className="mt-1 w-full rounded-lg border border-stone-300 p-3"
-                  maxLength={160}
-                  name="title"
-                  required
-                />
-              </label>
-              <QuestionFields />
-              <button
-                className="rounded-xl bg-[#e65c00] px-5 py-3 font-semibold text-white hover:bg-[#cc5200] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]"
-                type="submit"
-              >
-                Create Question Set
-              </button>
-            </form>
-          </section>
+    <QuestionSetShell backHref="/" backLabel="Back to home">
+      <section className={styles.hero}>
+        <div className={styles.heroInner}>
+          <p className={styles.eyebrow}>Your authoring workspace</p>
+          <h1>Question sets</h1>
+          <p>Build once. Play together.</p>
         </div>
+      </section>
+      <div className={`${styles.container} ${styles.workGrid}`}>
+        <section aria-labelledby="your-sets-heading">
+          <div className={styles.sectionHead}>
+            <h2 id="your-sets-heading">Your library</h2>
+            <span className={styles.count}>
+              {ownedSets.length} {ownedSets.length === 1 ? "set" : "sets"} created
+            </span>
+          </div>
+          <Link className={styles.starterRow} href={`/question-sets/${starter.id}`}>
+            <span className={styles.starterIcon}>
+              <BookOpen aria-hidden="true" size={26} />
+            </span>
+            <span className={styles.starterInfo}>
+              <strong>{starter.title}</strong>
+              <span>A shared set to get you started</span>
+            </span>
+            <span className={styles.starterMeta}>{starter.questions.length} questions</span>
+            <ChevronRight aria-hidden="true" className={styles.rowArrow} size={21} />
+          </Link>
+          {ownedSets.length === 0 ? (
+            <p className={styles.empty}>
+              Your own sets will appear here. Create one to start building a room your way.
+            </p>
+          ) : (
+            <ul>
+              {ownedSets.map((set) => (
+                <li key={set.id}>
+                  <Link className={styles.setRow} href={`/question-sets/${set.id}`}>
+                    <span className={styles.setIcon}>
+                      <Layers3 aria-hidden="true" size={25} />
+                    </span>
+                    <span className={styles.setInfo}>
+                      <strong>{set.title}</strong>
+                      <span>Your question set</span>
+                    </span>
+                    <span className={styles.setMeta}>{set.questions.length} questions</span>
+                    <ChevronRight aria-hidden="true" className={styles.rowArrow} size={20} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section aria-labelledby="new-set-heading" className={styles.composer}>
+          <h2 id="new-set-heading">Create a set</h2>
+          <p>Start with a question. You can add more as you go.</p>
+          {query.error ? (
+            <p className={styles.error} role="alert">
+              {query.error}
+            </p>
+          ) : null}
+          <form action={createQuestionSetAction} className={styles.form}>
+            <input name="idempotencyKey" type="hidden" value={randomUUID()} />
+            <label className={styles.field}>
+              Set title
+              <input
+                className={styles.input}
+                maxLength={160}
+                name="title"
+                placeholder="e.g. Placement practice"
+                required
+              />
+            </label>
+            <QuestionFields />
+            <button className={styles.primary} type="submit">
+              Create question set <ArrowUpRight aria-hidden="true" size={17} />
+            </button>
+          </form>
+        </section>
       </div>
-    </main>
+    </QuestionSetShell>
   );
 }

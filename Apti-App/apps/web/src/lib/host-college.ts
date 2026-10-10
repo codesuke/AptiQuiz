@@ -18,6 +18,7 @@ export async function requireHostCollege(
 }
 
 /** Only allow-listed paths may follow the College picker, so `next` cannot redirect off-site. */
-export function resolveHostReturnTarget(target: string | undefined): typeof HOST_PATH | null {
-  return target === HOST_PATH ? HOST_PATH : null;
+export function resolveHostReturnTarget(target: string | undefined): string | null {
+  if (target === HOST_PATH) return HOST_PATH;
+  return target && /^\/host\?questionSetId=[A-Za-z0-9_-]{1,128}$/.test(target) ? target : null;
 }

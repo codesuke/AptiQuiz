@@ -3,6 +3,7 @@ import {
   questionMediaSchema,
   questionOptionsSchema,
 } from "@aptiquiz/database";
+import styles from "./question-sets.module.css";
 
 export type StoredQuestion = {
   text: string;
@@ -20,48 +21,56 @@ function tableToText(table: { headers: string[]; rows: string[][] } | undefined)
 
 export function QuestionFields({ question }: { question?: StoredQuestion }) {
   const optionTexts = new Map(
-    question ? questionOptionsSchema.parse(question.options).map((o) => [o.id, o.text]) : [],
+    question
+      ? questionOptionsSchema.parse(question.options).map((option) => [option.id, option.text])
+      : [],
   );
   const media = question?.media ? questionMediaSchema.parse(question.media) : undefined;
+
   return (
     <>
-      <label className="block text-sm font-medium">
+      <label className={styles.field}>
         Question text
         <textarea
-          className="mt-1 min-h-24 w-full rounded-lg border border-stone-300 p-3"
+          className={styles.textarea}
           defaultValue={question?.text}
           maxLength={4000}
           name="text"
+          placeholder="Write a clear question for your players"
           required
         />
       </label>
-      <fieldset>
-        <legend className="text-sm font-medium">Options (2 to 6)</legend>
-        <p className="mt-1 text-xs text-stone-600">Leave unused options blank.</p>
-        <div className="mt-2 grid gap-2">
+      <fieldset className={styles.options}>
+        <legend>Answer options</legend>
+        <div className={styles.optionList}>
           {QUESTION_OPTION_NUMBERS.map((number) => (
-            <label className="flex items-center gap-3 text-sm" key={number}>
-              <span className="w-5">{number}.</span>
+            <label className={styles.optionRow} key={number}>
+              <span aria-hidden="true" className={styles.optionNumber}>
+                {number}
+              </span>
+              <span className="sr-only">Option {number}</span>
               <input
-                className="w-full rounded-lg border border-stone-300 p-2"
+                className={styles.input}
                 defaultValue={optionTexts.get(String(number))}
                 maxLength={500}
                 name={`option-${number}`}
+                placeholder={number > 2 ? `Option ${number} (optional)` : `Option ${number}`}
                 required={number <= 2}
               />
             </label>
           ))}
         </div>
+        <p className={styles.fieldHint}>Add two to six options. Leave unused options blank.</p>
       </fieldset>
-      <label className="block text-sm font-medium">
+      <label className={styles.field}>
         Correct option
         <select
-          className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+          className={styles.select}
           defaultValue={question?.correctOptionId ?? ""}
           name="correctOptionId"
           required
         >
-          <option value="">Select an option</option>
+          <option value="">Select the correct option</option>
           {QUESTION_OPTION_NUMBERS.map((number) => (
             <option key={number} value={String(number)}>
               Option {number}
@@ -69,54 +78,60 @@ export function QuestionFields({ question }: { question?: StoredQuestion }) {
           ))}
         </select>
       </label>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium">
+      <div className={styles.pair}>
+        <label className={styles.field}>
           Topic
           <input
-            className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+            className={styles.input}
             defaultValue={question?.topic}
             maxLength={100}
             name="topic"
+            placeholder="e.g. Percentages"
             required
           />
         </label>
-        <label className="block text-sm font-medium">
+        <label className={styles.field}>
           Difficulty
           <select
-            className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+            className={styles.select}
             defaultValue={question?.difficulty ?? ""}
             name="difficulty"
             required
           >
-            <option value="">Select difficulty</option>
+            <option value="">Choose difficulty</option>
             <option value="EASY">Easy</option>
             <option value="MEDIUM">Medium</option>
             <option value="HARD">Hard</option>
           </select>
         </label>
       </div>
-      <label className="block text-sm font-medium">
-        Image URL (optional)
-        <input
-          className="mt-1 w-full rounded-lg border border-stone-300 p-3"
-          defaultValue={media?.imageUrl}
-          name="imageUrl"
-          placeholder="https://example.com/image.png"
-          type="url"
-        />
-      </label>
-      <label className="block text-sm font-medium">
-        Table (optional)
-        <textarea
-          className="mt-1 min-h-24 w-full rounded-lg border border-stone-300 p-3"
-          defaultValue={tableToText(media?.table)}
-          name="table"
-          placeholder={"Year,Applicants\n2025,40\n2026,50"}
-        />
-        <span className="mt-1 block text-xs font-normal text-stone-600">
-          Use one comma-separated row per line. First row is the header.
-        </span>
-      </label>
+      <details className={styles.mediaDisclosure} open={Boolean(media?.imageUrl || media?.table)}>
+        <summary>Add image or data table (optional)</summary>
+        <div className={styles.mediaBody}>
+          <label className={styles.field}>
+            Image URL
+            <input
+              className={styles.input}
+              defaultValue={media?.imageUrl}
+              name="imageUrl"
+              placeholder="https://example.com/image.png"
+              type="url"
+            />
+          </label>
+          <label className={styles.field}>
+            Data table
+            <textarea
+              className={styles.textarea}
+              defaultValue={tableToText(media?.table)}
+              name="table"
+              placeholder={"Year,Applicants\n2025,40\n2026,50"}
+            />
+            <span className={styles.fieldHint}>
+              Use one comma-separated row per line. The first row is the header.
+            </span>
+          </label>
+        </div>
+      </details>
     </>
   );
 }

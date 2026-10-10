@@ -1,6 +1,31 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-question-set-workspace-design"
+    changed_at: "2026-10-10"
+    kind: "improvement"
+    title: "Question Set authoring workspace design"
+    status: "working"
+    summary: "Refreshed the Question Set library, set detail, and edit pages with the AptiQuiz visual system and carried a chosen set into hosting setup."
+    areas:
+      - "question sets"
+      - "web interface"
+      - "hosting handoff"
+    working:
+      - "The library, set detail, and edit pages share an accessible editorial layout with responsive forms, ordered answer rows, and visible authoring controls."
+      - "Generated design references and desktop and mobile implementation captures live under design-mocks/aptiquiz-question-sets/."
+      - "Hosting preselects a requested readable, nonempty Question Set; College setup preserves a safe set selection return path."
+    limitations:
+      - "The edit side panel shows the saved Question, which updates after saving rather than while typing."
+    author:
+      name: "OpenAI Codex"
+      type: "agent"
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "Web: 158 tests passed; production build and Biome check passed."
+        - "Browser: created a set, opened its detail and edit pages, captured desktop and 390 px mobile layouts, and observed no mobile horizontal overflow."
   - id: "2026-10-10-github-prd-5"
     changed_at: "2026-10-10"
     kind: "feature"
