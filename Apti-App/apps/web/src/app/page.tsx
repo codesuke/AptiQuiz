@@ -5,6 +5,7 @@ import { AccountMenu } from "@/components/auth/account-menu";
 import { EmailVerificationNotice } from "@/components/auth/verification-resend";
 import { GameServerStatus } from "@/components/game-server-status";
 import { HomeScreen } from "@/components/home-screen";
+import styles from "@/components/home-screen.module.css";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { needsEmailVerification } from "@/lib/email-verification";
@@ -17,12 +18,12 @@ export default async function HomePage() {
   const homeCollege = session ? await getHomeCollege(database, session.user.id) : null;
 
   return (
-    <main className="min-h-screen bg-[#fdfbf7] text-[#15372d]">
+    <main className={`${styles.homePage} min-h-screen bg-[#fdfbf7] text-[#15372d]`}>
       <div className="relative z-10 border-b border-[#d6d8cf] bg-[#fdfbf7]">
         <header className="mx-auto flex min-h-[82px] max-w-[1600px] flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:px-12">
           <Link
             aria-label="AptiQuiz home"
-            className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
+            className={`${styles.headerBrand} inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]`}
             href="/"
           >
             <Image
@@ -40,13 +41,13 @@ export default async function HomePage() {
             className="flex w-full min-w-0 flex-wrap items-center gap-x-5 gap-y-2 sm:gap-x-7 xl:w-auto xl:justify-end"
           >
             <Link
-              className="inline-flex min-h-11 items-center font-[Georgia] text-base text-[#15372d] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
+              className={`${styles.headerLink} inline-flex min-h-11 items-center font-[Georgia] text-base text-[#15372d] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]`}
               href="/question-sets"
             >
               Question Sets
             </Link>
             <Link
-              className="hidden min-h-11 items-center font-[Georgia] text-base text-[#15372d] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700] sm:inline-flex"
+              className={`${styles.headerLink} hidden min-h-11 items-center font-[Georgia] text-base text-[#15372d] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700] sm:inline-flex`}
               href="#how-it-works"
             >
               How it works

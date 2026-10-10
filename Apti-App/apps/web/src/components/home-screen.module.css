@@ -5,6 +5,44 @@
 .closing {
   color: #14352b;
 }
+.homePage {
+  --home-motion-quick: 120ms;
+  --home-motion-standard: 240ms;
+  --home-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+.headerBrand,
+.headerLink,
+.homePage :global(header nav a),
+.homePage :global(button),
+.homePage :global(summary) {
+  transition:
+    color var(--home-motion-quick) var(--home-motion-ease),
+    background-color var(--home-motion-quick) var(--home-motion-ease),
+    transform var(--home-motion-standard) var(--home-motion-ease);
+}
+.headerLink {
+  position: relative;
+  text-decoration: none;
+}
+.headerLink::after {
+  position: absolute;
+  right: 0;
+  bottom: 7px;
+  left: 0;
+  height: 1px;
+  background: var(--aq-action);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--home-motion-standard) var(--home-motion-ease);
+}
+.headerLink:focus-visible::after {
+  transform: scaleX(1);
+}
+.homePage :global(button:not(:disabled)):active {
+  transform: scale(0.97);
+  transition-duration: var(--home-motion-quick);
+}
 .wrap {
   width: min(calc(100% - var(--aq-page-gutter) - var(--aq-page-gutter)), var(--aq-content-width));
   margin-inline: auto;
@@ -97,8 +135,8 @@
   font: 500 20px var(--aq-font-display);
   text-decoration: none;
   transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease;
+    background var(--home-motion-quick) var(--home-motion-ease),
+    box-shadow var(--home-motion-standard) var(--home-motion-ease);
 }
 .primaryButton {
   background: var(--aq-action-prominent);
@@ -117,6 +155,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  transition: background-color var(--home-motion-quick) var(--home-motion-ease);
 }
 .primaryButtonIcon {
   background: rgb(255 255 255 / 18%);
@@ -138,6 +177,9 @@
   color: #15372d;
   font: 500 19px var(--aq-font-display);
   text-decoration: none;
+  transition:
+    color var(--home-motion-quick) var(--home-motion-ease),
+    border-color var(--home-motion-quick) var(--home-motion-ease);
 }
 .heroNote {
   margin: auto 0 0;
@@ -178,6 +220,10 @@
   flex-direction: column;
   padding: 35px 25px 34px;
   border-left: 1px solid var(--aq-rule);
+  transition:
+    background-color var(--home-motion-standard) var(--home-motion-ease),
+    box-shadow var(--home-motion-standard) var(--home-motion-ease),
+    transform var(--home-motion-standard) var(--home-motion-ease);
 }
 .wayNumber {
   color: #e8a47b;
@@ -191,6 +237,7 @@
   height: 70px;
   margin: 30px 0 auto;
   color: #d45b17;
+  transition: transform var(--home-motion-standard) var(--home-motion-ease);
 }
 .way h3 {
   margin: 20px 0 0;
@@ -223,6 +270,12 @@
   letter-spacing: 0.1em;
   text-decoration: none;
   text-transform: uppercase;
+  transition: color var(--home-motion-quick) var(--home-motion-ease);
+}
+.featureLink svg,
+.collegeLink svg,
+.way a svg {
+  transition: transform var(--home-motion-standard) var(--home-motion-ease);
 }
 .wayFeatured {
   border: 0;
@@ -292,6 +345,9 @@
     "Times New Roman",
     serif;
   text-decoration: none;
+  transition:
+    color var(--home-motion-quick) var(--home-motion-ease),
+    border-color var(--home-motion-quick) var(--home-motion-ease);
 }
 .process {
   padding: 114px 0 125px;
@@ -326,6 +382,9 @@
   border-radius: 50%;
   background: #fdfbf7;
   content: "";
+  transition:
+    background-color var(--home-motion-quick) var(--home-motion-ease),
+    transform var(--home-motion-standard) var(--home-motion-ease);
 }
 .steps span {
   color: #d95800;
@@ -434,10 +493,71 @@
   color: inherit;
   font-size: 16px;
   text-decoration: none;
+  transition: color var(--home-motion-quick) var(--home-motion-ease);
 }
-.footer a:hover {
+.footer a:focus-visible {
   text-decoration: underline;
   text-underline-offset: 5px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .headerBrand:hover {
+    transform: translateY(-2px);
+  }
+  .headerLink:hover {
+    color: var(--aq-action);
+  }
+  .homePage :global(header nav a:hover) {
+    transform: translateY(-2px);
+  }
+  .headerLink:hover::after {
+    transform: scaleX(1);
+  }
+  .homePage :global(button:not(:disabled)):hover,
+  .homePage :global(summary):hover {
+    transform: translateY(-2px);
+  }
+  .primaryButton:hover .primaryButtonIcon,
+  .lightButton:hover .lightButtonIcon {
+    background: rgb(255 255 255 / 30%);
+  }
+  .textLink:hover,
+  .darkLink:hover {
+    color: var(--aq-action-prominent-hover);
+    border-color: currentColor;
+  }
+  .way:hover {
+    transform: translateY(-4px);
+    background: #f7f3e9;
+    box-shadow: 0 16px 32px -30px var(--aq-ink);
+  }
+  .wayFeatured:hover {
+    background: var(--aq-ink-deep);
+  }
+  .way:hover .wayIcon {
+    transform: translateY(-3px) rotate(-4deg);
+  }
+  .way a:hover,
+  .featureLink:hover,
+  .collegeLink:hover {
+    color: var(--aq-action-prominent-hover);
+  }
+  .wayFeatured a:hover {
+    color: #ffb380;
+  }
+  .featureLink:hover svg,
+  .collegeLink:hover svg,
+  .way a:hover svg {
+    transform: translateX(4px);
+  }
+  .steps article:hover::before {
+    background: var(--aq-action);
+    transform: scale(1.3);
+  }
+  .footer a:hover {
+    color: #ffb380;
+    text-decoration: underline;
+    text-underline-offset: 5px;
+  }
 }
 .hero a:focus-visible,
 .ways a:focus-visible,
@@ -601,8 +721,21 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .primaryButton,
-  .lightButton {
-    transition: none;
+  .homePage {
+    --home-motion-quick: 0ms;
+    --home-motion-standard: 0ms;
+  }
+  .headerBrand:hover,
+  .homePage :global(header nav a:hover),
+  .homePage :global(button:not(:disabled)):hover,
+  .homePage :global(button:not(:disabled)):active,
+  .homePage :global(summary):hover,
+  .way:hover,
+  .way:hover .wayIcon,
+  .steps article:hover::before,
+  .featureLink:hover svg,
+  .collegeLink:hover svg,
+  .way a:hover svg {
+    transform: none;
   }
 }
