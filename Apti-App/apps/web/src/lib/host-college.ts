@@ -1,11 +1,12 @@
 import "server-only";
+import type { College } from "@aptiquiz/contracts";
 import type { PrismaClient } from "@aptiquiz/database";
-import { getHomeCollege, type HomeCollege } from "./home-college";
+import { getHomeCollege } from "./home-college";
 
 export const HOST_PATH = "/host";
 
 export type HostCollegeDecision =
-  | { ok: true; college: HomeCollege }
+  | { ok: true; college: College }
   | { ok: false; reason: "home_college_required" };
 
 export async function requireHostCollege(

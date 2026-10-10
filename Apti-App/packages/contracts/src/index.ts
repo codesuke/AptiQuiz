@@ -12,6 +12,20 @@ export const displayNameSchema = z.string().trim().min(2).max(32);
 
 export const chooseHomeCollegeSchema = z.object({ collegeId: z.string().min(1) });
 
+const COLLEGE_SEARCH_MAX_LENGTH = 80;
+const COLLEGE_SEARCH_MAX_WORDS = 6;
+
+export const collegeSearchQuerySchema = z
+  .string()
+  .trim()
+  .max(COLLEGE_SEARCH_MAX_LENGTH)
+  .refine((query) => query.split(/\s+/).filter(Boolean).length <= COLLEGE_SEARCH_MAX_WORDS);
+
+export const collegeSchema = z.object({ id: z.string().min(1), name: z.string().min(1) });
+export type College = z.infer<typeof collegeSchema>;
+
+export const collegeSearchResultSchema = z.object({ colleges: z.array(collegeSchema) });
+
 export const timePingSchema = z.object({
   clientSentAt: timestampSchema,
 });

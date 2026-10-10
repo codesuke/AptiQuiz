@@ -1,5 +1,9 @@
 import "server-only";
-import { chooseHomeCollegeSchema } from "@aptiquiz/contracts";
+import {
+  type College,
+  chooseHomeCollegeSchema,
+  collegeSearchQuerySchema,
+} from "@aptiquiz/contracts";
 import { normalizeCollegeName, type PrismaClient } from "@aptiquiz/database";
 
 const SEARCH_RESULT_LIMIT = 20;
@@ -7,11 +11,6 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
-
-export interface HomeCollege {
-  id: string;
-  name: string;
-}
 
 type SessionAccess =
   | { kind: "guest" }
@@ -38,7 +37,7 @@ function refuseInactive(access: Exclude<SessionAccess, { kind: "active" }>) {
 export async function getHomeCollege(
   database: PrismaClient,
   userId: string,
-): Promise<HomeCollege | null> {
+): Promise<College | null> {
   const user = await database.user.findUnique({
     where: { id: userId },
     select: { homeCollege: { select: { id: true, name: true } } },
@@ -64,8 +63,11 @@ export function createHomeCollegeHandlers(dependencies: HomeCollegeDependencies)
       const access = await getSessionAccess(request.headers);
       if (access.kind !== "active") return refuseInactive(access);
 
-      const query = new URL(request.url).searchParams.get("q") ?? "";
-      return reply({ colleges: await searchColleges(database, query) });
+      const query = collegeSearchQuerySchema.safeParse(
+        new URL(request.url).searchParams.get("q") ?? "",
+      );
+      if (!query.success) return reply({ error: "invalid_request" }, HTTP_BAD_REQUEST);
+      return reply({ colleges: await searchColleges(database, query.data) });
     },
 
     async PUT(request: Request): Promise<Response> {

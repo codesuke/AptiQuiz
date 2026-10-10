@@ -1,14 +1,10 @@
 "use client";
 
+import { type College, collegeSearchResultSchema } from "@aptiquiz/contracts";
 import { Check, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authInputClassName, authLabelClassName } from "@/components/auth/form-styles";
-
-interface College {
-  id: string;
-  name: string;
-}
 
 type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
@@ -26,8 +22,7 @@ function useCollegeSearch(query: string) {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("search failed");
-        const body = (await response.json()) as { colleges: College[] };
-        setColleges(body.colleges);
+        setColleges(collegeSearchResultSchema.parse(await response.json()).colleges);
         setFailed(false);
       } catch {
         if (!controller.signal.aborted) setFailed(true);

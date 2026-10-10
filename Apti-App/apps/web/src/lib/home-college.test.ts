@@ -75,6 +75,14 @@ describe.runIf(databaseUrl)("Home College", () => {
     );
   });
 
+  it("rejects an over-long or many-word search with 400", async () => {
+    signInAs(await createUser());
+
+    expect((await search("a".repeat(81))).status).toBe(400);
+    expect((await search("one two three four five six seven")).status).toBe(400);
+    expect((await search("one two three four five six")).status).toBe(200);
+  });
+
   it("sets a Home College, then replaces it so the User keeps only one", async () => {
     const user = await createUser();
     signInAs(user);

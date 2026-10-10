@@ -32,6 +32,14 @@ export default async function CollegePage({
             ? `You represent ${current.name}. Pick another College to change it.`
             : "Choose the College you represent. Your Rooms and League results use it."}
         </p>
+        {current && returnTo ? (
+          <Link
+            className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#e65c00] px-5 text-sm font-semibold text-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]"
+            href={returnTo}
+          >
+            Continue to hosting
+          </Link>
+        ) : null}
         <div className="mt-8">
           <HomeCollegePicker current={current} returnTo={returnTo} />
         </div>
