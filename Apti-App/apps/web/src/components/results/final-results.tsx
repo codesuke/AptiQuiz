@@ -3,6 +3,7 @@
 import type { FinalResult } from "@aptiquiz/contracts";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
+import { EASE_STANDARD } from "@/components/round/live-motion";
 import {
   AVERAGE_TIME_LABEL,
   accuracyLabel,
@@ -112,7 +113,7 @@ export function FinalResults({ results, viewerId }: FinalResultsProps) {
                 transition={{
                   duration: reduceMotion ? 0 : 0.4,
                   delay: reduceMotion ? 0 : result.rank * 0.06,
-                  ease: [0.2, 0, 0, 1],
+                  ease: EASE_STANDARD,
                 }}
                 className={`min-w-0 rounded-2xl border p-5 transition-transform duration-300 motion-safe:hover:-translate-y-1 ${podiumPresentation(result.rank).className}`}
               >

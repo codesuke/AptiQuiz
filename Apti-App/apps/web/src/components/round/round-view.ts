@@ -17,14 +17,6 @@ export function revealedOptionLabels(view: RevealedRound, optionId: string): str
   return labels;
 }
 
-/** The Participant's own Round result; null for the Host, who has none. */
-export function roundResultLabel(view: RevealedRound): string | null {
-  const { result, answer } = view;
-  if (result === null) return null;
-  if (answer === null) return "No answer: 0 points";
-  return result.correct ? `Correct: +${result.points} points` : "Wrong: 0 points";
-}
-
 /** An earlier Question, or an open view of a Question whose reveal already arrived. */
 function isStaleView(current: ReceivedRound, incoming: ReceivedRound): boolean {
   const currentIndex = current.view.questionIndex;

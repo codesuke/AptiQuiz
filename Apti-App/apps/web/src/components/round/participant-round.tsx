@@ -6,7 +6,7 @@ import type { ReceivedRound } from "@/lib/server-clock";
 import { canSubmitAnswer, lockedAnswerLabel } from "./answer-state";
 import { LiveStage } from "./live-motion";
 import { RevealedQuestion, RoundFrame } from "./round-question";
-import { countdownLabel, roundResultLabel } from "./round-view";
+import { countdownLabel } from "./round-view";
 import { useCountdown } from "./use-countdown";
 import { useRoundAnswer } from "./use-round-answer";
 
@@ -39,11 +39,11 @@ export function ParticipantRound({
       );
     case "QUESTION_REVEAL":
       return (
-        <RevealedQuestion clockOffsetMs={round.clockOffsetMs} view={view} viewerId={participantId}>
-          <p className="mt-4 font-semibold text-stone-900" role="status">
-            {roundResultLabel(view)}
-          </p>
-        </RevealedQuestion>
+        <RevealedQuestion
+          clockOffsetMs={round.clockOffsetMs}
+          view={view}
+          viewerId={participantId}
+        />
       );
   }
 }

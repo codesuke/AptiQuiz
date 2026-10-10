@@ -35,6 +35,10 @@ export function participantCountLabel(count: number): string {
   return `${count} / ${MAX_ROOM_PARTICIPANTS}`;
 }
 
+export function participantsLabel(count: number): string {
+  return `${count} ${count === 1 ? "player" : "players"}`;
+}
+
 export function questionCountLabel(count: number): string {
   return `${count} ${count === 1 ? "Question" : "Questions"}`;
 }

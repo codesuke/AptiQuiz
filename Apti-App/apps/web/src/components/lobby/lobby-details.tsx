@@ -14,21 +14,14 @@ import {
 interface LobbyDetailsProps {
   readonly lobby: LobbySnapshot;
   readonly action?: ReactNode;
-  readonly compact?: boolean;
-  readonly hostLobby?: boolean;
 }
 
-/** Room facts, live roster, and scoring rule. Presentational and safe to render on the server. */
-export function LobbyDetails({
-  lobby,
-  action,
-  compact = false,
-  hostLobby = false,
-}: LobbyDetailsProps) {
+/** The Host Lobby roster with the scoring rule and the Host's action below it. */
+export function LobbyDetails({ lobby, action }: LobbyDetailsProps) {
   return (
     <section
       aria-labelledby="lobby-title"
-      className={`rounded-xl border border-[var(--aq-rule)] bg-white p-5 text-[var(--aq-ink)] sm:p-7 ${hostLobby ? "flex h-full flex-col" : ""}`}
+      className="flex h-full flex-col rounded-xl border border-[var(--aq-rule)] bg-white p-5 text-[var(--aq-ink)] sm:p-7"
     >
       <h2 className="sr-only" id="lobby-title">
         Room details
@@ -52,55 +45,28 @@ export function LobbyDetails({
         <ParticipantRoster participants={lobby.participants} />
       </div>
 
-      {hostLobby ? (
-        <div className="mt-auto pt-6">
-          <ScoringRuleCard lobby={lobby} embedded />
-        </div>
-      ) : null}
+      <div className="mt-auto pt-6">
+        <ScoringRuleCard lobby={lobby} embedded />
+      </div>
       {action ? <div className="mt-6 border-t border-[var(--aq-rule)] pt-5">{action}</div> : null}
-      {!compact && !hostLobby ? <RoomFactsCard lobby={lobby} embedded /> : null}
-      {!compact && !hostLobby ? (
-        <div className="mt-5">
-          <ScoringRuleCard lobby={lobby} embedded />
-        </div>
-      ) : null}
     </section>
   );
 }
 
-export function RoomFactsCard({
-  lobby,
-  embedded = false,
-}: {
-  readonly lobby: LobbySnapshot;
-  readonly embedded?: boolean;
-}) {
+/** College, Join Code, and Question count as a definition list. */
+export function RoomFacts({ lobby }: { readonly lobby: LobbySnapshot }) {
   return (
-    <section
-      aria-label="Room facts"
-      className={
-        embedded
-          ? "mt-6 border-t border-[var(--aq-rule)] pt-5"
-          : "rounded-xl border border-[var(--aq-rule)] bg-white p-5 sm:p-7"
-      }
-    >
-      <h2 className="font-[family-name:var(--aq-font-display)] text-2xl text-[var(--aq-ink)]">
-        Room details
-      </h2>
-      <dl className="mt-4 grid gap-4 sm:grid-cols-3">
-        <LobbyFact icon={<Building2 aria-hidden="true" className="size-4" />} label="College">
-          {lobby.college.name}
-        </LobbyFact>
-        <LobbyFact icon={<Hash aria-hidden="true" className="size-4" />} label="Join Code">
-          <span className="font-mono tracking-[0.1em] text-[var(--aq-action)]">
-            {lobby.joinCode}
-          </span>
-        </LobbyFact>
-        <LobbyFact icon={<ListChecks aria-hidden="true" className="size-4" />} label="Questions">
-          {questionCountLabel(lobby.questionCount)}
-        </LobbyFact>
-      </dl>
-    </section>
+    <dl className="grid gap-4 sm:grid-cols-3">
+      <LobbyFact icon={<Building2 aria-hidden="true" className="size-4" />} label="College">
+        {lobby.college.name}
+      </LobbyFact>
+      <LobbyFact icon={<Hash aria-hidden="true" className="size-4" />} label="Join Code">
+        <span className="font-mono tracking-[0.1em] text-[var(--aq-action)]">{lobby.joinCode}</span>
+      </LobbyFact>
+      <LobbyFact icon={<ListChecks aria-hidden="true" className="size-4" />} label="Questions">
+        {questionCountLabel(lobby.questionCount)}
+      </LobbyFact>
+    </dl>
   );
 }
 

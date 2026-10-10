@@ -79,7 +79,7 @@ function RoundPoints({ points }: { readonly points: number | undefined }) {
   return (
     <span
       className={`mr-3 inline-block rounded-full px-2 py-0.5 font-mono text-xs font-semibold ${
-        earned ? "bg-[#e7f0e9] text-[var(--aq-ink)]" : "text-[var(--aq-text-muted)]"
+        earned ? "bg-[var(--aq-success-tint)] text-[var(--aq-ink)]" : "text-[var(--aq-text-muted)]"
       }`}
     >
       <span className="sr-only">This Round: </span>

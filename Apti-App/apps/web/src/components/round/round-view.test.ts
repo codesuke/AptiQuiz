@@ -1,12 +1,6 @@
 import type { RevealedRound, RoundView } from "@aptiquiz/contracts";
 import { describe, expect, it } from "vitest";
-import {
-  countdownLabel,
-  isMatchFinished,
-  nextRound,
-  revealedOptionLabels,
-  roundResultLabel,
-} from "./round-view";
+import { countdownLabel, isMatchFinished, nextRound, revealedOptionLabels } from "./round-view";
 
 const question = {
   text: "What is 2 + 2?",
@@ -75,29 +69,6 @@ describe("revealedOptionLabels", () => {
     const host = { ...revealed, answer: null, result: null };
     expect(revealedOptionLabels(host, "opt-a")).toEqual([]);
     expect(revealedOptionLabels(host, "opt-b")).toEqual(["Correct answer"]);
-  });
-});
-
-describe("roundResultLabel", () => {
-  it("states the points for a correct Answer", () => {
-    expect(
-      roundResultLabel({
-        ...revealed,
-        answer: { questionIndex: 2, optionId: "opt-b", receivedAt: 5_000 },
-        result: { correct: true, points: 870 },
-      }),
-    ).toBe("Correct: +870 points");
-  });
-
-  it("gives zero for a wrong Answer or no Answer", () => {
-    expect(roundResultLabel(revealed)).toBe("Wrong: 0 points");
-    expect(
-      roundResultLabel({ ...revealed, answer: null, result: { correct: false, points: 0 } }),
-    ).toBe("No answer: 0 points");
-  });
-
-  it("has no result for the Host", () => {
-    expect(roundResultLabel({ ...revealed, answer: null, result: null })).toBeNull();
   });
 });
 

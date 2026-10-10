@@ -55,7 +55,7 @@ export function ShareRoom({ joinCode, joinLink, collegeName }: ShareRoomProps) {
   return (
     <section
       aria-labelledby="share-room-heading"
-      className={`overflow-hidden rounded-xl bg-[var(--aq-ink)] p-5 text-white shadow-[0_24px_45px_-34px_rgba(16,46,38,0.7)] sm:p-8 h-full`}
+      className="overflow-hidden rounded-xl bg-[var(--aq-ink)] p-5 text-white shadow-[0_24px_45px_-34px_rgba(16,46,38,0.7)] sm:p-8 h-full"
     >
       <p
         className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--aq-text-on-dark)]"

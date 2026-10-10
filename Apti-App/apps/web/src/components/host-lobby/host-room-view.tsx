@@ -117,7 +117,6 @@ function HostLobbyStage({
         {lobby ? (
           <LobbyDetails
             action={<StartControl canStart={canStart} onStart={onStart} start={start} />}
-            hostLobby
             lobby={lobby}
           />
         ) : (

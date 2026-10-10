@@ -243,6 +243,39 @@ describe("Host live Room view", () => {
     expect(html).not.toContain("Fastest correct");
   });
 
+  it("shows only the correct count when correct Answers carry no server time", () => {
+    vi.spyOn(Date, "now").mockReturnValue(32_000);
+    const view: RevealedRound = {
+      ...revealed,
+      scores: [
+        {
+          participantId: "p-1",
+          displayName: "Player 1",
+          answered: true,
+          correct: true,
+          points: 700,
+          effectiveResponseMs: null,
+        },
+        {
+          participantId: "p-2",
+          displayName: "Player 2",
+          answered: false,
+          correct: false,
+          points: 0,
+          effectiveResponseMs: null,
+        },
+      ],
+    };
+    const html = render({
+      lobby: { ...lobby, phase: "QUESTION_REVEAL" },
+      round: { view, clockOffsetMs: 0 },
+    });
+
+    expect(html).toContain("1 of 2 players answered correctly");
+    expect(html).not.toContain("No correct answers this Round");
+    expect(html).not.toContain("Fastest correct");
+  });
+
   it("keeps the Participant count and a focusable, labelled scroll region for the full roster", () => {
     vi.spyOn(Date, "now").mockReturnValue(2_000);
     const html = render({

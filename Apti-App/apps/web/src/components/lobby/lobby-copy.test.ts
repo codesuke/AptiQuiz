@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   joinedRoomHeading,
   participantCountLabel,
+  participantsLabel,
   questionCountLabel,
   scoringRuleText,
   scoringSummaryText,
@@ -36,6 +37,11 @@ describe("Lobby copy", () => {
   it("shows the roster count against the 50-player limit", () => {
     expect(participantCountLabel(0)).toBe("0 / 50");
     expect(participantCountLabel(50)).toBe("50 / 50");
+  });
+
+  it("pluralises the player count", () => {
+    expect(participantsLabel(1)).toBe("1 player");
+    expect(participantsLabel(3)).toBe("3 players");
   });
 
   it("pluralises the Question count", () => {

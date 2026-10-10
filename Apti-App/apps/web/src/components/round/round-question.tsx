@@ -5,6 +5,10 @@ import type { ReactNode } from "react";
 import type { ReceivedRound } from "@/lib/server-clock";
 import { Leaderboard } from "./leaderboard";
 import { LivePulse } from "./live-motion";
+import { personalResult } from "./personal-result";
+import { PersonalResultCard } from "./personal-result-card";
+import { RevealHighlights } from "./reveal-highlights";
+import { revealOutcome } from "./reveal-outcome";
 import { countdownLabel, revealedOptionLabels } from "./round-view";
 import { useCountdown, useDeadlineCountdown } from "./use-countdown";
 
@@ -82,11 +86,14 @@ export function RoundFrame({
 interface RevealedFrameProps {
   readonly view: RevealedRound;
   readonly clockOffsetMs: number;
+  /** Shown between the Question text and the marked options. */
+  readonly lead?: ReactNode;
+  /** Shown after the marked options. */
   readonly children?: ReactNode;
 }
 
 /** A closed Round's Question with the correct option and the receiver's pick marked. */
-function RevealedFrame({ view, clockOffsetMs, children }: RevealedFrameProps) {
+function RevealedFrame({ view, clockOffsetMs, lead, children }: RevealedFrameProps) {
   const secondsLeft = useDeadlineCountdown(view.revealEndsAt, clockOffsetMs);
   const nextLabel = view.questionIndex + 1 === view.questionCount ? "Results" : "Next Question";
   return (
@@ -95,6 +102,7 @@ function RevealedFrame({ view, clockOffsetMs, children }: RevealedFrameProps) {
       pulse={secondsLeft > 0 && secondsLeft <= 3}
       view={view}
     >
+      {lead}
       <ol className="mt-6 grid gap-2">
         {view.question.options.map((option) => {
           const labels = revealedOptionLabels(view, option.id);
@@ -122,23 +130,38 @@ function RevealedFrame({ view, clockOffsetMs, children }: RevealedFrameProps) {
 interface RevealedQuestionProps {
   readonly view: RevealedRound;
   readonly clockOffsetMs: number;
-  /** The viewing Participant's id, to highlight their row. */
+  /** The viewing Participant's id, for their result and Leaderboard row. */
   readonly viewerId: string;
-  /** Shown between the options and the Leaderboard, e.g. the Participant's own result. */
-  readonly children?: ReactNode;
 }
 
-/** A Participant's closed Round: the marked options, then the Leaderboard in the same card. */
-export function RevealedQuestion({
-  view,
-  clockOffsetMs,
-  viewerId,
-  children,
-}: RevealedQuestionProps) {
+/**
+ * A Participant's closed Round, personal first: their result and rank, the marked options,
+ * the shared Round highlights, then the cumulative Leaderboard with this Round's points.
+ */
+export function RevealedQuestion({ view, clockOffsetMs, viewerId }: RevealedQuestionProps) {
+  const outcome = revealOutcome(view.scores);
+  const personal = personalResult(view, viewerId);
   return (
-    <RevealedFrame clockOffsetMs={clockOffsetMs} view={view}>
-      {children}
-      <Leaderboard entries={view.leaderboard} viewerId={viewerId} />
+    <RevealedFrame
+      clockOffsetMs={clockOffsetMs}
+      lead={
+        personal ? (
+          <PersonalResultCard
+            fastest={outcome.fastestCorrect?.participantId === viewerId}
+            result={personal}
+          />
+        ) : null
+      }
+      view={view}
+    >
+      <section aria-label="Round highlights" className="mt-6">
+        <RevealHighlights outcome={outcome} />
+      </section>
+      <Leaderboard
+        entries={view.leaderboard}
+        roundPoints={outcome.pointsByParticipant}
+        viewerId={viewerId}
+      />
     </RevealedFrame>
   );
 }
