@@ -13,7 +13,25 @@
 .vscode/*
 !.vscode/extensions.json
 .idea
+*:Zone.Identifier
 
-# TODO (BOOTSTRAP.md step 4): add stack-specific ignores once the project's
-# language/framework is chosen (e.g. /.next/, /build, /dist, /coverage,
-# *.tsbuildinfo, __pycache__/, target/).
+# dependencies and package-manager state
+node_modules/
+.pnpm-store/
+
+# TypeScript and build output
+*.tsbuildinfo
+dist/
+coverage/
+.turbo/
+.next/
+out/
+
+# generated database client and local database files
+Apti-App/packages/database/src/generated/
+*.db
+*.db-journal
+
+# test output
+playwright-report/
+test-results/

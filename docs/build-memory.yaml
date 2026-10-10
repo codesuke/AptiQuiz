@@ -1,6 +1,83 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-apti-app-workspace-relocation"
+    changed_at: "2026-10-10"
+    version: "0.1.0"
+    kind: "maintenance"
+    title: "Separate the runnable application from repository documentation"
+    status: "working"
+    summary: "Moved the complete pnpm/Turborepo workspace into Apti-App while keeping product documentation, ADRs, design references, and agent guidance at the repository root."
+    areas:
+      - "workspace organization"
+      - "developer tooling"
+      - "project documentation"
+    working:
+      - "All application source, shared packages, package manifests, the lockfile, environment template, and build configuration live under Apti-App."
+      - "Repository-root setup and architecture documentation points contributors to Apti-App before running workspace commands."
+      - "Architecture.md uses ASD-STE100 principles and separates implemented functions from accepted plans."
+      - "Biome reads the repository-root ignore rules while executing from the nested application workspace."
+      - "Web and Game Server production builds start successfully from the relocated workspace."
+    limitations:
+      - "Workspace commands must be run from Apti-App rather than the repository root."
+      - "The relocation does not add product behavior or change the deferred Redis and Kafka scale plan."
+    author:
+      name: "Codesuke"
+      type: "human"
+    co_authors:
+      - name: "OpenAI Codex"
+        type: "agent"
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "Biome checked 46 workspace files from Apti-App with no errors."
+        - "Forced Turborepo verification completed 18 of 18 typecheck, test, and build tasks with no cache hits."
+        - "The relocated web production server returned a healthy /api/health response and served the home page."
+        - "The relocated Game Server returned a healthy /health response."
+        - "The simulator connected 50/50 local clients with 11 ms median and 13 ms p95 time-ping round trip."
+  - id: "2026-10-10-aptiquiz-monorepo-bootstrap"
+    changed_at: "2026-10-10"
+    version: "0.1.0"
+    kind: "feature"
+    title: "Bootstrap the AptiQuiz application architecture"
+    status: "working"
+    summary: "Bootstrapped a pnpm/Turborepo TypeScript workspace with a Next.js web app, long-running Socket.IO Game Server, shared runtime contracts, a pure Game Engine, Prisma/PostgreSQL schema, and a repeatable connection simulator."
+    areas:
+      - "workspace and developer tooling"
+      - "web application"
+      - "realtime game server"
+      - "game engine"
+      - "database schema"
+      - "load simulation"
+      - "project documentation"
+    working:
+      - "The Next.js app builds, starts, serves the AptiQuiz foundation page, and returns a web health response."
+      - "The Socket.IO Game Server builds, starts, returns an HTTP health response, and validates typed time-ping messages."
+      - "The Game Engine enforces the initial Room phase transitions and provisional speed-scoring formula through a pure interface."
+      - "Prisma ORM 7 validates and generates a client for the initial PostgreSQL schema."
+      - "The simulator connected 50 of 50 local WebSocket clients and completed typed time-ping acknowledgements."
+      - "Biome, strict TypeScript, Vitest, and production builds run from commands in Apti-App."
+    limitations:
+      - "Room creation, joining, live answers, reveal, Leaderboard, reconnection, and Question Set authoring are not implemented."
+      - "The simulator proves 50 concurrent connections, not a complete 50-Participant match."
+      - "Better Auth, Socket Tickets, Dokploy deployment, Redis, and Kafka are accepted or deferred architecture only; none is implemented."
+      - "Active Rooms would be lost when the single Game Server process restarts."
+    author:
+      name: "Codesuke"
+      type: "human"
+    co_authors:
+      - name: "OpenAI Codex"
+        type: "agent"
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "pnpm lint passed with 47 files checked."
+        - "pnpm typecheck passed across six executable packages."
+        - "pnpm test passed six behavior tests across contracts, Game Engine, and Game Server."
+        - "pnpm build passed for the Next.js app, Game Server, simulator, contracts, Game Engine, and database package."
+        - "pnpm simulate connected 50/50 local clients with 18 ms median and 22 ms p95 time-ping round trip on WSL2, AMD Ryzen 7 5800H, 16 logical CPUs, and 13 GiB RAM."
   - id: "2026-10-09-defer-project-automation"
     changed_at: "2026-10-09"
     kind: "removal"

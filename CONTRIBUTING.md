@@ -1,4 +1,4 @@
-# Contributing to {Project Name}
+# Contributing to AptiQuiz
 
 Thanks for considering a contribution. This repo is built collaboratively by humans and AI agents, so the same rules apply to both — the source of truth is always the repository, not a chat history or a prior conversation.
 
@@ -32,7 +32,7 @@ If a term or convention is missing from those docs, that's worth raising in your
 
 Code isn't the only useful contribution:
 
-- **Report a bug** — open an [issue]({REPO_URL}/issues/new) with reproduction steps, expected vs. actual behavior, and your environment.
+- **Report a bug** — open an [issue](https://github.com/codesuke/AptiQuiz/issues/new) with reproduction steps, expected vs. actual behavior, and your environment.
 - **Propose a feature** — open an issue describing the problem you're trying to solve before proposing a specific solution; see `docs/agents/domain.md` for how this repo turns fuzzy ideas into specs.
 - **Improve docs** — typos, unclear setup steps, and missing explanations are all fair game for a PR.
 - **Review a PR** — thoughtful feedback on an open PR is as valuable as writing one.
@@ -42,20 +42,25 @@ Code isn't the only useful contribution:
 
 ### Prerequisites
 
-{List runtime, package manager, database, and any external service dependencies for local dev.}
+- Node.js 22.18 or newer; Node.js 24 is recommended.
+- pnpm 11.
+- PostgreSQL for migrations and durable product flows.
 
 ### Steps
 
 ```bash
-git clone {REPO_URL}.git
-cd {project-directory}
-
-# {Install, configure, and run steps go here.}
+git clone https://github.com/codesuke/AptiQuiz.git
+cd AptiQuiz/Apti-App
+cp .env.example .env
+pnpm install
+pnpm dev
 ```
 
 ### Troubleshooting
 
-{Common local-dev failure modes and fixes go here as they're discovered.}
+- If the web UI reports the Game Server as offline, confirm port `3001` is free and `GAME_SERVER_ORIGIN` matches the web origin.
+- If Prisma commands fail, set a reachable PostgreSQL `DATABASE_URL` in `.env`.
+- If workspace imports are missing, run `pnpm install` and then `pnpm db:generate`.
 
 ## Project Structure
 
@@ -65,7 +70,16 @@ See [`Architecture.md`](Architecture.md) for the current, authoritative breakdow
 
 This repo uses test-driven development for product behavior: write one failing behavior test, implement the minimal code to pass it, then refactor. Tests should verify behavior through public interfaces, not implementation details.
 
-{Document the actual test commands and test-file conventions once the stack is chosen.}
+Place behavior tests next to the implementation as `*.test.ts` or `*.test.tsx`. Game rules are tested through the public `game-engine` interface; network behavior is tested through public HTTP or Socket.IO interfaces.
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Run `pnpm simulate` while `pnpm dev` is active to exercise the public Socket.IO interface with 50 connections by default.
 
 Run the lint, typecheck, test, and build checks configured for the project before opening a PR. This template does not prescribe those tools before the stack is chosen.
 

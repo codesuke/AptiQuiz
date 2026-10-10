@@ -1,0 +1,158 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum RoomStatus {
+  LOBBY
+  RUNNING
+  FINISHED
+  CANCELLED
+}
+
+enum RoundStatus {
+  PENDING
+  OPEN
+  REVEALED
+  CLOSED
+}
+
+model College {
+  id             String        @id @default(cuid())
+  name           String
+  normalizedName String        @unique
+  createdAt      DateTime      @default(now())
+  rooms          Room[]
+  participants   Participant[]
+  matchResults   MatchResult[]
+}
+
+model QuestionSet {
+  id             String     @id @default(cuid())
+  ownerTokenHash String
+  title          String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  questions      Question[]
+  rooms          Room[]
+
+  @@index([ownerTokenHash])
+}
+
+model Question {
+  id              String       @id @default(cuid())
+  questionSetId   String
+  position        Int
+  text            String
+  options         Json
+  correctOptionId String
+  explanation     String?
+  topic           String
+  difficulty      Difficulty
+  media           Json?
+  questionSet     QuestionSet  @relation(fields: [questionSetId], references: [id], onDelete: Cascade)
+  rounds          Round[]
+
+  @@unique([questionSetId, position])
+  @@index([questionSetId])
+}
+
+model Room {
+  id             String        @id @default(cuid())
+  joinCode       String        @unique
+  hostTokenHash  String
+  collegeId      String
+  questionSetId  String
+  status         RoomStatus    @default(LOBBY)
+  createdAt      DateTime      @default(now())
+  completedAt    DateTime?
+  college        College       @relation(fields: [collegeId], references: [id])
+  questionSet    QuestionSet   @relation(fields: [questionSetId], references: [id])
+  participants   Participant[]
+  rounds         Round[]
+  matchResults   MatchResult[]
+
+  @@index([collegeId, createdAt])
+  @@index([questionSetId])
+}
+
+model Participant {
+  id              String        @id @default(cuid())
+  roomId          String
+  collegeId       String
+  displayName     String
+  resumeTokenHash String        @unique
+  score           Int           @default(0)
+  joinedAt        DateTime      @default(now())
+  room            Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  college         College       @relation(fields: [collegeId], references: [id])
+  answers         Answer[]
+  matchResults    MatchResult[]
+
+  @@index([roomId])
+  @@index([collegeId, score])
+}
+
+model Round {
+  id         String      @id @default(cuid())
+  roomId     String
+  questionId String
+  position   Int
+  startsAt   DateTime?
+  endsAt     DateTime?
+  status     RoundStatus @default(PENDING)
+  room       Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  question   Question    @relation(fields: [questionId], references: [id])
+  answers    Answer[]
+
+  @@unique([roomId, position])
+  @@index([questionId])
+}
+
+model Answer {
+  id                 String      @id @default(cuid())
+  roundId            String
+  participantId      String
+  selectedOptionId   String
+  receivedAt         DateTime
+  effectiveElapsedMs Int
+  correct             Boolean
+  points              Int
+  round               Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  participant         Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, participantId])
+  @@index([participantId])
+}
+
+model MatchResult {
+  id                String      @id @default(cuid())
+  roomId            String
+  participantId     String
+  collegeId         String
+  totalScore        Int
+  correctAnswers    Int
+  totalAnswers      Int
+  averageResponseMs Int
+  topicStats        Json
+  completedAt       DateTime    @default(now())
+  room              Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participant       Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  college           College     @relation(fields: [collegeId], references: [id])
+
+  @@unique([roomId, participantId])
+  @@index([collegeId, completedAt])
+  @@index([totalScore])
+}

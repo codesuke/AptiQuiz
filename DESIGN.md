@@ -1,26 +1,76 @@
-# Design
+---
+version: "aptiquiz-design-reference"
+name: "AptiQuiz Design System"
+description: "AptiQuiz uses an energetic, focused interface for live aptitude competition, Question Sets, Rooms, Leaderboards, and College Leagues. The reference demonstrates typography, component hierarchy, and responsive composition."
+colors:
+  primary: "#E65C00"
+  secondary: "#FDFBF7"
+  accent: "#FFB380"
+  background: "#FDFBF7"
+  surface: "#F7F4EB"
+  text-primary: "#111827"
+  text-secondary: "#4B5563"
+  border: "#E5E7EB"
+typography:
+  display-lg:
+    fontFamily: "Inter"
+    fontSize: "64px"
+    fontWeight: 500
+    lineHeight: "1.04"
+    letterSpacing: "0"
+  body-md:
+    fontFamily: "Inter"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: "1.6"
+  label-md:
+    fontFamily: "JetBrains Mono"
+    fontSize: "12px"
+    fontWeight: 600
+    lineHeight: "1.2"
+spacing:
+  base: "8px"
+  gap: "16px"
+  card-padding: "24px"
+  section-padding: "80px"
+rounded:
+  card: "16px"
+  control: "8px"
+  pill: "9999px"
+components:
+  card:
+    background: "Use the surface token with subtle borders and HTML-matched shadow depth"
+    radius: "Match the declared card radius token"
+  button:
+    background: "Use primary or accent colors for the main action"
+    radius: "Use the control or pill radius based on the source HTML"
+---
+# AptiQuiz Design System
+Reference: [AptiQuiz design reference](reference.html).
+Tags: live competition, aptitude practice, question sets, rooms, leaderboards, college leagues.
+## Overview
+AptiQuiz turns placement aptitude practice into a fair live competition. Its focused, energetic interface supports Question Sets, Rooms, Leaderboards, and College Leagues while preserving the reference's typography, component hierarchy, and responsive composition.
 
-Interface direction for {Project Name}: layout, interaction, and visual language. Agents should read this before building or reviewing UI.
+Use AptiQuiz as the product name throughout this reference. Write direct, energetic, precise, and encouraging interface copy using the domain terms in `CONTEXT.md`. The HTML is a visual reference; its controls illustrate component styling.
+## Composition
+Use `reference.html` as the visual source of truth. Preserve the visible hierarchy, first-screen composition, section rhythm, density, and interaction tone before adapting copy or content.
+Key visible headings include: Run live AptiQuiz Rooms; AptiQuiz match center; Question Sets; Race the clock; Build your next Question Set.
+## Colors
+Anchor the palette in primary #E65C00, secondary #FDFBF7, accent #FFB380, background #FDFBF7, surface #F7F4EB, text-primary #111827. Keep background, surface, text, and border roles distinct so generated layouts retain the same contrast pattern as the source.
+## Typography
+Use Inter for display moments and Inter for body copy unless the HTML clearly demands a compatible fallback. Labels and technical metadata should use JetBrains Mono or an equivalent mono face.
+## Layout
+Keep spacing deliberate and stable. Favor the same grid direction, max-width behavior, card density, and responsive stacking seen in the HTML. Do not replace distinctive source structures with generic SaaS sections.
+## Components
+Room lookup, Question Set actions, and live-match controls should preserve the reference button hierarchy, input density, and clear focus states.
+## Motion
+Preserve existing motion cues such as masked reveals, staggered entrance, hover lift, scroll-triggered transitions, and ambient movement. Keep easing smooth and restrained.
+## WebGL & Effects
 
-## Visual Reference
+If the source includes canvas, WebGL, Three.js, gradients, particles, or atmospheric effects, rebuild them as supporting layers behind the content. Keep effects performant, responsive, and secondary to the interface.
 
-{Link to Figma, a design system, or a `sample.html` reference implementation if one exists in this repo. If the Design-Engineer skill suite (`de-recon`, `de-direction`, `de-growth`, `de-motion`, `de-components`, `de-handoff`) has been run for a feature, its outputs live under `.design-engineer/<feature-name>/` — see `.design-engineer/README.md`.}
-
-## Layout & Interaction Principles
-
-{Grid system, spacing scale, responsive breakpoints, key interaction patterns.}
-
-## Component Conventions
-
-{Where UI primitives come from (e.g. a component library, generated via a CLI), and the rule for hand-editing vs. regenerating them.}
-
-## Accessibility Baseline
-
-{Minimum bar — e.g. keyboard navigability, color contrast, accessible names on interactive elements.}
-
-<!--
-If this project has no visual/UI surface (e.g. a CLI tool or backend
-service), replace the body of this file with a single line:
-"N/A — no user-facing interface." Keep the file present so AGENTS.md's
-reading list stays consistent across projects; don't delete it.
--->
+## Guardrails
+- Do not flatten the source into a generic card grid.
+- Do not swap the color mode unless the source clearly supports it.
+- Preserve the first viewport signal, focal object, and visual density.
+- Keep buttons, cards, and badges aligned to the same radius and border language.

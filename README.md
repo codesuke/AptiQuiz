@@ -1,69 +1,135 @@
-# {Project Name}
+# AptiQuiz
 
-{One or two sentence description of what this project is.}
+A live multiplayer aptitude arena where students answer synchronized questions under pressure and watch a server-scored leaderboard move in real time.
 
-> This repository was created from **Starter-Pack**, a template repo that ships a
-> stack-agnostic "operating system" for building with AI coding agents: durable
-> project docs, an issue/spec lifecycle, and code-quality conventions. If you are
-> looking at this file inside Starter-Pack itself rather than a project generated
-> from it, see [Starter-Pack's own README section](#using-this-as-a-template) below.
+**Hackathon problem statement:** 3 — AptiQuiz.
 
-## Getting Started
+## What It Does
 
-{Install steps, environment setup, how to run the project locally.}
+A host creates a reusable aptitude Question Set, opens a Room, and shares a short Join Code. Up to 50 Participants answer the same timed Round from phones or laptops; the authoritative Game Server accepts answers, calculates speed-and-accuracy scores, reveals the answer, and broadcasts standings.
 
-## How Work Flows Through This Repo
+The complete official brief and team-authored build specification are in [`PS.md`](PS.md).
 
-Idea to shipped feature, in order:
+## Done / Left / Plan
 
-1. **Grill it** — `/grilling` resolves the product decisions and produces a settled conversational handoff.
-2. **Make the PRD** — `/to-specs` publishes one single-feature PRD/spec as a GitHub Issue using [`docs/Templates/PRD.md`](docs/Templates/PRD.md). No planned local copy is created.
-3. **Slice it** — `/to-tickets` publishes approved vertical, horizontal, or hybrid slices as native GitHub sub-issues and wires their blocking edges.
-4. **Build it** — `/implement-spec` implements ready slices with behavior-first testing and review. After every slice ships, it archives the PRD and slice snapshots under [`docs/Specs-Completed/`](docs/Specs-Completed/README.md) and adds an agent-readable changelog entry to [`docs/build-memory.yaml`](docs/build-memory.yaml) describing what changed, what works, its limitations, and authorship.
+### Done
 
-Full skill list and details: `AGENTS.md`'s Preferred Skill Workflow section. These skills are vendored in-repo (`.agents/skills/`, `.claude/skills/`) so every clone gets the same pinned versions with no separate install.
+- pnpm/Turborepo TypeScript workspace.
+- Next.js web application with a game-server connectivity indicator.
+- Long-running Socket.IO Game Server with health and typed time-ping interfaces.
+- Shared Zod transport contracts.
+- Pure, tested Game Engine phase transitions and provisional scoring.
+- PostgreSQL/Prisma data model.
+- Fifty-connection Socket.IO simulator.
 
-## Rules & Agent Conventions
+### Left
 
-This repo is built by humans and AI agents under the same rules — the repository is the source of truth, not chat history.
+- Question Set authoring and durable CRUD.
+- Room creation, Join Code flow, lobby, and host controls.
+- Full live Round events, answer acceptance, reveal, and Leaderboard.
+- Stable option permutation, reconnect tokens, and cheating-resistance tests.
+- Final analytics, College League, full 50-Participant match simulation, deployment, and demo recording.
+- Better Auth accounts, signed Socket Tickets, Google OAuth, and email verification.
 
-**Core rules**
+### Plan
 
-- [`AGENTS.md`](AGENTS.md) is the constitution: every agent session reads it first, along with its auto-loaded imports (`Architecture.md`, `docs/agents/code-quality.md`, `docs/agents/stack-conventions.md`).
-- Clean-code baseline in [`docs/agents/code-quality.md`](docs/agents/code-quality.md): small single-purpose functions, no magic numbers, no dead code, comments explain _why_ not _what_. Stack-specific rules layer on top in `docs/agents/stack-conventions.md` once a stack is chosen.
-- A PRD/spec never introduces more than one new feature at a time and is written in plain, jargon-free English — see [`docs/Templates/PRD.md`](docs/Templates/PRD.md).
-- Architecture decisions that are hard to reverse and non-obvious get an ADR in [`docs/ADR/`](docs/ADR/README.md) — not every decision, only the durable ones.
-- Run `/smell` against the target branch before opening a PR on any non-trivial feature, refactor, or bugfix; treat `BLOCKER`/`HIGH` findings as pre-review fixes.
+1. Build one complete single-process match vertically.
+2. Add reconnect and cheating-resistance behavior.
+3. Persist completed matches and aggregate the College League.
+4. Pass the full 50-Participant simulation and deploy.
+5. Deploy both containers through Dokploy, then add Redis only when running multiple Game Server processes. Kafka remains deferred until durable multi-consumer event workloads are measured.
 
-**AI agent conventions**
+## Architecture and Why
 
-- Upstream skills are vendored in-repo (`.agents/skills/`, `.claude/skills/`, pinned by `skills-lock.json`) and refreshed with `npx skills update`. Repo-owned delivery skills are versioned directly with the project and are not overwritten by that refresh.
-- Issues and specs live on GitHub Issues (see [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md)), tagged with the triage vocabulary in [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md): `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` (plus `good first issue` for external contributors).
-- Domain vocabulary lives in `CONTEXT.md` — agents use those exact terms and flag any ADR a proposal conflicts with (see [`docs/agents/domain.md`](docs/agents/domain.md)).
-- `docs/sessions/`, `docs/QnA/`, and `docs/questionnaire/` each have their own file-naming convention — check each folder's README before writing into it.
+The repository separates the web and realtime runtimes while sharing contracts and game rules:
 
-**Getting started, read in this order:** [`AGENTS.md`](AGENTS.md) → [`CONTEXT.md`](CONTEXT.md) → [`Architecture.md`](Architecture.md) → [`docs/agents/code-quality.md`](docs/agents/code-quality.md) + [`docs/agents/stack-conventions.md`](docs/agents/stack-conventions.md) → [`CONTRIBUTING.md`](CONTRIBUTING.md) for the human PR process.
+```text
+Apti-App/apps/web          Next.js product interface and durable CRUD
+Apti-App/apps/game-server  authoritative Socket.IO runtime
+Apti-App/apps/simulator    repeatable multi-participant proof
 
-## Documentation
+Apti-App/packages/contracts    runtime-validated events
+Apti-App/packages/game-engine  deterministic transitions and scoring
+Apti-App/packages/database     Prisma/PostgreSQL access
+```
 
-This repo keeps durable project knowledge in-tree instead of chat history:
+Next.js is not responsible for live timers or scoring. The standalone Game Server stays alive for WebSocket rooms, while the pure Game Engine keeps every rule independently testable. PostgreSQL owns durable authoring, accounts, results, and league records. Better Auth and signed Socket Tickets are accepted but not implemented. See [`Architecture.md`](Architecture.md), [ADR 0006](docs/ADR/0006-typescript-monorepo-and-realtime-runtime.md), [ADR 0007](docs/ADR/0007-better-auth-and-socket-tickets.md), and [ADR 0008](docs/ADR/0008-dokploy-deployment-redis-deferred.md).
 
-- [`AGENTS.md`](AGENTS.md) — how AI agents (and humans) should work in this repo.
-- [`CONTEXT.md`](CONTEXT.md) — the domain glossary. Use these exact terms in code, issues, and PRs.
-- [`Brand.md`](Brand.md) — product voice and positioning.
-- [`DESIGN.md`](DESIGN.md) — interface direction.
-- [`Architecture.md`](Architecture.md) — repo layout and where new code belongs.
-- [`docs/`](docs/README.md) — completed delivery records, architecture decisions, templates, build memory, and agent configuration. See its README for the full operating model.
+## What We Added
 
-## Using This As A Template
+- A framework-free state machine so UI and network code cannot silently invent game rules.
+- Runtime-validated shared event contracts.
+- A standalone simulator that defaults to 50 independent connections.
+- An explicit application-first scale plan that avoids premature Redis and Kafka infrastructure.
 
-If you just used **Use this template** to create this repo, you are not done yet:
+## How to Run It
 
-1. Open [`BOOTSTRAP.md`](BOOTSTRAP.md) and work through the checklist.
-2. Delete this section (and `BOOTSTRAP.md` itself) once the checklist is complete.
+### Prerequisites
 
-Starter-Pack deliberately ships without package-manager hooks, formatter configuration, dependency automation, or CI/CD workflows. Add those during bootstrap only when the generated project's stack and requirements are known.
+- Node.js 22.18 or newer; Node.js 24 is recommended.
+- pnpm 11.
+- PostgreSQL when running migrations or durable product features.
+
+### Setup
+
+```bash
+cd Apti-App
+cp .env.example .env
+pnpm install
+pnpm dev
+```
+
+Open:
+
+- Web application: `http://localhost:3000`
+- Web health: `http://localhost:3000/api/health`
+- Game Server health: `http://localhost:3001/health`
+
+No login is implemented yet.
+
+### Verify
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+With `pnpm dev` running in another terminal:
+
+```bash
+pnpm simulate
+```
+
+The current simulator verifies concurrent WebSocket connections and typed time acknowledgements. It does not yet prove a complete 50-player match.
+
+Bootstrap result on 10 October 2026: 50/50 local WebSocket clients connected successfully, with 18 ms median and 22 ms p95 time-ping round trip. Environment: WSL2, AMD Ryzen 7 5800H, 16 logical CPUs, 13 GiB RAM. This is connectivity evidence, not a complete-match capacity claim.
+
+### Database
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm db:studio
+```
+
+`pnpm db:migrate` and `pnpm db:studio` require a working `DATABASE_URL`.
+
+## Tools and AI Used
+
+- Next.js, React, TypeScript, Tailwind CSS, Socket.IO, Zod, Zustand, Prisma ORM, PostgreSQL, Vitest, Biome, pnpm, and Turborepo.
+- OpenAI Codex assisted with architecture and bootstrap code.
+- AptiQuiz currently has no end-user AI feature. If one is added, the interface will identify it clearly.
+
+## Who It Is For
+
+Students preparing for placement aptitude and logical-reasoning tests, and colleges that want repeatable live practice events and league competition. Students return for pressure practice, measurable topic improvement, and visible rank progression.
+
+## Repository Workflow
+
+Documentation and agent guidance stay at the repository root; all runnable source and workspace tooling live in [`Apti-App/`](Apti-App/). Read [`AGENTS.md`](AGENTS.md), [`CONTEXT.md`](CONTEXT.md), [`Architecture.md`](Architecture.md), and [`docs/agents/stack-conventions.md`](docs/agents/stack-conventions.md) before changing behavior. Planned work lives in GitHub Issues; verified completed behavior is recorded in [`docs/build-memory.yaml`](docs/build-memory.yaml).
 
 ## License
 
-{See [`LICENSE`](LICENSE).}
+[MIT](LICENSE)

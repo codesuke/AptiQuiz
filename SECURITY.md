@@ -2,10 +2,10 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in {Project Name}, please report it privately rather than opening a public issue.
+If you discover a security vulnerability in AptiQuiz, please report it privately rather than opening a public issue.
 
-- **Contact**: {SECURITY_CONTACT_EMAIL, or a GitHub Security Advisory link once the repo is public}
-- **Response time**: We aim to acknowledge reports within {N} business days.
+- **Contact**: [Open a private GitHub Security Advisory](https://github.com/codesuke/AptiQuiz/security/advisories/new).
+- **Response time**: Maintainers will acknowledge the report as soon as practical.
 
 Please include:
 
@@ -15,7 +15,10 @@ Please include:
 
 ## Supported Versions
 
-{Table of which versions/branches currently receive security fixes, once the project has a release history.}
+| Version | Supported |
+|---|---|
+| `main` | Yes |
+| Unreleased branches and forks | No |
 
 ## Disclosure Policy
 

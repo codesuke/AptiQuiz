@@ -1,27 +1,29 @@
-# Brand
-
-Product voice, positioning, and naming for {Project Name}. Agents should read this before writing user-facing copy, naming a feature, or making a tone call in docs, UI text, or marketing surfaces.
+# AptiQuiz Brand
 
 ## Positioning
 
-{One or two sentences: who this is for, and what problem it solves that alternatives don't.}
+AptiQuiz turns solitary placement aptitude practice into a fair live competition. It is built for students who need to improve speed under pressure and colleges that want practice events students actually repeat.
 
 ## Voice
 
-{Adjectives and anti-adjectives — e.g. "direct, not corporate" — plus a short example of copy that sounds right vs. copy that sounds wrong.}
+Direct, energetic, precise, and encouraging—not childish, corporate, or exam-anxious.
+
+Sounds right: “Race the clock. Climb the room.”
+
+Sounds wrong: “Leverage our revolutionary gamified assessment ecosystem.”
+
+Use short active sentences during a live match. Errors explain what happened and what the Participant can do next without blame.
 
 ## Naming
 
-{Product name, feature names, and any naming conventions to follow (e.g. always capitalize a specific domain term — cross-reference `CONTEXT.md`).}
+- Product name: **AptiQuiz**.
+- Capitalize the domain terms defined in [`CONTEXT.md`](CONTEXT.md) when referring to a product concept in technical documents.
+- User-facing controls use familiar sentence case: “Join a room”, “Start match”, “Submit answer”.
+- Never imply that speed alone equals ability; accuracy and improvement remain visible.
 
 ## Non-Goals
 
-{Tones, audiences, or comparisons this brand deliberately avoids.}
-
-<!--
-If this project has no user-facing surface (e.g. an internal library, CLI-only
-tool, or backend service with no product voice of its own), replace the body
-of this file with a single line: "N/A — no user-facing product surface."
-Keep the file present so AGENTS.md's reading list stays consistent across
-projects; don't delete it.
--->
+- Do not mimic a childish trivia game.
+- Do not glorify placement rejection or shame low-ranking Participants.
+- Do not claim perfect fairness, cheating prevention, or capacity without test evidence.
+- Do not market deferred Redis or Kafka infrastructure as a user benefit.

@@ -4,7 +4,7 @@ Issues and PRDs for this repo live as GitHub Issues. Use the `gh` CLI for issue 
 
 ## Repository
 
-`VirtuNode-dev/Starter-Pack`
+`codesuke/AptiQuiz`
 
 ## Conventions
 
@@ -34,10 +34,10 @@ Run `gh issue view <number> --comments`.
 
 Shared mechanics behind every parent/sub-issue and blocking relationship in this repo — used by both `wayfinder` and `to-tickets`. This repo has native support confirmed for both relationship types; use them instead of body-text conventions.
 
-- **Get a node id**: `gh api graphql -f query='query { repository(owner:"VirtuNode-dev", name:"Starter-Pack") { issue(number: <n>) { id } } }'`
+- **Get a node id**: `gh api graphql -f query='query { repository(owner:"codesuke", name:"AptiQuiz") { issue(number: <n>) { id } } }'`
 - **Link a sub-issue to a parent** (there is no `gh issue create --parent` flag yet): `gh api graphql -f query='mutation { addSubIssue(input: {issueId: "<parent node id>", subIssueId: "<sub-issue node id>"}) { subIssue { id } } }'`
-- **Add a blocking dependency** (renders as "blocked by" in the GitHub UI): `gh api -X POST repos/VirtuNode-dev/Starter-Pack/issues/<blocked_number>/dependencies/blocked_by -f issue_id=<blocking_issue_node_id>`
-- **Check blocking status**: `gh api repos/VirtuNode-dev/Starter-Pack/issues/<number>/dependencies/blocked_by`
+- **Add a blocking dependency** (renders as "blocked by" in the GitHub UI): `gh api -X POST repos/codesuke/AptiQuiz/issues/<blocked_number>/dependencies/blocked_by -f issue_id=<blocking_issue_node_id>`
+- **Check blocking status**: `gh api repos/codesuke/AptiQuiz/issues/<number>/dependencies/blocked_by`
 
 ## Wayfinding Operations
 

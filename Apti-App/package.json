@@ -1,0 +1,31 @@
+{
+  "name": "aptiquiz",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22.18.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run build --filter='./packages/*' && turbo run dev --parallel",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:generate": "pnpm --filter @aptiquiz/database db:generate",
+    "db:migrate": "pnpm --filter @aptiquiz/database db:migrate",
+    "db:studio": "pnpm --filter @aptiquiz/database db:studio",
+    "simulate": "pnpm --filter @aptiquiz/simulator simulate",
+    "postinstall": "pnpm db:generate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
+    "turbo": "^2.5.0",
+    "typescript": "^5.9.0"
+  }
+}

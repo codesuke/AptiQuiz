@@ -1,28 +1,97 @@
-# {Context Name}
+# AptiQuiz Domain Language
 
-{One or two sentence description of what this context is and why it exists.}
+AptiQuiz is a live aptitude competition for students preparing for placements. Use the terms below consistently in code, tests, issues, and user-facing copy.
 
 ## Language
 
-**{Term}**:
-{A one or two sentence description of the term}
-_Avoid_: {synonyms to avoid}
+**Question Set**:
+A reusable, ordered collection of Questions owned by a Host.
+_Avoid_: quiz pack, test bundle.
 
-<!--
-Fill this in from terms settled through the `grilling` skill (use `domain-modeling`
-underneath) as fuzzy product language gets sharpened into precise terms.
+**Question**:
+One aptitude prompt with options, one correct option, a Topic, and a Difficulty.
+_Avoid_: challenge, item.
 
-Rules:
-- Be opinionated. When multiple words exist for the same concept, pick the
-  best one and list the others under `_Avoid_`.
-- Keep definitions tight — one or two sentences, defining what a term IS,
-  not what it does.
-- Only include terms specific to this project's domain. General programming
-  concepts (timeouts, error types, utility patterns) don't belong here even
-  if the project uses them extensively.
-- This file is a glossary, not a spec. No implementation details.
+**Host**:
+The person authorized to create a Room and control its match progression.
+_Avoid_: admin, game master.
 
-If this project turns out to have multiple bounded contexts, replace this
-file with a root `CONTEXT-MAP.md` and move per-context glossaries under
-`src/<context>/CONTEXT.md` — see the `domain-modeling` skill for the format.
--->
+**Room**:
+One live match created from a Question Set and associated with a College.
+_Avoid_: lobby when referring to the whole match, session.
+
+**Join Code**:
+The short public code a Participant uses to enter a Room.
+_Avoid_: room ID, invite token.
+
+**Participant**:
+A student competing in a Room under one persistent identity and score.
+_Avoid_: player, user when referring specifically to a competitor.
+
+**Lobby**:
+The pre-match Room phase in which Participants gather and the Host can start the match.
+_Avoid_: waiting room.
+
+**Round**:
+The server-timed lifecycle for one Question: open, answer collection, reveal, and scoring.
+_Avoid_: level, turn.
+
+**Game Server**:
+The authoritative runtime that owns live Room state, timing, answer acceptance, and scoring.
+_Avoid_: backend when the authoritative role matters.
+
+**Leaderboard**:
+The ordered Room standings shown after a Round and at match completion.
+_Avoid_: scoreboard.
+
+**College League**:
+The time-bounded aggregation of completed Room results into top Participants and Colleges.
+_Avoid_: global Leaderboard.
+
+**Resume Token**:
+An opaque secret that allows a disconnected Participant to reclaim the same Room identity and score.
+_Avoid_: session ID, Join Code.
+
+**Effective Response Time**:
+The server-calculated response duration used for scoring after applying the documented network-delay policy.
+_Avoid_: client time, ping-adjusted guess.
+
+**College**:
+An approved institution that Participants represent and that Rooms are hosted under.
+_Avoid_: school, university, institute.
+
+**Pending College**:
+A College submitted through the registration form that an Admin has not yet approved or rejected.
+_Avoid_: draft college, unverified college.
+
+**Home College**:
+The single College a signed-in User represents in the College League.
+_Avoid_: affiliation, campus.
+
+**User**:
+A signed-in account holder who can play, author Question Sets, and act as a Host.
+_Avoid_: member, customer.
+
+**Guest**:
+A person who joins a Room through a Join Code or link without signing in.
+_Avoid_: anonymous user, visitor.
+
+**Admin**:
+A User whose email is listed in the deployment's admin allow-list and who manages Colleges, Users, Question Sets, Rooms, and League results.
+_Avoid_: moderator, superuser, Host.
+
+**Featured Question Set**:
+A Question Set that an Admin has made available for any User to host.
+_Avoid_: public set, template.
+
+**Socket Ticket**:
+A short-lived signed credential that proves a signed-in User's identity to the Game Server.
+_Avoid_: session token, Resume Token.
+
+**League Period**:
+The time window a College League table covers: this week, this month, or all time.
+_Avoid_: season.
+
+**Counted Match**:
+A completed Room result that is eligible to add points to the College League.
+_Avoid_: ranked game, official match.
