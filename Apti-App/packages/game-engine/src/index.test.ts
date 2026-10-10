@@ -20,7 +20,7 @@ describe("game engine", () => {
     );
 
     expect(opened.state.roundEndsAt).toBe(11_000);
-    expect(finished.state.phase).toBe("FINISHED");
+    expect(finished.state.phase).toBe("FINALIZING_RESULTS");
   });
 
   it("records when a Question closes and keeps its deadline", () => {
@@ -76,21 +76,28 @@ describe("game engine", () => {
     expect(next.events).toEqual([{ type: "QUESTION_OPENED", questionIndex: 1 }]);
   });
 
-  it("finishes after the last revealed Question without opening another", () => {
+  it("finalizes after the last reveal and completes only after saving", () => {
     const opened = transitionGame(
       createGameState("room-1", 1),
       { type: "START", durationMs: 10_000 },
       1_000,
     );
     const revealed = transitionGame(opened.state, { type: "CLOSE_QUESTION" }, 4_000);
-    const finished = transitionGame(revealed.state, { type: "ADVANCE", durationMs: 10_000 }, 6_000);
+    const finalizing = transitionGame(
+      revealed.state,
+      { type: "ADVANCE", durationMs: 10_000 },
+      6_000,
+    );
+    const finished = transitionGame(finalizing.state, { type: "COMPLETE" }, 7_000);
 
-    expect(finished.state).toMatchObject({
-      phase: "FINISHED",
+    expect(finalizing.state).toMatchObject({
+      phase: "FINALIZING_RESULTS",
       roundStartsAt: null,
       roundEndsAt: null,
       roundClosedAt: null,
     });
+    expect(finalizing.events).toEqual([]);
+    expect(finished.state.phase).toBe("FINISHED");
     expect(finished.events).toEqual([{ type: "GAME_FINISHED" }]);
   });
 
@@ -116,7 +123,12 @@ describe("game engine", () => {
       1_000,
     );
     const revealed = transitionGame(opened.state, { type: "CLOSE_QUESTION" }, 4_000);
-    const finished = transitionGame(revealed.state, { type: "ADVANCE", durationMs: 10_000 }, 6_000);
+    const finalizing = transitionGame(
+      revealed.state,
+      { type: "ADVANCE", durationMs: 10_000 },
+      6_000,
+    );
+    const finished = transitionGame(finalizing.state, { type: "COMPLETE" }, 7_000);
 
     expect(() =>
       transitionGame(finished.state, { type: "ADVANCE", durationMs: 10_000 }, 7_000),

@@ -73,6 +73,7 @@ interface Player {
   readonly name: string;
   readonly socket: TestSocket;
   readonly participantId: string;
+  readonly resumeToken: string;
   /** The newest Round view this player received. */
   readonly latest: () => RoundView | undefined;
 }
@@ -89,6 +90,7 @@ interface CountingStore extends RoomStore {
   /** Completion attempts that reached the store, failed or not. */
   readonly completionAttempts: () => number;
   failNextCompletion(): void;
+  pauseNextCompletion(): () => void;
 }
 
 describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
@@ -156,6 +158,7 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
     stores.push(real);
     let attempts = 0;
     let failures = 0;
+    let completionGate: Promise<void> | null = null;
 
     return {
       ...real,
@@ -163,15 +166,24 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       failNextCompletion: () => {
         failures += 1;
       },
+      pauseNextCompletion: () => {
+        let release = () => {};
+        completionGate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return release;
+      },
       completeRoom: (input) => {
         attempts += 1;
+        const gate = completionGate;
+        completionGate = null;
 
         if (failures > 0) {
           failures -= 1;
           return Promise.reject(new Error("the transaction failed"));
         }
 
-        return real.completeRoom(input);
+        return gate === null ? real.completeRoom(input) : gate.then(() => real.completeRoom(input));
       },
     };
   }
@@ -201,7 +213,13 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
     }
 
     await settle();
-    return { name, socket, participantId: joined.participant.participantId, latest };
+    return {
+      name,
+      socket,
+      participantId: joined.participant.participantId,
+      resumeToken: joined.resumeToken,
+      latest,
+    };
   }
 
   function trackRounds(socket: TestSocket): () => RoundView | undefined {
@@ -299,9 +317,33 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       const table = await openTable(fourQuestionSetId);
       const { asha, ravi, hari, gita } = await playFourQuestions(table);
 
-      await expect(finishAutomatically(table)).resolves.toMatchObject({
+      const completed = await finishAutomatically(table);
+      expect(completed).toMatchObject({
         ok: true,
         lobby: { phase: "FINISHED" },
+        round: null,
+      });
+      if (!completed.ok) throw new Error("Room did not finish");
+      const resumedGuest = await connectAs(table.server.port);
+      await expect(
+        resumedGuest.emitWithAck("room:resume", {
+          joinCode: table.hosted.joinCode,
+          resumeToken: gita.resumeToken,
+        }),
+      ).resolves.toMatchObject({
+        ok: true,
+        lobby: { phase: "FINISHED", results: completed.lobby.results },
+        round: null,
+      });
+      const reconnectedHost = await connectAs(
+        table.server.port,
+        ticketFor(hostId, collegeIds.room, true),
+      );
+      await expect(
+        reconnectedHost.emitWithAck("room:host", { roomId: table.roomId }),
+      ).resolves.toMatchObject({
+        ok: true,
+        lobby: { phase: "FINISHED", results: completed.lobby.results },
         round: null,
       });
 
@@ -430,7 +472,7 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
   );
 
   it(
-    "does not announce a finished Room when the final commit fails",
+    "shows finalizing and retries a failed final commit without a Host command",
     async () => {
       const table = await openTable(oneQuestionSetId);
       const asha = await seat(table, "Asha", ticketFor(ashaId, collegeIds.asha, true));
@@ -447,14 +489,44 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       await finishReveal(table.server, view);
       await settle();
 
-      expect(announcements).toEqual([]);
+      expect(announcements).toMatchObject([{ phase: "FINALIZING_RESULTS" }]);
       expect(await resultRows(table.roomId)).toEqual([]);
       const unfinished = await db.room.findUniqueOrThrow({ where: { id: table.roomId } });
       expect(unfinished).toMatchObject({ status: "RUNNING", completedAt: null });
       const hosted = await table.host.emitWithAck("room:host", { roomId: table.roomId });
-      expect(hosted).toMatchObject({ ok: true, lobby: { phase: "QUESTION_REVEAL" } });
+      expect(hosted).toMatchObject({
+        ok: true,
+        lobby: { phase: "FINALIZING_RESULTS" },
+        round: null,
+      });
+      if (!hosted.ok) throw new Error("Host could not reconnect");
+      expect(hosted.lobby.results).toBeUndefined();
+      const resumed = await connectAs(table.server.port, ticketFor(ashaId, collegeIds.asha, true));
+      await expect(
+        resumed.emitWithAck("room:resume", {
+          joinCode: table.hosted.joinCode,
+          resumeToken: asha.resumeToken,
+        }),
+      ).resolves.toMatchObject({
+        ok: true,
+        lobby: { phase: "FINALIZING_RESULTS" },
+        round: null,
+      });
 
       expect(table.server.store.completionAttempts()).toBe(1);
+      const finished = new Promise<void>((resolve) => {
+        asha.socket.on("room:lobby", function onLobby(lobby) {
+          if (lobby.phase !== "FINISHED") return;
+          asha.socket.off("room:lobby", onLobby);
+          resolve();
+        });
+      });
+      table.server.clock.advance(2_000);
+      table.server.deadlines.fireDue();
+      await finished;
+      expect(announcements.map((lobby) => lobby.phase)).toEqual(["FINALIZING_RESULTS", "FINISHED"]);
+      expect(table.server.store.completionAttempts()).toBe(2);
+      expect(await resultRows(table.roomId)).toHaveLength(1);
     },
     TEST_TIMEOUT_MS,
   );
@@ -478,6 +550,48 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       expect(table.server.store.completionAttempts()).toBe(1);
       expect(firstRows).toHaveLength(2);
       expect(await resultRows(table.roomId)).toEqual(firstRows);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "keeps one completion in flight when the final timer callback repeats",
+    async () => {
+      const table = await openTable(oneQuestionSetId);
+      const asha = await seat(table, "Asha");
+      await seat(table, "Ravi");
+      await startRoom(table.host, table.roomId);
+      await settle();
+      await answerAt(table, asha, 1_000, CORRECT);
+      await closeByDeadline(table);
+      const view = table.hostView();
+      if (view?.phase !== "QUESTION_REVEAL") throw new Error("no final reveal");
+      const callback = table.server.deadlines
+        .callbacks()
+        .find((timer) => timer.at === view.revealEndsAt)?.callback;
+      if (!callback) throw new Error("final timer missing");
+      const release = table.server.store.pauseNextCompletion();
+      const finished = new Promise<void>((resolve) => {
+        table.host.on("room:lobby", function onLobby(lobby) {
+          if (lobby.phase !== "FINISHED") return;
+          table.host.off("room:lobby", onLobby);
+          resolve();
+        });
+      });
+
+      await finishReveal(table.server, view);
+      callback();
+      await settle();
+      expect(table.server.store.completionAttempts()).toBe(1);
+      expect(await resultRows(table.roomId)).toEqual([]);
+      release();
+      await finished;
+      const saved = await resultRows(table.roomId);
+      expect(saved).toHaveLength(2);
+      callback();
+      await settle();
+      expect(table.server.store.completionAttempts()).toBe(1);
+      expect(await resultRows(table.roomId)).toEqual(saved);
     },
     TEST_TIMEOUT_MS,
   );

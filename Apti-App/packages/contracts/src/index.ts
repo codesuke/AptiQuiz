@@ -133,6 +133,7 @@ export const roomPhaseSchema = z.enum([
   "QUESTION_OPEN",
   "QUESTION_REVEAL",
   "LEADERBOARD",
+  "FINALIZING_RESULTS",
   "FINISHED",
 ]);
 

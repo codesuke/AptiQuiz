@@ -32,6 +32,10 @@ export function HostLobby({
 
   const matchFinished = lobby ? isMatchFinished(lobby) : false;
 
+  if (lobby && (lobby.phase === "FINALIZING_RESULTS" || matchFinished)) {
+    return <FinalResults results={lobby.results} viewerId={null} />;
+  }
+
   return (
     <>
       <div className="mb-7 flex flex-wrap items-end justify-between gap-5 sm:mb-9">
@@ -76,7 +80,6 @@ export function HostLobby({
           <ShareRoom collegeName={collegeName} joinCode={joinCode} />
         )}
         <div className={`min-w-0 ${inLobby ? "" : "space-y-5"}`}>
-          {lobby && matchFinished ? <FinalResults results={lobby.results} viewerId={null} /> : null}
           {round ? <ShareRoom collegeName={collegeName} joinCode={joinCode} compact /> : null}
           {lobby ? (
             <LobbyDetails

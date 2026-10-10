@@ -523,66 +523,66 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
         </p>
       </div>
 
-      {finished ? (
+      {finished || lobby.phase === "FINALIZING_RESULTS" ? (
         <FinalResults results={lobby.results} viewerId={participant.participantId} />
-      ) : null}
-
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(30rem,1fr)]">
-        <div className="min-w-0 space-y-5">
-          {lobby.phase === "GETTING_READY" && lobby.ready ? (
-            <GettingReady
-              key={lobby.ready.endsAt}
-              ready={lobby.ready}
-              receivedAt={lobbyReceivedAt}
-            />
-          ) : round !== null ? (
-            <ParticipantRound
-              online={connection === "online"}
-              participantId={participant.participantId}
-              round={round}
-              sendAnswer={sendAnswer}
-            />
-          ) : finished ? null : (
-            <div aria-live="polite" role="status">
-              {hasStarted ? (
-                <p className="flex items-center gap-3 rounded-lg border border-[var(--aq-rule)] bg-[var(--aq-surface)] px-4 py-3 font-semibold text-[var(--aq-ink)]">
-                  <Play aria-hidden="true" className="size-4 shrink-0 text-[#b84700]" />
-                  The Host started the match. Questions will appear here.
-                </p>
-              ) : (
-                <div className="flex min-h-[28rem] flex-col items-center justify-center rounded-xl border border-[var(--aq-rule)] bg-white px-6 py-12 text-center sm:min-h-[34rem]">
-                  <Hourglass aria-hidden="true" className="size-14 text-[var(--aq-action)]" />
-                  <h2 className="mt-5 font-[family-name:var(--aq-font-display)] text-3xl tracking-[-0.04em] text-[var(--aq-ink)] sm:text-4xl">
-                    Waiting for the Host to start
-                  </h2>
-                  <p className="mt-3 max-w-md leading-7 text-[var(--aq-text-muted)]">
-                    You’re all set. Keep this page open and stay connected; the first Question will
-                    appear here.
+      ) : (
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(30rem,1fr)]">
+          <div className="min-w-0 space-y-5">
+            {lobby.phase === "GETTING_READY" && lobby.ready ? (
+              <GettingReady
+                key={lobby.ready.endsAt}
+                ready={lobby.ready}
+                receivedAt={lobbyReceivedAt}
+              />
+            ) : round !== null ? (
+              <ParticipantRound
+                online={connection === "online"}
+                participantId={participant.participantId}
+                round={round}
+                sendAnswer={sendAnswer}
+              />
+            ) : finished ? null : (
+              <div aria-live="polite" role="status">
+                {hasStarted ? (
+                  <p className="flex items-center gap-3 rounded-lg border border-[var(--aq-rule)] bg-[var(--aq-surface)] px-4 py-3 font-semibold text-[var(--aq-ink)]">
+                    <Play aria-hidden="true" className="size-4 shrink-0 text-[#b84700]" />
+                    The Host started the match. Questions will appear here.
                   </p>
-                  <p className="mt-10 flex items-center gap-3 rounded-lg bg-[var(--aq-surface)] px-5 py-4 text-left text-sm text-[var(--aq-text-muted)]">
-                    <Lightbulb
-                      aria-hidden="true"
-                      className="size-5 shrink-0 text-[var(--aq-action)]"
-                    />{" "}
-                    Get ready to answer quickly when the first Question appears.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+                ) : (
+                  <div className="flex min-h-[28rem] flex-col items-center justify-center rounded-xl border border-[var(--aq-rule)] bg-white px-6 py-12 text-center sm:min-h-[34rem]">
+                    <Hourglass aria-hidden="true" className="size-14 text-[var(--aq-action)]" />
+                    <h2 className="mt-5 font-[family-name:var(--aq-font-display)] text-3xl tracking-[-0.04em] text-[var(--aq-ink)] sm:text-4xl">
+                      Waiting for the Host to start
+                    </h2>
+                    <p className="mt-3 max-w-md leading-7 text-[var(--aq-text-muted)]">
+                      You’re all set. Keep this page open and stay connected; the first Question
+                      will appear here.
+                    </p>
+                    <p className="mt-10 flex items-center gap-3 rounded-lg bg-[var(--aq-surface)] px-5 py-4 text-left text-sm text-[var(--aq-text-muted)]">
+                      <Lightbulb
+                        aria-hidden="true"
+                        className="size-5 shrink-0 text-[var(--aq-action)]"
+                      />{" "}
+                      Get ready to answer quickly when the first Question appears.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
-          {error === null ? null : (
-            <p className={`${fieldErrorClass} rounded-xl bg-[#fdecea] px-4 py-3`} role="alert">
-              {error}
-            </p>
-          )}
+            {error === null ? null : (
+              <p className={`${fieldErrorClass} rounded-xl bg-[#fdecea] px-4 py-3`} role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+          <div className="grid gap-5">
+            <LobbyDetails lobby={lobby} compact />
+            <ScoringRuleCard lobby={lobby} />
+            <RoomFactsCard lobby={lobby} />
+          </div>
         </div>
-        <div className="grid gap-5">
-          <LobbyDetails lobby={lobby} compact />
-          <ScoringRuleCard lobby={lobby} />
-          <RoomFactsCard lobby={lobby} />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

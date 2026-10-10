@@ -25,6 +25,7 @@ export const gamePhases = [
   "QUESTION_OPEN",
   "QUESTION_REVEAL",
   "LEADERBOARD",
+  "FINALIZING_RESULTS",
   "FINISHED",
 ] as const;
 
@@ -47,6 +48,7 @@ export type GameCommand =
   | { readonly type: "OPEN_READY_QUESTION"; readonly durationMs: number }
   | { readonly type: "CLOSE_QUESTION" }
   | { readonly type: "SHOW_LEADERBOARD" }
+  | { readonly type: "COMPLETE" }
   | { readonly type: "ADVANCE"; readonly durationMs: number; readonly readyDurationMs?: number };
 
 export type GameEvent =
@@ -122,6 +124,9 @@ export function transitionGame(
         state: { ...state, phase: "LEADERBOARD" },
         events: [{ type: "LEADERBOARD_SHOWN" }],
       };
+    case "COMPLETE":
+      assertPhase(state, ["FINALIZING_RESULTS"], command.type);
+      return { state: { ...state, phase: "FINISHED" }, events: [{ type: "GAME_FINISHED" }] };
     case "ADVANCE": {
       assertPhase(state, ADVANCEABLE_PHASES, command.type);
       const nextQuestionIndex = requireQuestionIndex(state) + 1;
@@ -130,12 +135,12 @@ export function transitionGame(
         return {
           state: {
             ...state,
-            phase: "FINISHED",
+            phase: "FINALIZING_RESULTS",
             roundStartsAt: null,
             roundEndsAt: null,
             roundClosedAt: null,
           },
-          events: [{ type: "GAME_FINISHED" }],
+          events: [],
         };
       }
 

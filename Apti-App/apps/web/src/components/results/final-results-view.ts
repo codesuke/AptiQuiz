@@ -2,7 +2,6 @@ import type { FinalResult } from "@aptiquiz/contracts";
 
 export const UNAVAILABLE_LABEL = "—";
 export const AVERAGE_TIME_LABEL = "Average Effective Response Time";
-export const FINISHING_LABEL = "Finishing…";
 const MS_PER_SECOND = 1000;
 
 /** Whole-number percentage; 0 when there is nothing to divide by. */

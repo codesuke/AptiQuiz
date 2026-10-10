@@ -98,7 +98,7 @@ export type StartResult =
     }
   | RoomFailure;
 
-/** What a fresh advance publishes; `delivery` is null when the Room finished. */
+/** What a phase transition publishes; `delivery` is present only when a Question opens. */
 export interface AdvancePublication {
   readonly lobby: LobbySnapshot;
   readonly delivery: RoundDelivery | null;
@@ -263,7 +263,6 @@ export interface RoomRegistry {
   /** Reclaims a joined Participant without changing the Room; repeating it changes nothing. */
   resume(request: ValidResumeRequest, identity: ConnectionIdentity): ResumeResult;
   start(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): StartResult;
-  /** Opens the next Question after a reveal, or finishes the Room after the last one. */
   answer(submission: AnswerSubmission): AnswerResult;
   /** Scored Answers for one Question, for the reveal; never sent to clients before it. */
   answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[];
@@ -293,6 +292,7 @@ const START_FAILED: RoomFailure = { ok: false, error: "start_failed" };
 const ADVANCE_FAILED: RoomFailure = { ok: false, error: "advance_failed" };
 const READY_DURATION_MS = 3_000;
 const REVEAL_DURATION_MS = 6_000;
+const FINALIZATION_RETRY_MS = 2_000;
 const INVALID_RESUME_TOKEN: RoomFailure = { ok: false, error: "invalid_resume_token" };
 
 type AnswerFailure = Extract<AnswerResult, { ok: false }>;
@@ -567,7 +567,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
   }
 
   /** Only a revealed Round advances, so a repeated timer cannot skip a Question. */
-  function advanceAfterReveal(room: LiveRoom): AdvanceResult | Promise<AdvanceResult> {
+  function advanceAfterReveal(room: LiveRoom): AdvanceResult {
     if (room.game.phase === "FINISHED") {
       return ADVANCE_FAILED;
     }
@@ -587,8 +587,9 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       return ADVANCE_FAILED;
     }
 
-    if (next.phase === "FINISHED") {
-      return finishRoom(room, next, serverTime);
+    if (next.phase === "FINALIZING_RESULTS") {
+      room.game = next;
+      return recordAdvance(room, null);
     }
 
     if (next.phase === "GETTING_READY" && next.readyEndsAt !== null) {
@@ -601,26 +602,39 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     return delivery === null ? ADVANCE_FAILED : recordAdvance(room, delivery);
   }
 
-  /**
-   * The Room leaves its last reveal only after its results commit, so a displayed finish always
-   * has durable results. A failed commit leaves the reveal visible until retry handling runs.
-   */
-  async function finishRoom(
-    room: LiveRoom,
-    finished: GameState,
-    serverTime: number,
-  ): Promise<AdvanceResult> {
-    const commit = commitFinalResults(room, serverTime);
+  /** Save once at a time and retry a failed transaction at a fixed, bounded frequency. */
+  async function finalizeResults(room: LiveRoom): Promise<void> {
+    if (room.game.phase !== "FINALIZING_RESULTS" || room.completion !== null) return;
+    const commit = commitFinalResults(room, now());
     room.completion = commit;
     const committed = await commit;
     room.completion = null;
 
     if (!committed) {
-      return ADVANCE_FAILED;
+      scheduleFinalizationRetry(room, now() + FINALIZATION_RETRY_MS);
+      return;
     }
 
-    room.game = finished;
-    return recordAdvance(room, null);
+    room.game = transitionGame(room.game, { type: "COMPLETE" }, now()).state;
+    const result = recordAdvance(room, null);
+    if (result.ok && result.publication !== null) {
+      for (const listener of advanceListeners) listener(result.publication);
+    }
+  }
+
+  function scheduleFinalizationRetry(room: LiveRoom, at: number): void {
+    room.cancelDeadline = schedule(at, () => {
+      if (room.game.phase !== "FINALIZING_RESULTS") return;
+      if (now() < at) {
+        scheduleFinalizationRetry(room, at);
+        return;
+      }
+      room.cancelDeadline = null;
+      void finalizeResults(room).catch((error: unknown) => {
+        logger.error({ roomId: room.registration.roomId, err: error }, "finalization retry failed");
+        scheduleFinalizationRetry(room, now() + FINALIZATION_RETRY_MS);
+      });
+    });
   }
 
   async function commitFinalResults(room: LiveRoom, serverTime: number): Promise<boolean> {
@@ -637,7 +651,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     }
   }
 
-  /** `delivery` is the newly opened Round, or null when the advance finished the Room. */
+  /** A phase update may open a Question, or only publish a new Lobby phase. */
   function recordAdvance(room: LiveRoom, delivery: RoundDelivery | null): AdvanceResult {
     const lobby = toLobby(room, now());
     return { ok: true, lobby, round: delivery?.host ?? null, publication: { lobby, delivery } };
@@ -733,18 +747,20 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
         return;
       }
       if (questionIndex === null) return;
-      Promise.resolve(advanceAfterReveal(room))
-        .then((result) => {
-          if (result.ok && result.publication !== null) {
-            for (const listener of advanceListeners) listener(result.publication);
-          }
-        })
-        .catch((error: unknown) => {
-          logger.error(
-            { roomId: room.registration.roomId, err: error },
-            "automatic advance failed",
-          );
-        });
+      try {
+        const result = advanceAfterReveal(room);
+        if (result.ok && result.publication !== null) {
+          for (const listener of advanceListeners) listener(result.publication);
+        }
+        if (result.ok && result.lobby.phase === "FINALIZING_RESULTS") {
+          void finalizeResults(room).catch((error: unknown) => {
+            logger.error({ roomId: room.registration.roomId, err: error }, "finalization failed");
+            scheduleFinalizationRetry(room, now() + FINALIZATION_RETRY_MS);
+          });
+        }
+      } catch (error) {
+        logger.error({ roomId: room.registration.roomId, err: error }, "automatic advance failed");
+      }
     });
   }
 
