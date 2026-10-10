@@ -60,17 +60,22 @@ export function CreateRoomForm({
           Choose a Question Set
         </label>
         <select
-          className="mt-4 min-h-14 w-full cursor-pointer appearance-none rounded-xl border border-white/20 bg-white/[0.1] bg-[linear-gradient(45deg,transparent_50%,#ffb380_50%),linear-gradient(135deg,#ffb380_50%,transparent_50%)] bg-[position:calc(100%-1.45rem)_50%,calc(100%-1rem)_50%] bg-[size:0.45rem_0.45rem,0.45rem_0.45rem] bg-no-repeat px-5 pr-12 text-base font-medium text-white outline-none transition-[background-color,border-color,transform] duration-300 hover:border-[#ffb380]/70 focus-visible:border-[#ffb380] focus-visible:ring-2 focus-visible:ring-[#ffb380]/30 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-4 min-h-14 w-full cursor-pointer appearance-none rounded-xl border border-[#fdfbf7] bg-[#fdfbf7] bg-[linear-gradient(45deg,transparent_50%,#b84700_50%),linear-gradient(135deg,#b84700_50%,transparent_50%)] bg-[position:calc(100%-1.45rem)_50%,calc(100%-1rem)_50%] bg-[size:0.45rem_0.45rem,0.45rem_0.45rem] bg-no-repeat px-5 pr-12 text-base font-semibold text-[#15372d] outline-none transition-[background-color,border-color,transform] duration-300 hover:border-[#ffb380] hover:bg-[#f5f3eb] focus-visible:border-[#ffb380] focus-visible:ring-2 focus-visible:ring-[#ffb380]/50 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={pending}
           id="question-set"
           onChange={(event) => chooseQuestionSet(event.target.value)}
           value={questionSetId}
         >
-          <option disabled value="">
+          <option className="bg-[#fdfbf7] text-[#15372d]" disabled value="">
             Select a Question Set
           </option>
           {questionSets.map((set) => (
-            <option disabled={set.questionCount === 0} key={set.id} value={set.id}>
+            <option
+              className="bg-[#fdfbf7] text-[#15372d]"
+              disabled={set.questionCount === 0}
+              key={set.id}
+              value={set.id}
+            >
               {set.title}
               {set.isStarter ? " — Starter set" : ""}
               {set.questionCount === 0 ? " — Add a Question first" : ""}
