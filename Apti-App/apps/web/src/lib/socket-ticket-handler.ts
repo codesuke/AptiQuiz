@@ -11,6 +11,7 @@ type TicketAccess =
 
 interface SocketTicketDependencies {
   getSessionAccess(headers: Headers): Promise<TicketAccess>;
+  getHomeCollegeId(userId: string): Promise<string | null>;
   getSecret(): string;
   now(): number;
 }
@@ -43,7 +44,7 @@ export function createSocketTicketPost(dependencies: SocketTicketDependencies) {
     const subject: SocketTicketSubject = {
       userId: access.user.id,
       role,
-      homeCollegeId: null,
+      homeCollegeId: await dependencies.getHomeCollegeId(access.user.id),
       emailVerified: access.user.emailVerified,
     };
     const ticket = await issueSocketTicket(subject, dependencies.getSecret(), dependencies.now());

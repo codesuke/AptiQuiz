@@ -22,6 +22,7 @@ describe.runIf(hasDatabase)("suspended User", () => {
     );
     const issueSocketTicket = createSocketTicketPost({
       getSessionAccess,
+      getHomeCollegeId: async () => null,
       getSecret: readGameServerSecret,
       now: Date.now,
     });
