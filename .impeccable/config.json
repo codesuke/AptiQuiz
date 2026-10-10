@@ -94,6 +94,15 @@
         ],
         "createdAt": "2026-10-10T06:34:48.245Z",
         "reason": "Project DESIGN.md: #FDFBF7 background and #F7F4EB surface are prescribed; sign-up mirrors the AptiQuiz auth shell"
+      },
+      {
+        "rule": "marquee",
+        "value": "*",
+        "files": [
+          "design-mocks/cta-animations/index.html"
+        ],
+        "createdAt": "2026-10-10T15:24:49.372Z",
+        "reason": "User request: this CTA gallery explicitly demonstrates a hero shine that auto-plays every five seconds."
       }
     ]
   }

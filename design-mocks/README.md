@@ -12,6 +12,8 @@ The [Home College screen reference](aptiquiz-college-kit/README.md) shows the cu
 
 The [Host and Room references](aptiquiz-host-room/README.md) cover setup, both Lobbies, Join entry, and the Host's in-match view.
 
+The [CTA animation gallery](cta-animations/README.md) provides twelve browser-openable interaction studies for primary actions.
+
 Each kit includes screen references, exact generation prompts, reusable assets, CSS tokens, browser-openable prototypes, and a generated asset manifest. Only include screens and assets that exist; extend the kit as further mocks are created.
 
 `auth-kit/` is a temporary reference from another project. AptiQuiz's kit has no dependency on it and it can be removed independently.

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AptiQuiz CTA animation gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { canvas: "#FDFBF7", ink: "#15372D", forest: "#102E26", action: "#B84700", orange: "#E65C00", rule: "#D7DACF", muted: "#4C6257" },
+            fontFamily: { display: ["Georgia", "Times New Roman", "serif"] }
+          }
+        }
+      };
+    </script>
+    <style type="text/tailwindcss">
+      @layer components {
+        .gallery-heading { font-size: clamp(3.5rem, 8vw, 6rem); line-height: .95; letter-spacing: -.055em; }
+        .demo-card { @apply relative overflow-hidden border border-rule bg-white p-6 sm:p-8; }
+        .demo-kicker { @apply mb-4 font-mono text-[11px] font-semibold uppercase tracking-[.16em] text-muted; }
+        .demo-title { @apply font-display tracking-[-.04em] text-ink; font-size: 2rem; line-height: 1.04; }
+        .demo-copy { @apply mt-3 max-w-md leading-6 text-muted; font-size: .875rem; }
+        .demo-stage { @apply mt-8 flex min-h-36 items-center justify-center rounded-sm border border-rule bg-canvas p-6; }
+        .cta { @apply relative inline-flex min-h-12 items-center justify-center gap-3 overflow-hidden rounded-full bg-action px-6 py-3 font-medium text-white outline-none ring-offset-4 ring-offset-canvas transition-transform duration-200 focus-visible:ring-4 focus-visible:ring-orange; }
+        .cta-label { @apply relative z-10 inline-flex items-center gap-2; }
+        .arrow-disc { @apply relative z-10 grid size-7 overflow-hidden rounded-full bg-white/15 text-white; }
+        .arrow-disc span { @apply absolute inset-0 grid place-items-center; }
+      }
+
+      .magnetic-shell { transition: transform 160ms ease-out; }
+      .magnetic-label { transition: transform 160ms ease-out; }
+
+      .swap-label { display: grid; height: 1.5em; overflow: hidden; line-height: 1.5; }
+      .swap-row { grid-area: 1 / 1; display: flex; }
+      .swap-row--next { transform: translateY(100%); }
+      .swap-char { display: inline-block; transition: transform 360ms cubic-bezier(.16, 1, .3, 1); }
+      .swap-button:hover .swap-row--current .swap-char, .swap-button:focus-visible .swap-row--current .swap-char { transform: translateY(-100%); }
+      .swap-button:hover .swap-row--next .swap-char, .swap-button:focus-visible .swap-row--next .swap-char { transform: translateY(-100%); }
+
+      .liquid-button { isolation: isolate; }
+      .liquid-fill { position: absolute; z-index: 0; top: 50%; left: 50%; width: 14px; height: 14px; border-radius: 9999px; background: #e65c00; transform: translate(-50%, -50%) scale(0); transform-origin: center; opacity: 0; pointer-events: none; }
+      .liquid-button:hover .liquid-fill, .liquid-button:focus-visible .liquid-fill { opacity: 1; transform: translate(-50%, -50%) scale(22); transition: transform 600ms cubic-bezier(.65, 0, .35, 1), opacity 10ms; }
+
+      .orbit-button { isolation: isolate; background: #102e26; }
+      .orbit-button::before { content: ""; position: absolute; z-index: -2; inset: -52%; opacity: .72; background: conic-gradient(from 0deg, transparent 0 30%, #e65c00 40%, #f6f0e4 50%, #e65c00 60%, transparent 70%); animation: orbit 4s linear infinite; transition: opacity 180ms ease-out; }
+      .orbit-button::after { content: ""; position: absolute; z-index: -1; inset: 1.5px; border-radius: inherit; background: #102e26; }
+      .orbit-button:hover::before, .orbit-button:focus-visible::before { opacity: 1; }
+
+      .shine-button::after { content: ""; position: absolute; inset: -20% auto -20% -40%; width: 24%; transform: skewX(-20deg) translateX(-360%); opacity: 0; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .48), transparent); }
+      .shine-button:hover::after, .shine-button:focus-visible::after { transform: skewX(-20deg) translateX(760%); opacity: 1; transition: transform 700ms cubic-bezier(.16, 1, .3, 1), opacity 10ms; }
+      .hero-shine::after { animation: auto-shine 5s 1s infinite; }
+      .hero-shine:hover::after { animation: none; }
+
+      .spotlight-button::before { content: ""; position: absolute; inset: 0; opacity: 0; background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / .3), transparent 72%); transition: opacity 180ms ease-out; }
+      .spotlight-button:hover::before, .spotlight-button:focus-visible::before { opacity: 1; }
+
+      .spring-button { transition: transform 360ms cubic-bezier(.34, 1.56, .64, 1); }
+      .spring-button:hover, .spring-button:focus-visible { transform: translateY(-2px) scale(1.03); }
+      .spring-button:active { transform: scale(.96); }
+
+      .arrow-button:hover .arrow-disc span:first-child, .arrow-button:focus-visible .arrow-disc span:first-child { transform: translateX(130%); }
+      .arrow-button:hover .arrow-disc span:last-child, .arrow-button:focus-visible .arrow-disc span:last-child { transform: translateX(0); }
+      .arrow-disc span { transition: transform 450ms cubic-bezier(.16, 1, .3, 1); }
+      .arrow-disc span:last-child { transform: translateX(-130%); }
+      .arrow-button:hover .arrow-disc, .arrow-button:focus-visible .arrow-disc { background: #e65c00; }
+
+      .breathing-wrap { position: relative; }
+      .breathing-wrap::before { content: ""; position: absolute; z-index: 0; inset: -9px; border-radius: 9999px; background: #e65c00; filter: blur(16px); opacity: .35; animation: breathe 3s ease-in-out infinite; }
+      .breathing-wrap:hover::before, .breathing-wrap:focus-within::before { animation-play-state: paused; opacity: .35; }
+      .breathing-wrap .cta { z-index: 1; }
+
+      .success-button { min-width: 178px; }
+      .success-button .success-label, .success-button .success-spinner, .success-button .success-check, .success-button .success-complete { position: absolute; transition: transform 260ms ease, opacity 180ms ease; }
+      .success-spinner, .success-check, .success-complete { opacity: 0; transform: scale(.6); }
+      .success-button.is-loading .success-label, .success-button.is-success .success-label { opacity: 0; transform: scale(.6); }
+      .success-button.is-loading .success-spinner { opacity: 1; transform: scale(1); }
+      .success-button.is-success .success-check { opacity: 1; transform: scale(1); }
+      .success-button.is-success .success-complete { opacity: 1; transform: translateX(18px) scale(1); }
+      .success-spinner { width: 20px; height: 20px; border: 2px solid rgb(255 255 255 / .35); border-top-color: white; border-radius: 50%; animation: spin 700ms linear infinite; }
+      .success-check path { stroke-dasharray: 32; stroke-dashoffset: 32; }
+      .success-button.is-success .success-check path { animation: draw-check 330ms 80ms ease-out forwards; }
+
+      .scroll-button { opacity: 0; transform: translateY(18px) scaleY(.72); transform-origin: bottom; }
+      .scroll-button.is-visible { opacity: 1; transform: translateY(0) scaleY(1); transition: transform 700ms cubic-bezier(.16, 1, .3, 1), opacity 500ms ease; }
+      .scroll-button.is-visible::after { content: ""; position: absolute; inset: 0; border: 1px solid white; border-radius: inherit; opacity: 0; transform: scale(.75); animation: land-ping 600ms 600ms ease-out; }
+
+      .ripple { position: absolute; width: 16px; height: 16px; border-radius: 9999px; background: #e65c00; filter: blur(8px); transform: translate(-50%, -50%) scale(0); opacity: .2; pointer-events: none; animation: ripple 600ms ease-out forwards; }
+
+      @keyframes orbit { to { transform: rotate(360deg); } }
+      @keyframes auto-shine { 0%, 76% { transform: skewX(-20deg) translateX(-360%); opacity: 0; } 80% { opacity: 1; } 94%, 100% { transform: skewX(-20deg) translateX(760%); opacity: 0; } }
+      @keyframes breathe { 50% { opacity: .7; transform: scale(1.08); } }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes draw-check { to { stroke-dashoffset: 0; } }
+      @keyframes land-ping { 20% { opacity: .65; } 100% { opacity: 0; transform: scale(1.25); } }
+      @keyframes ripple { to { transform: translate(-50%, -50%) scale(18); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+        .scroll-button { opacity: 1; transform: none; }
+      }
+    </style>
+  </head>
+  <body class="bg-canvas text-ink antialiased">
+    <main class="mx-auto max-w-7xl px-5 py-14 sm:px-10 sm:py-20">
+      <p class="font-mono text-xs font-semibold uppercase tracking-[.17em] text-action">AptiQuiz / interaction studies</p>
+      <h1 class="gallery-heading mt-5 max-w-4xl font-display">Twelve ways to make a call to action feel considered.</h1>
+      <p class="mt-7 max-w-2xl text-lg leading-8 text-muted">Hover, focus, click, and scroll through the studies. Each works without a mouse and respects reduced-motion preferences.</p>
+
+      <section class="mt-14 grid overflow-hidden border border-rule sm:grid-cols-2 lg:grid-cols-3" aria-label="CTA animation examples">
+        <article class="demo-card border-b sm:border-r lg:border-b">
+          <p class="demo-kicker">01 / Magnetic pull</p><h2 class="demo-title">Come a little closer.</h2><p class="demo-copy">A small parallax pull rewards precision on desktop pointers.</p>
+          <div class="demo-stage"><button class="cta magnetic-shell" data-magnetic><span class="cta-label magnetic-label">Start practicing <span aria-hidden="true">→</span></span></button></div>
+        </article>
+        <article class="demo-card border-b lg:border-r">
+          <p class="demo-kicker">02 / Sliding text</p><h2 class="demo-title">A fresh line, in motion.</h2><p class="demo-copy">The label rolls into its next state one character at a time.</p>
+          <div class="demo-stage"><button class="cta swap-button"><span class="swap-label" data-swap-label="Join the room"></span></button></div>
+        </article>
+        <article class="demo-card border-b sm:border-r lg:border-r-0">
+          <p class="demo-kicker">03 / Liquid fill</p><h2 class="demo-title">A precise splash.</h2><p class="demo-copy">An orange circle starts at the pointer and takes over the button.</p>
+          <div class="demo-stage"><button class="cta liquid-button" data-liquid><span class="liquid-fill"></span><span class="cta-label">Create a room</span></button></div>
+        </article>
+        <article class="demo-card border-b lg:border-r">
+          <p class="demo-kicker">04 / Orbiting border</p><h2 class="demo-title">Energy at the edge.</h2><p class="demo-copy">A fine conic ring keeps the dark action surface alive.</p>
+          <div class="demo-stage"><button class="cta orbit-button"><span class="cta-label">See Question Sets</span></button></div>
+        </article>
+        <article class="demo-card border-b sm:border-r lg:border-r">
+          <p class="demo-kicker">05 / Shine sweep</p><h2 class="demo-title">A little lightness.</h2><p class="demo-copy">The hero version also plays once every five seconds.</p>
+          <div class="demo-stage"><button class="cta shine-button hero-shine"><span class="cta-label">Practice free</span></button></div>
+        </article>
+        <article class="demo-card border-b lg:border-r-0">
+          <p class="demo-kicker">06 / Spotlight follow</p><h2 class="demo-title">Move the light.</h2><p class="demo-copy">A soft radial highlight follows the cursor inside the action.</p>
+          <div class="demo-stage"><button class="cta spotlight-button" data-spotlight><span class="cta-label">Find your college</span></button></div>
+        </article>
+        <article class="demo-card border-b sm:border-r lg:border-b-0 lg:border-r">
+          <p class="demo-kicker">07 / Spring press</p><h2 class="demo-title">Clear, tactile feedback.</h2><p class="demo-copy">Lift on intent; compress on press.</p>
+          <div class="demo-stage"><button class="cta spring-button"><span class="cta-label">Host a match <span aria-hidden="true">→</span></span></button></div>
+        </article>
+        <article class="demo-card border-b lg:border-b-0 lg:border-r">
+          <p class="demo-kicker">08 / Arrow chase</p><h2 class="demo-title">Keep moving forward.</h2><p class="demo-copy">The icon departs and returns to give the label a nudge forward.</p>
+          <div class="demo-stage"><button class="cta arrow-button"><span class="cta-label">Explore the league</span><span class="arrow-disc" aria-hidden="true"><span>→</span><span>→</span></span></button></div>
+        </article>
+        <article class="demo-card border-b sm:border-b-0 sm:border-r lg:border-r-0">
+          <p class="demo-kicker">09 / Idle glow</p><h2 class="demo-title">An invitation, quietly.</h2><p class="demo-copy">Reserve this slow pulse for the one primary CTA on a page.</p>
+          <div class="demo-stage"><div class="breathing-wrap"><button class="cta"><span class="cta-label">Begin practice</span></button></div></div>
+        </article>
+        <article class="demo-card sm:border-r lg:border-t">
+          <p class="demo-kicker">10 / Success morph</p><h2 class="demo-title">A satisfying confirmation.</h2><p class="demo-copy">Press to see the label settle into a spinner and an earned check.</p>
+          <div class="demo-stage"><button class="cta success-button" data-success aria-live="polite"><span class="success-label">Join room</span><span class="success-spinner" aria-label="Joining"></span><svg class="success-check" aria-hidden="true" width="25" height="25" viewBox="0 0 24 24" fill="none"><path d="m5 12 4.2 4.2L19 6.8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg><span class="success-complete">Joined ✓</span></button></div>
+        </article>
+        <article class="demo-card sm:border-r lg:border-t">
+          <p class="demo-kicker">11 / Scroll reveal</p><h2 class="demo-title">Arrive with purpose.</h2><p class="demo-copy">The CTA opens from below and gives one restrained landing ping.</p>
+          <div class="demo-stage"><button class="cta scroll-button" data-scroll-reveal><span class="cta-label">Choose a Question Set</span></button></div>
+        </article>
+        <article class="demo-card lg:border-t">
+          <p class="demo-kicker">12 / Click ripple</p><h2 class="demo-title">Make contact visible.</h2><p class="demo-copy">A blurred brand ripple begins exactly where the button is pressed.</p>
+          <div class="demo-stage"><button class="cta" data-ripple><span class="cta-label">Continue <span aria-hidden="true">→</span></span></button></div>
+        </article>
+      </section>
+    </main>
+    <script>
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const finePointer = window.matchMedia("(pointer: fine)").matches;
+
+      document.querySelectorAll("[data-swap-label]").forEach((element) => {
+        const text = element.dataset.swapLabel;
+        const letters = (row) => [...text].map((letter, index) => `<span class="swap-char" style="transition-delay:${index * 20}ms">${letter === " " ? "&nbsp;" : letter}</span>`).join("");
+        element.innerHTML = `<span class="swap-row swap-row--current">${letters("current")}</span><span class="swap-row swap-row--next" aria-hidden="true">${letters("next")}</span>`;
+      });
+
+      if (finePointer && !reducedMotion) {
+        document.querySelectorAll("[data-magnetic]").forEach((button) => {
+          const label = button.querySelector(".magnetic-label");
+          button.addEventListener("pointermove", (event) => {
+            const rect = button.getBoundingClientRect();
+            const x = (event.clientX - rect.left - rect.width / 2) / rect.width;
+            const y = (event.clientY - rect.top - rect.height / 2) / rect.height;
+            button.style.transform = `translate(${x * 18}px, ${y * 14}px)`;
+            label.style.transform = `translate(${x * 25}px, ${y * 20}px)`;
+          });
+          button.addEventListener("pointerleave", () => { button.style.transform = ""; label.style.transform = ""; });
+        });
+
+        document.querySelectorAll("[data-liquid]").forEach((button) => {
+          const fill = button.querySelector(".liquid-fill");
+          const setPoint = (event) => { const rect = button.getBoundingClientRect(); fill.style.left = `${event.clientX - rect.left}px`; fill.style.top = `${event.clientY - rect.top}px`; };
+          button.addEventListener("pointerenter", setPoint);
+          button.addEventListener("pointerleave", setPoint);
+        });
+
+        document.querySelectorAll("[data-spotlight]").forEach((button) => button.addEventListener("pointermove", (event) => {
+          const rect = button.getBoundingClientRect();
+          button.style.setProperty("--mx", `${event.clientX - rect.left}px`);
+          button.style.setProperty("--my", `${event.clientY - rect.top}px`);
+        }));
+      }
+
+      document.querySelectorAll("[data-success]").forEach((button) => button.addEventListener("click", () => {
+        if (button.classList.contains("is-loading")) return;
+        button.classList.remove("is-success"); button.classList.add("is-loading"); button.disabled = true;
+        window.setTimeout(() => { button.classList.replace("is-loading", "is-success"); }, reducedMotion ? 0 : 700);
+        window.setTimeout(() => { button.classList.remove("is-success"); button.disabled = false; }, reducedMotion ? 800 : 2600);
+      }));
+
+      document.querySelectorAll("[data-ripple]").forEach((button) => button.addEventListener("pointerdown", (event) => {
+        if (reducedMotion) return;
+        const rect = button.getBoundingClientRect(); const ripple = document.createElement("span");
+        ripple.className = "ripple"; ripple.style.left = `${event.clientX - rect.left}px`; ripple.style.top = `${event.clientY - rect.top}px`;
+        button.append(ripple); ripple.addEventListener("animationend", () => ripple.remove());
+      }));
+
+      const revealObserver = new IntersectionObserver((entries, observer) => entries.forEach((entry) => {
+        if (entry.isIntersecting) { entry.target.classList.add("is-visible"); observer.unobserve(entry.target); }
+      }), { threshold: 0.35 });
+      document.querySelectorAll("[data-scroll-reveal]").forEach((button) => revealObserver.observe(button));
+    </script>
+  </body>
+</html>
