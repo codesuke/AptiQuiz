@@ -16,7 +16,7 @@ Replace `app.example.com` and `game.example.com` with your own hostnames consist
 - Point DNS for both hostnames to the Dokploy server. Follow [the DNS guide](dns-and-nameservers.md).
 - Push the `Dockerfile` and `.dockerignore` in `Apti-App/` to the branch Dokploy will deploy.
 
-The Dockerfile runs with Node.js 22, builds all workspace packages, and has separate `web` and `game-server` targets. It uses non-secret placeholder authentication settings only while compiling because Next.js loads route metadata at build time. Dokploy provides the real credentials only at runtime. The web target applies Prisma's committed migrations before it starts. The Game Server target never runs migrations.
+The Dockerfile runs with Node.js 22, builds all workspace packages, and has separate `web` and `game-server` targets. It installs the pinned pnpm version during the image build, so containers do not download Corepack packages during startup. It installs OpenSSL before Prisma's dependency lifecycle runs, so Prisma selects the container's OpenSSL 3 engine instead of falling back to an incompatible OpenSSL 1.1 assumption. It also caches lockfile package downloads independently of application source changes. It uses non-secret placeholder authentication settings only while compiling because Next.js loads route metadata at build time. Dokploy provides the real credentials only at runtime. The web target applies Prisma's committed migrations before it starts. The Game Server target never runs migrations.
 
 ## Prepare the database URL
 
