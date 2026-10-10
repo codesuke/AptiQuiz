@@ -12,6 +12,13 @@ import { redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 
+function readTable(value: string) {
+  const [headers, ...rows] = value
+    .split(/\r?\n/)
+    .map((line) => line.split(",").map((cell) => cell.trim()));
+  return { headers, rows };
+}
+
 function readQuestion(formData: FormData) {
   const options = QUESTION_OPTION_NUMBERS.map((number) => ({
     id: String(number),
@@ -19,13 +26,9 @@ function readQuestion(formData: FormData) {
   })).filter((option) => option.text.length > 0);
   const imageUrl = String(formData.get("imageUrl") ?? "").trim();
   const tableText = String(formData.get("table") ?? "").trim();
-  const lines = tableText
-    ? tableText.split(/\r?\n/).map((line) => line.split(",").map((cell) => cell.trim()))
-    : [];
-  const [headers, ...rows] = lines;
   const media = {
     ...(imageUrl ? { imageUrl } : {}),
-    ...(tableText ? { table: { headers, rows } } : {}),
+    ...(tableText ? { table: readTable(tableText) } : {}),
   };
   return {
     text: formData.get("text"),

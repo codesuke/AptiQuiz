@@ -82,6 +82,10 @@ function requireHostId(hostId: string | null | undefined): string {
   return hostId;
 }
 
+function readableQuestionSets(hostId: string | null) {
+  return { OR: [{ ownerId: requireHostId(hostId) }, { isStarter: true, ownerId: null }] };
+}
+
 export async function createQuestionSet(db: PrismaClient, hostId: string | null, input: unknown) {
   const ownerId = requireHostId(hostId);
   const data = createQuestionSetSchema.parse(input);
@@ -102,7 +106,7 @@ export async function createQuestionSet(db: PrismaClient, hostId: string | null,
 
 export async function listQuestionSets(db: PrismaClient, hostId: string | null) {
   return db.questionSet.findMany({
-    where: { OR: [{ ownerId: requireHostId(hostId) }, { isStarter: true, ownerId: null }] },
+    where: readableQuestionSets(hostId),
     orderBy: { updatedAt: "desc" },
     include: { questions: { orderBy: { position: "asc" } } },
   });
@@ -112,7 +116,7 @@ export async function getQuestionSet(db: PrismaClient, hostId: string | null, se
   return db.questionSet.findFirst({
     where: {
       id: setId,
-      OR: [{ ownerId: requireHostId(hostId) }, { isStarter: true, ownerId: null }],
+      ...readableQuestionSets(hostId),
     },
     include: { questions: { orderBy: { position: "asc" } } },
   });
