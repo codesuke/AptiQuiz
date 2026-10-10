@@ -91,22 +91,42 @@
   min-height: 60px;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 22px;
   border-radius: var(--aq-pill-radius);
   padding: 0 30px;
   font: 500 20px var(--aq-font-display);
   text-decoration: none;
   transition:
-    transform 0.2s ease,
-    background 0.2s ease;
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .primaryButton {
   background: var(--aq-action-prominent);
   color: #fff;
+  box-shadow: 0 12px 28px -18px var(--aq-action-prominent);
 }
 .primaryButton:hover {
   background: var(--aq-action-prominent-hover);
-  transform: translateY(-2px);
+  box-shadow: 0 16px 28px -16px var(--aq-action-prominent-hover);
+}
+.primaryButtonIcon,
+.lightButtonIcon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.primaryButtonIcon {
+  background: rgb(255 255 255 / 18%);
+}
+.lightButtonIcon {
+  background: rgb(21 55 45 / 10%);
+}
+.textLink > span,
+.darkLink > span {
+  display: inline-flex;
 }
 .textLink,
 .darkLink {
@@ -370,7 +390,6 @@
 }
 .lightButton:hover {
   background: #f2e5ce;
-  transform: translateY(-2px);
 }
 .darkLink {
   border-color: #15372d;
@@ -428,6 +447,9 @@
 .footer a:focus-visible {
   outline: 2px solid #e65c00;
   outline-offset: 5px;
+}
+.closing a:focus-visible {
+  outline-color: var(--aq-ink);
 }
 @media (max-width: 1050px) {
   .hero {

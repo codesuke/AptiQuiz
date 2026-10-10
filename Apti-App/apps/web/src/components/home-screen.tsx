@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpen, MoveUpRight, UsersRound } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { HomeActionLink } from "./home-action-link";
 import { getHomeDestinations } from "./home-destinations";
 import { HomeMotion } from "./home-motion";
 import styles from "./home-screen.module.css";
@@ -26,12 +27,19 @@ export function HomeScreen({ signedIn }: Readonly<{ signedIn: boolean }>) {
               aptitude practice.
             </p>
             <div className={styles.actions} data-hero-item>
-              <Link className={styles.primaryButton} href={paths.hosting}>
-                Host a Room <ArrowRight aria-hidden="true" size={20} />
-              </Link>
-              <Link className={styles.textLink} href={paths.joining}>
-                Join a Room <MoveUpRight aria-hidden="true" size={17} />
-              </Link>
+              <HomeActionLink
+                className={styles.primaryButton}
+                href={paths.joining}
+                label="Join a Room"
+                icon={<ArrowRight size={20} />}
+                iconClassName={styles.primaryButtonIcon}
+              />
+              <HomeActionLink
+                className={styles.textLink}
+                href={paths.hosting}
+                label="Host a Room"
+                icon={<MoveUpRight size={17} />}
+              />
             </div>
           </div>
           <p className={styles.heroNote} data-hero-item>
@@ -175,12 +183,19 @@ export function HomeScreen({ signedIn }: Readonly<{ signedIn: boolean }>) {
           </h2>
           <p data-reveal>Your next good question can bring a whole Room together.</p>
           <div className={styles.actions} data-reveal>
-            <Link className={styles.lightButton} href={paths.hosting}>
-              Host a Room <ArrowRight aria-hidden="true" size={20} />
-            </Link>
-            <Link className={styles.darkLink} href={paths.joining}>
-              Join a Room <MoveUpRight aria-hidden="true" size={17} />
-            </Link>
+            <HomeActionLink
+              className={styles.lightButton}
+              href={paths.joining}
+              label="Join a Room"
+              icon={<ArrowRight size={20} />}
+              iconClassName={styles.lightButtonIcon}
+            />
+            <HomeActionLink
+              className={styles.darkLink}
+              href={paths.hosting}
+              label="Host a Room"
+              icon={<MoveUpRight size={17} />}
+            />
           </div>
         </div>
       </section>
