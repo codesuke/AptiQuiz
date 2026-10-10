@@ -1,9 +1,10 @@
 import type { CreateRoomRequest, RoomRegistration } from "@aptiquiz/contracts";
+import type { HostedRoom } from "@aptiquiz/database";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { createRoomsPost, type HostedRoom, type RoomsAccess } from "./rooms-handler";
+import { type CreatedRoom, createRoomsPost, type RoomsAccess } from "./rooms-handler";
 
 const idempotencyKey = "0b7a8c3e-6f0e-4d4a-9a55-5b1f7f0f6e01";
 const host = { id: "host_1" };
@@ -48,13 +49,16 @@ function handlerWith(
   overrides: Partial<{
     access: RoomsAccess;
     homeCollegeId: string | null;
-    room: HostedRoom | null;
+    created: CreatedRoom;
     registered: boolean;
   }> = {},
 ) {
   const createRoom = vi.fn(
-    async (_hostId: string, _request: CreateRoomRequest, _collegeId: string) =>
-      overrides.room === undefined ? lobbyRoom : overrides.room,
+    async (
+      _hostId: string,
+      _request: CreateRoomRequest,
+      _collegeId: string,
+    ): Promise<CreatedRoom> => overrides.created ?? { kind: "created", room: lobbyRoom },
   );
   const registerRoom = vi.fn(async (_registration: RoomRegistration) => ({
     ok: overrides.registered ?? true,
@@ -116,12 +120,22 @@ describe("POST /api/rooms", () => {
   });
 
   it("returns 404 for a Question Set the Host cannot read", async () => {
-    const { post, registerRoom } = handlerWith({ room: null });
+    const { post, registerRoom } = handlerWith({ created: { kind: "question_set_not_found" } });
 
     const response = await post(postRequest(validBody));
 
     expect(response.status).toBe(404);
     expect(await errorOf(response)).toBe("question_set_not_found");
+    expect(registerRoom).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 for an empty Question Set without registering a Room", async () => {
+    const { post, registerRoom } = handlerWith({ created: { kind: "question_set_empty" } });
+
+    const response = await post(postRequest(validBody));
+
+    expect(response.status).toBe(422);
+    expect(await errorOf(response)).toBe("question_set_empty");
     expect(registerRoom).not.toHaveBeenCalled();
   });
 
@@ -139,7 +153,9 @@ describe("POST /api/rooms", () => {
 
   it("reports 502 when the Game Server does not accept the Room, and re-registers on retry", async () => {
     let registered = false;
-    const createRoom = vi.fn(async () => lobbyRoom);
+    const createRoom = vi.fn(
+      async (): Promise<CreatedRoom> => ({ kind: "created", room: lobbyRoom }),
+    );
     const registerRoom = vi.fn(async () => ({ ok: registered }));
     const post = createRoomsPost({
       getSessionAccess: async () => ({ kind: "active", user: host }),
@@ -161,7 +177,9 @@ describe("POST /api/rooms", () => {
   });
 
   it("returns a Room that already left the Lobby without registering it again", async () => {
-    const { post, registerRoom } = handlerWith({ room: { ...lobbyRoom, status: "RUNNING" } });
+    const { post, registerRoom } = handlerWith({
+      created: { kind: "created", room: { ...lobbyRoom, status: "RUNNING" } },
+    });
 
     const response = await post(postRequest(validBody));
 

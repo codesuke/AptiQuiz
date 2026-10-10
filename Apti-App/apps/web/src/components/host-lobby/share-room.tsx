@@ -4,6 +4,7 @@ import { Copy, Share2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { buildJoinLink, buildRoomInvite } from "@/lib/rooms-client";
+import { cn } from "@/lib/utils";
 
 interface ShareRoomProps {
   readonly joinCode: string;
@@ -95,7 +96,7 @@ export function ShareRoom({ joinCode, collegeName }: ShareRoomProps) {
         {joinLink || "Preparing join link…"}
       </p>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <div className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-1">
         <button
           className={buttonClass}
           onClick={() => copy(joinCode, "Join Code copied")}
@@ -114,7 +115,7 @@ export function ShareRoom({ joinCode, collegeName }: ShareRoomProps) {
           Copy link
         </button>
         <button
-          className={`${buttonClass} border-[#b84700] bg-[#b84700] text-white hover:bg-[#993a00]`}
+          className={cn(buttonClass, "border-[#b84700] bg-[#b84700] text-white hover:bg-[#993a00]")}
           disabled={!joinLink}
           onClick={share}
           type="button"

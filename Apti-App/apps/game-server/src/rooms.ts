@@ -7,6 +7,7 @@ import {
   type RoomRegistration,
 } from "@aptiquiz/contracts";
 import { createGameState, type GameState, transitionGame } from "@aptiquiz/game-engine";
+import type { Logger } from "pino";
 import type { RoomStore } from "./room-store.js";
 
 /** Placeholder so the Game Engine can open the first Question; PRD #5 owns Question timing. */
@@ -74,7 +75,7 @@ const ROOM_FULL: RoomFailure = { ok: false, error: "room_full" };
 const JOIN_FAILED: RoomFailure = { ok: false, error: "join_failed" };
 const START_FAILED: RoomFailure = { ok: false, error: "start_failed" };
 
-export function createRoomRegistry(store: RoomStore): RoomRegistry {
+export function createRoomRegistry(store: RoomStore, logger: Logger): RoomRegistry {
   const rooms = new Map<string, LiveRoom>();
   const roomIdsByJoinCode = new Map<string, string>();
 
@@ -161,6 +162,13 @@ export function createRoomRegistry(store: RoomStore): RoomRegistry {
         displayName: request.displayName,
         idempotencyKey: request.idempotencyKey,
       });
+
+      // The Host may start while the write is in flight. The stored row stays, but the
+      // Participant never joins the live roster of a Room that has left the Lobby.
+      if (room.game.phase !== "LOBBY") {
+        return ROOM_NOT_IN_LOBBY;
+      }
+
       const participant: LobbyParticipant = {
         participantId,
         displayName: request.displayName,
@@ -168,7 +176,11 @@ export function createRoomRegistry(store: RoomStore): RoomRegistry {
       };
       room.participants.set(identityKey, participant);
       return { ok: true, participant, lobby: toLobby(room), rosterChanged: true };
-    } catch {
+    } catch (error) {
+      logger.error(
+        { roomId: room.registration.roomId, err: error },
+        "failed to record participant",
+      );
       return JOIN_FAILED;
     } finally {
       room.pendingJoins.delete(identityKey);

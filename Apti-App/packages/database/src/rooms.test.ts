@@ -10,7 +10,13 @@ import {
   seedStarterQuestionSet,
   updateQuestion,
 } from "./question-sets.js";
-import { createRoom, getHostedRoom, markRoomStarted, recordParticipant } from "./rooms.js";
+import {
+  createRoom,
+  EmptyQuestionSetError,
+  getHostedRoom,
+  markRoomStarted,
+  recordParticipant,
+} from "./rooms.js";
 
 const envFile = new URL("../../../.env", import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -126,6 +132,21 @@ describe.skipIf(!databaseUrl)("Rooms", () => {
 
       await expect(foreign).rejects.toBeInstanceOf(QuestionSetNotFoundError);
       expect(await db.room.count({ where: { hostId: otherId } })).toBe(0);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "refuses an empty Question Set without storing a Room, on every retry",
+    async () => {
+      const empty = await db.questionSet.create({
+        data: { ownerId: hostId, title: "Empty practice" },
+      });
+      const key = randomUUID();
+
+      await expect(create(empty.id, key)).rejects.toBeInstanceOf(EmptyQuestionSetError);
+      await expect(create(empty.id, key)).rejects.toBeInstanceOf(EmptyQuestionSetError);
+      expect(await db.room.count({ where: { questionSetId: empty.id } })).toBe(0);
     },
     TEST_TIMEOUT_MS,
   );

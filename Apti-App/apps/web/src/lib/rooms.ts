@@ -1,18 +1,25 @@
 import "server-only";
 import type { CreateRoomRequest } from "@aptiquiz/contracts";
-import { createRoom, getHostedRoom, QuestionSetNotFoundError } from "@aptiquiz/database";
+import {
+  createRoom,
+  EmptyQuestionSetError,
+  getHostedRoom,
+  type HostedRoom,
+  QuestionSetNotFoundError,
+} from "@aptiquiz/database";
 import { database } from "./database";
-import type { HostedRoom } from "./rooms-handler";
+import type { CreatedRoom } from "./rooms-handler";
 
 export async function createHostedRoom(
   hostId: string,
   request: CreateRoomRequest,
   collegeId: string,
-): Promise<HostedRoom | null> {
+): Promise<CreatedRoom> {
   try {
-    return await createRoom(database, hostId, request, collegeId);
+    return { kind: "created", room: await createRoom(database, hostId, request, collegeId) };
   } catch (error) {
-    if (error instanceof QuestionSetNotFoundError) return null;
+    if (error instanceof QuestionSetNotFoundError) return { kind: "question_set_not_found" };
+    if (error instanceof EmptyQuestionSetError) return { kind: "question_set_empty" };
     throw error;
   }
 }

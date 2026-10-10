@@ -17,6 +17,8 @@ const createRoomErrorMessages: Record<CreateRoomFailure, string> = {
   home_college_required: "Choose your Home College before you host a Room.",
   invalid_request: "Choose a Question Set, then try again.",
   question_set_not_found: "That Question Set is not available to you. Choose another one.",
+  question_set_empty:
+    "That Question Set has no Questions yet. Add a Question or choose another set.",
   game_server_unavailable: "The Game Server did not accept the Room. Try again in a moment.",
   network_error: "The Room could not be created. Check your connection and try again.",
 };

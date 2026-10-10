@@ -5,6 +5,7 @@ import {
   createRoomRequestSchema,
   type RoomRegistration,
 } from "@aptiquiz/contracts";
+import type { HostedRoom } from "@aptiquiz/database";
 import type { RoomRegistrationOutcome } from "./game-server-registration";
 
 export type RoomsAccess =
@@ -12,22 +13,15 @@ export type RoomsAccess =
   | { kind: "suspended" }
   | { kind: "active"; user: { id: string } };
 
-export interface HostedRoom {
-  roomId: string;
-  joinCode: string;
-  status: string;
-  registration: RoomRegistration;
-}
+export type CreatedRoom =
+  | { kind: "created"; room: HostedRoom }
+  | { kind: "question_set_not_found" }
+  | { kind: "question_set_empty" };
 
 interface RoomsDependencies {
   getSessionAccess(headers: Headers): Promise<RoomsAccess>;
   getHomeCollegeId(userId: string): Promise<string | null>;
-  /** Resolves null when the Host cannot read the Question Set. */
-  createRoom(
-    hostId: string,
-    request: CreateRoomRequest,
-    collegeId: string,
-  ): Promise<HostedRoom | null>;
+  createRoom(hostId: string, request: CreateRoomRequest, collegeId: string): Promise<CreatedRoom>;
   registerRoom(registration: RoomRegistration): Promise<RoomRegistrationOutcome>;
 }
 
@@ -37,6 +31,7 @@ export type CreateRoomError =
   | "home_college_required"
   | "invalid_request"
   | "question_set_not_found"
+  | "question_set_empty"
   | "game_server_unavailable";
 
 const noStoreHeaders = { "cache-control": "no-store" };
@@ -67,8 +62,10 @@ export function createRoomsPost(dependencies: RoomsDependencies) {
     const body = await readCreateRoomRequest(request);
     if (!body) return failure("invalid_request", 400);
 
-    const room = await dependencies.createRoom(hostId, body, collegeId);
-    if (!room) return failure("question_set_not_found", 404);
+    const created = await dependencies.createRoom(hostId, body, collegeId);
+    if (created.kind === "question_set_not_found") return failure("question_set_not_found", 404);
+    if (created.kind === "question_set_empty") return failure("question_set_empty", 422);
+    const { room } = created;
 
     // A retry with the same idempotency key returns the stored Room; registering it again
     // recovers from an earlier Game Server failure or restart.

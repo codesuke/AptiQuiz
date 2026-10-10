@@ -12,7 +12,15 @@ import {
   type SendRoomJoin,
 } from "@/lib/room-socket";
 import { fieldErrorClass, primaryButtonClass, textInputClass } from "./form-styles";
-import { createIdempotencyKey, type FailedJoin, nextJoinKey } from "./join-key";
+import {
+  createIdempotencyKey,
+  type FailedJoin,
+  type JoinStorage,
+  nextJoinKey,
+  readStoredJoin,
+  rememberJoin,
+  settleStoredJoin,
+} from "./join-key";
 import { LobbyDetails } from "./lobby-details";
 
 type ConnectionStatus = "connecting" | "online" | "offline";
@@ -31,6 +39,13 @@ interface JoinRoomProps {
 const DISPLAY_NAME_INPUT_LIMIT = 64;
 const NOT_CONNECTED_MESSAGE = "Still connecting to the game server. Try again in a moment.";
 
+/** Resolves `sessionStorage` per call so a blocked storage throws inside the join-key guards. */
+const tabJoinStorage: JoinStorage = {
+  getItem: (key) => window.sessionStorage.getItem(key),
+  setItem: (key, value) => window.sessionStorage.setItem(key, value),
+  removeItem: (key) => window.sessionStorage.removeItem(key),
+};
+
 function sendJoinVia(socket: RoomSocket): SendRoomJoin {
   return (payload, acknowledge) => {
     socket.emit("room:join", payload, acknowledge);
@@ -41,30 +56,36 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
   const [connection, setConnection] = useState<ConnectionStatus>("connecting");
   const [joined, setJoined] = useState<JoinedRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const socketRef = useRef<RoomSocket | null>(null);
   const joinedAttemptRef = useRef<RoomJoin | null>(null);
 
   const rejoin = useCallback(async (socket: RoomSocket, attempt: RoomJoin) => {
     const result = await emitRoomJoin(sendJoinVia(socket), attempt);
+    setRestoring(false);
 
     if (result.ok) {
+      joinedAttemptRef.current = attempt;
       setJoined({ participant: result.participant, lobby: result.lobby });
       setError(null);
       return;
     }
 
+    settleStoredJoin(tabJoinStorage, attempt.joinCode, result.error);
     setError(joinFailureMessage(result.error));
   }, []);
 
   useEffect(() => {
+    // Read after mount: sessionStorage does not exist during server rendering.
+    if (readStoredJoin(tabJoinStorage, joinCode) !== null) setRestoring(true);
     const socket = createRoomSocket();
     socketRef.current = socket;
 
     socket.on("connect", () => {
       setConnection("online");
-      // A reconnect is a new socket on the server: the same key returns the same
-      // Participant and puts this socket back into the Room's Lobby channel.
-      const attempt = joinedAttemptRef.current;
+      // A reconnect or a page refresh is a new socket on the server: the same key returns the
+      // same Participant and puts this socket back into the Room's Lobby channel.
+      const attempt = joinedAttemptRef.current ?? readStoredJoin(tabJoinStorage, joinCode);
       if (attempt !== null) void rejoin(socket, attempt);
     });
     socket.on("disconnect", () => setConnection("offline"));
@@ -81,7 +102,7 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
       socketRef.current = null;
       socket.disconnect();
     };
-  }, [rejoin]);
+  }, [joinCode, rejoin]);
 
   const handleJoined = useCallback((attempt: RoomJoin, room: JoinedRoom) => {
     joinedAttemptRef.current = attempt;
@@ -95,6 +116,8 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
         defaultDisplayName={defaultDisplayName}
         joinCode={joinCode}
         onJoined={handleJoined}
+        restoreError={error}
+        restoring={restoring}
         socketRef={socketRef}
       />
     );
@@ -108,6 +131,9 @@ interface DisplayNameFormProps {
   readonly defaultDisplayName: string;
   readonly joinCode: string;
   readonly onJoined: (attempt: RoomJoin, room: JoinedRoom) => void;
+  /** Why replaying this tab's earlier join failed, shown until the form reports its own error. */
+  readonly restoreError: string | null;
+  readonly restoring: boolean;
   readonly socketRef: { readonly current: RoomSocket | null };
 }
 
@@ -116,6 +142,8 @@ function DisplayNameForm({
   defaultDisplayName,
   joinCode,
   onJoined,
+  restoreError,
+  restoring,
   socketRef,
 }: DisplayNameFormProps) {
   const inputId = useId();
@@ -142,11 +170,14 @@ function DisplayNameForm({
       return;
     }
 
+    // A kept attempt may already hold a Participant on the server, so its key is reused.
+    const storedKey = readStoredJoin(tabJoinStorage, joinCode)?.idempotencyKey;
     const attempt: RoomJoin = {
       joinCode,
       displayName: name.value,
-      idempotencyKey: nextJoinKey(failedRef.current, createIdempotencyKey),
+      idempotencyKey: storedKey ?? nextJoinKey(failedRef.current, createIdempotencyKey),
     };
+    rememberJoin(tabJoinStorage, attempt);
     setPending(true);
     setError(null);
     const result = await emitRoomJoin(sendJoinVia(socket), attempt);
@@ -159,14 +190,17 @@ function DisplayNameForm({
     }
 
     failedRef.current = { key: attempt.idempotencyKey, failure: result.error };
+    settleStoredJoin(tabJoinStorage, joinCode, result.error);
     setError(joinFailureMessage(result.error));
   }
 
   const isConnected = connection === "online";
+  const shownError = error ?? restoreError;
+  const busy = pending || restoring;
 
   return (
     <form
-      aria-busy={pending}
+      aria-busy={busy}
       className="max-w-md rounded-2xl border border-[#e4dfd3] bg-[#f7f4eb] p-5 sm:p-7"
       noValidate
       onSubmit={handleSubmit}
@@ -182,24 +216,30 @@ function DisplayNameForm({
       </p>
       <input
         aria-describedby={`${hintId} ${errorId}`}
-        aria-invalid={error !== null}
+        aria-invalid={shownError !== null}
         autoComplete="nickname"
         className={`${textInputClass} mt-3`}
-        disabled={pending}
+        disabled={busy}
         id={inputId}
         maxLength={DISPLAY_NAME_INPUT_LIMIT}
         onChange={(event) => setDisplayName(event.target.value)}
         value={displayName}
       />
       <p aria-live="polite" className={`${fieldErrorClass} mt-2 min-h-6`} id={errorId}>
-        {error}
+        {shownError}
       </p>
       <button
         className={`${primaryButtonClass} mt-3 w-full`}
-        disabled={pending || !isConnected}
+        disabled={busy || !isConnected}
         type="submit"
       >
-        {pending ? "Joining…" : isConnected ? "Join Room" : "Connecting…"}
+        {restoring
+          ? "Rejoining…"
+          : pending
+            ? "Joining…"
+            : isConnected
+              ? "Join Room"
+              : "Connecting…"}
       </button>
       <ConnectionNote connection={connection} />
     </form>

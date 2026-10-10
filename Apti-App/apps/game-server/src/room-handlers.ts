@@ -13,6 +13,7 @@ import {
 } from "@aptiquiz/contracts";
 import type { Logger } from "pino";
 import type { Server, Socket } from "socket.io";
+import { safeAcknowledge } from "./acknowledgement.js";
 import type { RoomStore } from "./room-store.js";
 import type { RoomRegistry, ValidJoinRequest } from "./rooms.js";
 
@@ -46,7 +47,8 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
   const publishLobby = (lobby: LobbySnapshot) =>
     io.to(lobbyChannel(lobby.roomId)).emit("room:lobby", lobby);
 
-  socket.on("room:host", (payload, acknowledge) => {
+  socket.on("room:host", (payload, callback) => {
+    const acknowledge = safeAcknowledge(callback);
     const parsed = roomHostSchema.safeParse(payload);
 
     if (!parsed.success) {
@@ -63,7 +65,8 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     acknowledge(result);
   });
 
-  socket.on("room:join", async (payload, acknowledge) => {
+  socket.on("room:join", async (payload, callback) => {
+    const acknowledge = safeAcknowledge(callback);
     const validation = validateJoin(payload);
 
     if (!validation.ok) {
@@ -86,7 +89,8 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     }
   });
 
-  socket.on("room:start", async (payload, acknowledge) => {
+  socket.on("room:start", async (payload, callback) => {
+    const acknowledge = safeAcknowledge(callback);
     const parsed = roomStartSchema.safeParse(payload);
 
     if (!parsed.success) {

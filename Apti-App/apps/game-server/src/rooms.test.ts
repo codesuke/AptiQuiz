@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { request as httpRequest } from "node:http";
+import { Writable } from "node:stream";
 import {
   type ClientToServerEvents,
   type LobbySnapshot,
@@ -14,7 +16,7 @@ import {
   ROOM_REGISTRATION_LIFETIME_MS,
 } from "@aptiquiz/socket-ticket";
 import pino from "pino";
-import { io, type Socket } from "socket.io-client";
+import { io, type Socket, type Socket as UntypedSocket } from "socket.io-client";
 import { afterEach, describe, expect, it } from "vitest";
 import { createGameServer, type RunningGameServer } from "./server.js";
 import { createInMemoryRoomStore, type InMemoryRoomStore } from "./testing/in-memory-room-store.js";
@@ -80,7 +82,7 @@ afterEach(async () => {
   server = undefined;
 });
 
-async function startServer(): Promise<TestServer> {
+async function startServer(logger = pino({ level: "silent" })): Promise<TestServer> {
   const store = createInMemoryRoomStore();
   server = createGameServer(
     {
@@ -90,7 +92,7 @@ async function startServer(): Promise<TestServer> {
       gameServerSecret,
       databaseUrl: "postgresql://unused",
     },
-    pino({ level: "silent" }),
+    logger,
     store,
   );
   return { port: await server.listen(), store };
@@ -167,6 +169,42 @@ function collectLobbies(socket: TestSocket): LobbySnapshot[] {
   return received;
 }
 
+/** Emits like a client that forgot the acknowledgement callback. */
+function emitWithoutAck(socket: TestSocket, event: string, payload: unknown): void {
+  (socket as unknown as UntypedSocket).emit(event, payload);
+}
+
+function captureLogs(): { readonly logger: pino.Logger; readonly lines: string[] } {
+  const lines: string[] = [];
+  const destination = new Writable({
+    write(chunk, _encoding, callback) {
+      lines.push(String(chunk));
+      callback();
+    },
+  });
+  return { logger: pino({ level: "error" }, destination), lines };
+}
+
+/** Sends only the headers of a registration whose declared length exceeds the cap. */
+function postOversizedHeaders(port: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const outgoing = httpRequest({
+      host: "127.0.0.1",
+      port,
+      path: ROOM_REGISTRATION_PATH,
+      method: "POST",
+      headers: { "content-type": "application/json", "content-length": OVERSIZED_BODY_BYTES },
+    });
+    outgoing.on("response", (response) => {
+      response.resume();
+      resolve(response.statusCode ?? 0);
+      outgoing.destroy();
+    });
+    outgoing.on("error", reject);
+    outgoing.write("{");
+  });
+}
+
 function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, SILENCE_WINDOW_MS));
 }
@@ -228,6 +266,12 @@ describe("room registration", () => {
     const response = await postRegistration(port, "x".repeat(OVERSIZED_BODY_BYTES));
 
     expect(response.status).toBe(413);
+  });
+
+  it("rejects a declared oversized body before reading it", async () => {
+    const { port } = await startServer();
+
+    await expect(postOversizedHeaders(port)).resolves.toBe(413);
   });
 
   it("treats a repeated registration as the same Room without resetting its roster", async () => {
@@ -444,6 +488,31 @@ describe("room:join", () => {
     await expect(join(guest, "Asha", roomA.joinCode, key)).resolves.toMatchObject({ ok: true });
   });
 
+  it("logs the Room when a participant write fails", async () => {
+    const { logger, lines } = captureLogs();
+    const { port, store } = await startServer(logger);
+    expect((await registerRoom(port, roomA)).status).toBe(200);
+    store.failNextParticipant();
+
+    await join(await connectAs(port), "Asha");
+
+    expect(lines.join("")).toContain(`"roomId":"${roomA.roomId}"`);
+  });
+
+  it("refuses a join whose write finishes after the Host started", async () => {
+    const { port, store } = await startWithRooms(roomA);
+    const host = await hostLobby(port);
+    const release = store.holdParticipantWrites();
+    const attempt = join(await connectAs(port), "Asha");
+    await settle();
+    await host.emitWithAck("room:start", { roomId: roomA.roomId, idempotencyKey: randomUUID() });
+    release();
+
+    await expect(attempt).resolves.toEqual({ ok: false, error: "room_not_in_lobby" });
+    const hosted = await host.emitWithAck("room:host", { roomId: roomA.roomId });
+    expect(hosted.ok && hosted.lobby.participants).toEqual([]);
+  });
+
   it("admits exactly 50 Participants and refuses the 51st without changing the roster", async () => {
     const { port, store } = await startWithRooms(roomA);
     const guest = await connectAs(port);
@@ -567,5 +636,28 @@ describe("room:start", () => {
       error: "room_not_in_lobby",
     });
     expect(store.participants).toEqual([]);
+  });
+});
+
+describe("events without an acknowledgement", () => {
+  it.each([
+    ["room:host", { roomId: roomA.roomId }],
+    ["room:host", { bad: true }],
+    ["room:join", { joinCode: roomA.joinCode, displayName: "Asha", idempotencyKey: randomUUID() }],
+    ["room:join", { bad: true }],
+    ["room:start", { roomId: roomA.roomId, idempotencyKey: randomUUID() }],
+    ["room:start", { bad: true }],
+    ["time:ping", { clientSentAt: 1 }],
+    ["time:ping", { bad: true }],
+  ])("keeps serving after %s without a callback", async (event, payload) => {
+    const { port } = await startWithRooms(roomA);
+    const host = await connectAs(port, hostUser);
+
+    emitWithoutAck(host, event, payload);
+    await settle();
+
+    await expect(host.emitWithAck("room:host", { roomId: roomA.roomId })).resolves.toMatchObject({
+      ok: true,
+    });
   });
 });

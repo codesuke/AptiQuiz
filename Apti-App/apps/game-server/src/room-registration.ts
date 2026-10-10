@@ -26,14 +26,15 @@ export async function handleRoomRegistration(
   response: ServerResponse,
   dependencies: RegistrationDependencies,
 ): Promise<void> {
+  if (declaresOversizedBody(request)) {
+    sendPayloadTooLarge(response);
+    return;
+  }
+
   const bodyRead = await readLimitedBody(request, MAX_REGISTRATION_BODY_BYTES);
 
   if (!bodyRead.ok) {
-    response.writeHead(HTTP_PAYLOAD_TOO_LARGE, {
-      "content-type": "application/json",
-      connection: "close",
-    });
-    response.end(JSON.stringify({ error: "payload_too_large" }));
+    sendPayloadTooLarge(response);
     return;
   }
 
@@ -69,6 +70,20 @@ export async function handleRoomRegistration(
 
   dependencies.logger.info({ roomId }, "room registered");
   sendRegistrationResponse(response, HTTP_OK, { ok: true, roomId });
+}
+
+/** Refuses early on the declared length; the streaming cap still guards chunked bodies. */
+function declaresOversizedBody(request: IncomingMessage): boolean {
+  const declaredBytes = Number(request.headers["content-length"]);
+  return Number.isFinite(declaredBytes) && declaredBytes > MAX_REGISTRATION_BODY_BYTES;
+}
+
+function sendPayloadTooLarge(response: ServerResponse): void {
+  response.writeHead(HTTP_PAYLOAD_TOO_LARGE, {
+    "content-type": "application/json",
+    connection: "close",
+  });
+  response.end(JSON.stringify({ error: "payload_too_large" }));
 }
 
 function sendRegistrationResponse(

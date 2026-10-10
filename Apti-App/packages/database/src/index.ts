@@ -31,6 +31,7 @@ export {
 } from "./question-sets.js";
 export {
   createRoom,
+  EmptyQuestionSetError,
   getHostedRoom,
   type HostedRoom,
   markRoomStarted,

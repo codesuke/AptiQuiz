@@ -1,7 +1,6 @@
 import { randomInt } from "node:crypto";
 import {
   createRoomRequestSchema,
-  type RoomQuestion,
   type RoomRegistration,
   roomQuestionSchema,
 } from "@aptiquiz/contracts";
@@ -15,6 +14,18 @@ const MAX_JOIN_CODE_ATTEMPTS = 5;
 const UNIQUE_VIOLATION = "P2002";
 
 const storedSnapshotSchema = z.array(roomQuestionSchema);
+/** The same shape with JSON-typed media, so the parsed value is assignable to a Prisma Json column. */
+const snapshotForStorageSchema = z.array(
+  roomQuestionSchema.extend({ media: z.record(z.string(), z.json()).optional() }),
+);
+
+/** The Game Server needs at least one Question, so a Room for an empty set could never start. */
+export class EmptyQuestionSetError extends Error {
+  constructor() {
+    super("Question Set has no Questions.");
+    this.name = "EmptyQuestionSetError";
+  }
+}
 
 export type HostedRoom = {
   readonly roomId: string;
@@ -67,7 +78,8 @@ async function findRoomByKey(db: PrismaClient, hostId: string, idempotencyKey: s
 
 /**
  * Creates a Room with a frozen copy of the Questions. A repeated idempotency key returns the
- * original Room; a Join Code collision is retried with a fresh code.
+ * original Room; a Join Code collision is retried with a fresh code. An empty Question Set
+ * throws EmptyQuestionSetError and stores nothing.
  */
 export async function createRoom(
   db: PrismaClient,
@@ -81,7 +93,8 @@ export async function createRoom(
   if (existing) return existing;
 
   const snapshot = await snapshotQuestionSet(db, hostId, questionSetId);
-  const questions: RoomQuestion[] = storedSnapshotSchema.parse(snapshot.questions);
+  const questionSnapshot = snapshotForStorageSchema.parse(snapshot.questions);
+  if (questionSnapshot.length === 0) throw new EmptyQuestionSetError();
 
   for (let attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt += 1) {
     try {
@@ -92,7 +105,7 @@ export async function createRoom(
           collegeId,
           questionSetId: snapshot.questionSetId,
           idempotencyKey,
-          questionSnapshot: JSON.parse(JSON.stringify(questions)) as Prisma.InputJsonValue,
+          questionSnapshot,
         },
         include: hostedRoomInclude,
       });

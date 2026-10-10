@@ -8,6 +8,7 @@ import type {
 import { ROOM_REGISTRATION_PATH, timePingSchema } from "@aptiquiz/contracts";
 import type { Logger } from "pino";
 import { Server as SocketServer } from "socket.io";
+import { safeAcknowledge } from "./acknowledgement.js";
 import type { GameServerConfig } from "./config.js";
 import { identifyConnection } from "./handshake.js";
 import { registerRoomHandlers } from "./room-handlers.js";
@@ -26,7 +27,7 @@ export function createGameServer(
   logger: Logger,
   roomStore: RoomStore,
 ): RunningGameServer {
-  const registry = createRoomRegistry(roomStore);
+  const registry = createRoomRegistry(roomStore, logger);
   const httpServer = createServer((request, response) => {
     if (request.method === "POST" && request.url === ROOM_REGISTRATION_PATH) {
       handleRoomRegistration(request, response, {
@@ -85,7 +86,8 @@ export function createGameServer(
     logger.info({ connectionId: socket.id, identity: identity.kind }, "player transport connected");
     socket.emit("server:ready", { connectionId: socket.id, serverTime: Date.now(), identity });
 
-    socket.on("time:ping", (payload, acknowledge) => {
+    socket.on("time:ping", (payload, callback) => {
+      const acknowledge = safeAcknowledge(callback);
       const parsed = timePingSchema.safeParse(payload);
 
       if (!parsed.success) {
