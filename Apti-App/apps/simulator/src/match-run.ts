@@ -1,18 +1,28 @@
 import { randomUUID } from "node:crypto";
 import {
   type LobbySnapshot,
+  type LockedAnswer,
   type RevealedRound,
   type RoundView,
   roomAdvanceResponseSchema,
+  roomResumeResponseSchema,
   roomStartResponseSchema,
   roundAnswerResponseSchema,
 } from "@aptiquiz/contracts";
-import { type Cohort, expectedCounts, LATE_ROUND_INDEX, planFor } from "./cohorts.js";
+import {
+  type Cohort,
+  expectedCounts,
+  LATE_ROUND_INDEX,
+  planFor,
+  RESUME_ROUND_INDEX,
+  resumesMidRound,
+} from "./cohorts.js";
 import type { LoggedRound } from "./event-log.js";
 import { correctOptionId, fixtureMismatch, STARTER_FIXTURE, wrongOptionId } from "./fixture.js";
 import { Invariants } from "./invariants.js";
 import { refused, SimulationError, STEP_TIMEOUT_MS, timed } from "./rpc.js";
 import type { RoomSession, SimulatedParticipant } from "./session.js";
+import { checkFinalResults, checkLeaderboard, type ExpectedFinal } from "./standings.js";
 
 /** Margin after the estimated deadline, so a deliberately late Answer is never early. */
 const LATE_ANSWER_MARGIN_MS = 50;
@@ -31,6 +41,10 @@ export interface MatchStageResult {
   exactKeyReplays: number;
   lateRejections: Record<string, number>;
   revealChecks: number;
+  resumes: { attempted: number; succeeded: number };
+  /** Rounds whose ordered Leaderboard was identical for the Host and every Participant. */
+  leaderboardsConverged: number;
+  finalResultsVerified: number;
   secrecy: { payloadsScanned: number; leaks: number };
   timing: { roundDurationMs: number; maxDelayCompensationMs: number; scoreBucketMs: number };
   /** Revealed points of every Participant for each closed Round, in Question order. */
@@ -100,6 +114,11 @@ class MatchRun {
   readonly roundPoints = new Map<string, number[]>();
   private revealChecks = 0;
   private lastAnswerAckAt = 0;
+  private readonly lockedAnswers = new Map<string, LockedAnswer>();
+  private readonly resumeCounts = { attempted: 0, succeeded: 0 };
+  private leaderboardsConverged = 0;
+  private finalResultsVerified = 0;
+  private ranks: Map<string, number> | null = null;
 
   constructor(
     private readonly session: RoomSession,
@@ -132,6 +151,7 @@ class MatchRun {
       await this.playRound(index, commandSentAt);
       commandSentAt = await this.advance(index);
     }
+    await this.checkFinalResults();
     for (const leak of session.secrecy.leaks) {
       this.invariants.check(false, `Disclosure before reveal: ${leak}`);
     }
@@ -146,6 +166,9 @@ class MatchRun {
       exactKeyReplays: this.tally.exactKeyReplays,
       lateRejections: this.tally.lateRejections,
       revealChecks: this.revealChecks,
+      resumes: this.resumeCounts,
+      leaderboardsConverged: this.leaderboardsConverged,
+      finalResultsVerified: this.finalResultsVerified,
       secrecy: { payloadsScanned: session.secrecy.scanned, leaks: session.secrecy.leaks.length },
       timing: {
         roundDurationMs: rules.roundDurationMs,
@@ -165,6 +188,7 @@ class MatchRun {
     for (const entry of opened) {
       session.recorder.record("hostCommandToRoundState", entry.arrivedAt - commandSentAt);
     }
+    this.lockedAnswers.clear();
     this.checkOpenViews(index);
 
     await this.answerRound(index);
@@ -200,6 +224,12 @@ class MatchRun {
     );
     const waitingRuns = waiting.map((p) => this.act(p, index));
     await Promise.all(early.map((p) => this.act(p, index)));
+    if (index === RESUME_ROUND_INDEX) {
+      const resuming = this.session.participants.filter(
+        (p) => !waiting.includes(p) && resumesMidRound(p.cohort, p.number),
+      );
+      await Promise.all(resuming.map((p) => this.resume(p, index)));
+    }
     await Promise.all(closers.map((p) => this.act(p, index)));
     await Promise.all(waitingRuns);
   }
@@ -279,6 +309,7 @@ class MatchRun {
       return;
     }
     this.tally.accepted += 1;
+    this.lockedAnswers.set(participant.participantId, first.answer);
     if (plan.choice === "wrong") this.tally.wrong += 1;
 
     if (plan.extra === "duplicate") {
@@ -294,6 +325,145 @@ class MatchRun {
       this.invariants.check(same, `${who}: an exact-key replay did not return the first result`);
       if (same) this.tally.exactKeyReplays += 1;
     }
+  }
+
+  private pointsBefore(participantId: string, index: number): number {
+    return (this.roundPoints.get(participantId) ?? [])
+      .slice(0, index)
+      .reduce((sum, points) => sum + points, 0);
+  }
+
+  /** Drops a Participant's socket mid-Round, resumes on a new one, and compares what comes back. */
+  private async resume(participant: SimulatedParticipant, index: number): Promise<void> {
+    const { invariants, session } = this;
+    const who = `Participant ${participant.number} resume Q${index}`;
+    const before = asOpen(this.entryOf(participant.log, isOpen(index)));
+    const lockedBefore = this.lockedAnswers.get(participant.participantId) ?? null;
+    await session.reconnect(participant);
+    const response = await timed(
+      session.recorder,
+      "roomResumeAck",
+      (acknowledge) =>
+        participant.socket.emit(
+          "room:resume",
+          { joinCode: session.joinCode, resumeToken: participant.resumeToken },
+          acknowledge,
+        ),
+      (reply) => {
+        const parsed = roomResumeResponseSchema.parse(reply);
+        return parsed.ok ? parsed : refused(who, parsed);
+      },
+      who,
+    );
+    session.secrecy.inspect(`${who} ack`, response);
+    this.resumeCounts.attempted += 1;
+    const problems = invariants.count;
+
+    const roster = response.lobby.participants.filter(
+      (entry) => entry.participantId === participant.participantId,
+    );
+    invariants.check(
+      response.participant.participantId === participant.participantId,
+      `${who}: identity changed`,
+    );
+    invariants.check(roster.length === 1, `${who}: roster does not list the Participant once`);
+    invariants.check(
+      response.lobby.participants.length === session.participants.length,
+      `${who}: roster size changed`,
+    );
+    const after = response.round;
+    invariants.check(
+      after?.phase === "QUESTION_OPEN" && after.questionIndex === index,
+      `${who}: not resumed into the open Round`,
+    );
+    if (after?.phase === "QUESTION_OPEN") {
+      invariants.check(
+        JSON.stringify(after.question.options) === JSON.stringify(before.question.options),
+        `${who}: option ids or order changed`,
+      );
+      invariants.check(
+        after.startsAt === before.startsAt && after.endsAt === before.endsAt,
+        `${who}: deadline changed`,
+      );
+      invariants.check(
+        JSON.stringify(after.answer) === JSON.stringify(lockedBefore),
+        `${who}: Answer state changed`,
+      );
+    }
+    invariants.check(
+      response.score === this.pointsBefore(participant.participantId, index),
+      `${who}: score differs from revealed Round points`,
+    );
+    if (invariants.count === problems) this.resumeCounts.succeeded += 1;
+  }
+
+  private totalsThrough(index: number): Map<string, number> {
+    return new Map(
+      this.session.participants.map((p) => [
+        p.participantId,
+        this.pointsBefore(p.participantId, index + 1),
+      ]),
+    );
+  }
+
+  private checkStandings(index: number, hostReveal: RevealedRound): void {
+    const { invariants, session } = this;
+    const reference = JSON.stringify(hostReveal.leaderboard);
+    let converged = true;
+    for (const participant of session.participants) {
+      const reveal = asRevealed(this.entryOf(participant.log, isRevealed(index)));
+      if (JSON.stringify(reveal.leaderboard) !== reference) converged = false;
+      invariants.check(
+        JSON.stringify(reveal.leaderboard) === reference,
+        `Participant ${participant.number} reveal ${index}: Leaderboard differs from the Host's`,
+      );
+    }
+    this.ranks = checkLeaderboard(
+      invariants,
+      `Reveal ${index}`,
+      hostReveal.leaderboard,
+      this.totalsThrough(index),
+      this.ranks,
+    );
+    if (converged) this.leaderboardsConverged += 1;
+  }
+
+  private async checkFinalResults(): Promise<void> {
+    const { invariants, session } = this;
+    const logs = [session.host.log, ...session.participants.map((p) => p.log)];
+    const isSaved = (lobby: LobbySnapshot) =>
+      lobby.phase === "FINISHED" && lobby.results !== undefined;
+    const lobbies = await Promise.all(
+      logs.map((log) => log.waitForLobby(isSaved, "Final results")),
+    );
+    const reference = JSON.stringify(lobbies[0]?.results);
+    invariants.check(
+      lobbies.every((lobby) => JSON.stringify(lobby.results) === reference),
+      "Final results differ between viewers",
+    );
+
+    const expected = new Map<string, ExpectedFinal>(
+      session.participants.map((p) => [
+        p.participantId,
+        {
+          displayName: p.displayName,
+          correctAnswers: Array.from(
+            { length: this.questionCount },
+            (_, i) => expectedOutcome(p.cohort, i).correct,
+          ).filter(Boolean).length,
+        },
+      ]),
+    );
+    const results = lobbies[0]?.results ?? [];
+    checkFinalResults(
+      invariants,
+      results,
+      this.totalsThrough(this.questionCount - 1),
+      this.ranks ?? new Map(),
+      expected,
+      this.questionCount,
+    );
+    this.finalResultsVerified = results.length;
   }
 
   private checkReveals(index: number): void {
@@ -320,6 +490,7 @@ class MatchRun {
       points[index] = score.points;
       this.roundPoints.set(score.participantId, points);
     }
+    this.checkStandings(index, hostReveal);
     this.revealChecks += 1;
   }
 

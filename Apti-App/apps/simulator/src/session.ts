@@ -29,6 +29,8 @@ export interface SimulatedParticipant {
   cohort: Cohort;
   displayName: string;
   participantId: string;
+  /** Secret proof of this place in the Room; never printed, scrubbed from every report. */
+  resumeToken: string;
   socket: SimulatorSocket;
   log: EventLog;
 }
@@ -46,11 +48,15 @@ export class SecrecyMonitor {
 
 export interface RoomSession {
   roomId: string;
+  joinCode: string;
   host: { socket: SimulatorSocket; log: EventLog };
   participants: SimulatedParticipant[];
   lobby: LobbySnapshot;
   recorder: LatencyRecorder;
   secrecy: SecrecyMonitor;
+  /** Drops a Participant's socket and opens a new one that feeds the same event log. */
+  reconnect(participant: SimulatedParticipant): Promise<SimulatorSocket>;
+  secretValues(): string[];
   close(): void;
 }
 
@@ -179,13 +185,13 @@ export async function openLobby(
     listen(hostSocket, "Host", hostLog);
     await awaitConnection(hostSocket, "Host");
 
-    const session = {
+    const hostSession = {
       roomId: access.roomId,
       host: { socket: hostSocket, log: hostLog },
       recorder,
       secrecy,
     };
-    const initial = await hostLobby(session, "Host subscription");
+    const initial = await hostLobby(hostSession, "Host subscription");
     checkStarterFixture(initial);
 
     const numbers = Array.from({ length: config.participantCount }, (_, index) => index + 1);
@@ -210,14 +216,33 @@ export async function openLobby(
           cohort: cohortOf(number),
           displayName,
           participantId: joined.participant.participantId,
+          resumeToken: joined.resumeToken,
           socket,
           log,
         };
       }),
     );
 
-    const lobby = await hostLobby(session, "Host Lobby check");
-    return { ...session, participants, lobby, close };
+    const lobby = await hostLobby(hostSession, "Host Lobby check");
+    const reconnect = async (participant: SimulatedParticipant) => {
+      participant.socket.disconnect();
+      const label = `Participant ${participant.number}`;
+      const socket = connect(config.gameServerUrl, null);
+      sockets.push(socket);
+      listen(socket, label, participant.log);
+      await awaitConnection(socket, label);
+      participant.socket = socket;
+      return socket;
+    };
+    return {
+      ...hostSession,
+      joinCode: initial.joinCode,
+      participants,
+      lobby,
+      reconnect,
+      secretValues: () => participants.map((participant) => participant.resumeToken),
+      close,
+    };
   } catch (error) {
     close();
     throw error;

@@ -6,6 +6,17 @@ const COHORT_ORDER: readonly Cohort[] = ["late", "correct", "wrong", "duplicate"
 /** The first Round stays open to its deadline because the late cohort never answers early. */
 export const LATE_ROUND_INDEX = 0;
 
+/** Round during which a subset of Participants disconnects and resumes. */
+export const RESUME_ROUND_INDEX = 1;
+
+/**
+ * Wrong-answer Participants resume after they answered; every second correct-answer Participant
+ * resumes before answering. Both keep the Round open, because the correct cohort answers last.
+ */
+export function resumesMidRound(cohort: Cohort, participantNumber: number): boolean {
+  return cohort === "wrong" || (cohort === "correct" && participantNumber % 2 === 0);
+}
+
 export function cohortOf(participantNumber: number): Cohort {
   return COHORT_ORDER[(participantNumber - 1) % COHORT_ORDER.length] ?? "correct";
 }
@@ -37,6 +48,7 @@ export interface ExpectedCounts {
   lateRejections: number;
   exactKeyReplays: number;
   unanswered: number;
+  resumes: number;
 }
 
 export function expectedCounts(participantCount: number, questionCount: number): ExpectedCounts {
@@ -46,9 +58,11 @@ export function expectedCounts(participantCount: number, questionCount: number):
     lateRejections: 0,
     exactKeyReplays: 0,
     unanswered: 0,
+    resumes: 0,
   };
   for (let number = 1; number <= participantCount; number += 1) {
     const cohort = cohortOf(number);
+    if (questionCount > RESUME_ROUND_INDEX && resumesMidRound(cohort, number)) counts.resumes += 1;
     for (let index = 0; index < questionCount; index += 1) {
       const plan = planFor(cohort, index);
       if (plan.kind === "wait-for-deadline") {

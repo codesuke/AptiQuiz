@@ -24,6 +24,7 @@ describe("cohorts", () => {
       lateRejections: 10,
       exactKeyReplays: 30,
       unanswered: 10,
+      resumes: 10 + 5,
     });
   });
 });

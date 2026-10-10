@@ -332,7 +332,7 @@ The simulator uses the public Socket.IO interface and the web Room and Socket Ti
 
 Each simulated player connects, sends one `time:ping` event, and joins the Lobby. The Host reads the Lobby back and the simulator checks that it holds the requested number of distinct Participants. The Host then starts the Room and advances after each reveal. Fixed cohorts submit correct, wrong, duplicate (new key), exact-key replay, and deliberately late Answers, and one cohort stays silent in the first Round. The simulator scans every pre-reveal payload for correctness, explanation, or points, and checks revealed Round points against the starter fixture. The JSON report separates connected sockets from joined Participants, includes labelled client-observed acknowledgement latency, and never prints the Host session or ticket. Any failure or timeout exits nonzero.
 
-The simulator does not yet disconnect and resume Participants, compare Leaderboards, or check final results, and no deployed run is recorded. Do not use its result as proof of complete Match capacity.
+During the second Question, a subset of Participants disconnects and resumes with its Resume Token, and the simulator compares identity, score, Answer state, option order, and deadline. After each reveal it compares the ordered Leaderboard across all viewers with the revealed Round points, and after the last Question it checks the saved results. No deployed run is recorded yet. Do not use its result as proof of complete Match capacity.
 
 ## Implemented Data Flow
 

@@ -19,7 +19,7 @@ async function main(): Promise<number> {
     return 1;
   }
 
-  const secrets = secretsOf(config);
+  const configSecrets = secretsOf(config);
   const recorder = new LatencyRecorder();
   const report: SimulatorReport = {
     ok: false,
@@ -32,10 +32,11 @@ async function main(): Promise<number> {
     durationMs: 0,
   };
   let session: RoomSession | null = null;
+  const secrets = () => [...configSecrets, ...(session?.secretValues() ?? [])];
   const finish = () => {
     report.latencyMs = recorder.summaries();
     report.durationMs = Math.round(performance.now() - startedAt);
-    console.log(formatReport(report, secrets));
+    console.log(formatReport(report, secrets()));
   };
   const watchdog = setTimeout(() => {
     report.errors.push(`Run exceeded ${OVERALL_TIMEOUT_MS}ms`);
@@ -52,7 +53,7 @@ async function main(): Promise<number> {
     report.match = match;
     report.ok = true;
   } catch (error) {
-    report.errors.push(...describeFailure(error).map((line) => scrubSecrets(line, secrets)));
+    report.errors.push(...describeFailure(error).map((line) => scrubSecrets(line, secrets())));
   } finally {
     clearTimeout(watchdog);
     session?.close();
