@@ -40,7 +40,7 @@ function readParticipantCount(value: string | undefined): number {
   return parsed;
 }
 
-function readHttpUrl(name: string, value: string): string {
+export function readHttpUrl(name: string, value: string): string {
   try {
     const url = new URL(value);
     if (url.protocol === "http:" || url.protocol === "https:") return url.origin;

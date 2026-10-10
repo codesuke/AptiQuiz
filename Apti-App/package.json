@@ -21,6 +21,7 @@
     "db:migrate": "pnpm --filter @aptiquiz/database db:migrate",
     "db:studio": "pnpm --filter @aptiquiz/database db:studio",
     "simulate": "pnpm --filter @aptiquiz/simulator simulate",
+    "simulate:bots": "pnpm --filter @aptiquiz/simulator simulate:bots",
     "postinstall": "pnpm db:generate"
   },
   "devDependencies": {

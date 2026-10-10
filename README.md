@@ -121,6 +121,7 @@ This runs formatting/lint checks, TypeScript checks, behavior tests, and product
 | `pnpm test` | Vitest behavior tests |
 | `pnpm build` | Production builds for apps and packages |
 | `pnpm simulate` | Plays a starter Room with up to 50 virtual Participants through every Question |
+| `pnpm simulate:bots` | Adds bots to a Room you host; see Bots in your own Room |
 
 Run `pnpm simulate` in another terminal while `pnpm dev` is running.
 
@@ -176,6 +177,30 @@ Client-observed latency in milliseconds (the time from sending a command to its 
 | `roomAdvanceAck` | 3 | 38.4 | 141.0 | 141.0 |
 
 This is one run of one Room. It shows that a 50-Participant Match completes correctly on the deployed Game Server from a single runner. It does not show capacity for many Rooms, other networks, or browsers. The simulator sets no latency pass threshold.
+
+### Bots in your own Room
+
+To play against bots on the deployed site, host a Room in the browser, then run:
+
+```bash
+cd Apti-App
+SIMULATOR_JOIN_CODE=ABC234 SIMULATED_PLAYERS=20 pnpm simulate:bots
+```
+
+No sign-in or cookie is needed: bots join as Guests, so the Host stays in your hands. Join before you press Start. The bots print `[bots] N bots joined`, then wait for you to run the match. Each bot answers every Round after a random delay, and leaves some Rounds unanswered. You can play alongside them.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SIMULATOR_JOIN_CODE` | none | Join Code of a Room in its Lobby (required). |
+| `SIMULATOR_URL` | `https://game.aptiquiz.codesuke.in` | Game Server to join. Use `http://localhost:3001` locally. |
+| `SIMULATED_PLAYERS` | `10` | Bots to add, 1 to 50, within the Room's 50-Participant limit. |
+| `BOT_MAX_ANSWER_DELAY_MS` | `8000` | Longest wait before a bot answers. |
+| `BOT_SKIP_PERCENT` | `10` | Share of bot Rounds left unanswered. |
+| `BOT_WAIT_MS` | `900000` | How long to wait for you to finish the match. |
+
+When the match ends, the bots check what they saw and print a JSON report (exit 0 on success, 1 otherwise). Each bot checks that its result matches the option it sent, that all bots saw the same scores and ordered Leaderboard after every Round and that the Leaderboard totals equal the revealed points, and that the saved results match. They also check that nothing disclosed the correct option before the reveal. `otherParticipants` counts the people in the Room besides the bots. Bots do not know the correct answers, so they pick options at random.
+
+A run on 2026-10-10 against the deployed servers, with a script standing in for the Host, passed with 50 bots: 139 Answers accepted, 11 skipped, 3 of 3 Leaderboards identical across bots, 50 saved results matched, and 2,114 pre-reveal payloads showed no disclosure.
 
 ### Database commands
 

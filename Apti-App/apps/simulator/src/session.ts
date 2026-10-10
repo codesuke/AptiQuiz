@@ -67,7 +67,7 @@ export interface LobbyStageResult {
   lobbyParticipants: number;
 }
 
-function connect(url: string, ticket: string | null): SimulatorSocket {
+export function connect(url: string, ticket: string | null): SimulatorSocket {
   return io(url, {
     forceNew: true,
     reconnection: false,
@@ -77,7 +77,7 @@ function connect(url: string, ticket: string | null): SimulatorSocket {
   });
 }
 
-function awaitConnection(socket: SimulatorSocket, label: string): Promise<void> {
+export function awaitConnection(socket: SimulatorSocket, label: string): Promise<void> {
   const connected = new Promise<void>((resolve, reject) => {
     socket.once("connect", () => resolve());
     socket.once("connect_error", (error) =>
@@ -87,7 +87,7 @@ function awaitConnection(socket: SimulatorSocket, label: string): Promise<void> 
   return withTimeout(connected, `${label} connection`);
 }
 
-function listen(socket: SimulatorSocket, label: string, log: EventLog): void {
+export function listen(socket: SimulatorSocket, label: string, log: EventLog): void {
   socket.on("round:state", (payload) => log.recordRound(label, payload));
   socket.on("room:lobby", (payload) => {
     const parsed = lobbySnapshotSchema.safeParse(payload);
@@ -128,7 +128,7 @@ export function hostLobby(
   );
 }
 
-async function pingAndJoin(
+export async function pingAndJoin(
   participant: Pick<SimulatedParticipant, "number" | "socket">,
   joinCode: string,
   displayName: string,
