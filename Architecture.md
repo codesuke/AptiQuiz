@@ -25,7 +25,7 @@ The following functions are available:
 - A verified User in `ADMIN_EMAILS` can open the placeholder `/admin` area.
 - A suspended User cannot create a session or use an existing session on the next request.
 - A signed-in User searches the approved Colleges at `/college` and sets one Home College. The account menu shows it.
-- The hosting setup link opens `/host`. A Guest is sent to sign in. A User without a Home College is sent to `/college` and returns to `/host` after choosing one. The page does not create a Room.
+- The hosting setup link opens `/host`. A Guest is sent to sign in. A User without a Home College is sent to `/college` and returns to `/host` after choosing one. The page lists the readable Question Sets and creates a Room.
 - The web application issues short-lived Socket Tickets to signed-in Users.
 - The browser connects to the Game Server as a User or a Guest and shows the identity reported by `server:ready`.
 - The Game Server supplies `GET /health`.
@@ -34,13 +34,16 @@ The following functions are available:
 - The Game Server sends the `server:ready` event with the connection identity.
 - The Game Server accepts the `time:ping` event.
 - The Game Engine controls the initial game phases.
+- A Host creates a Room from an owned Question Set or the starter set. The Room stores the Host, the Home College, the Question Set, a stable Question snapshot, and a unique six-character Join Code.
+- The Host Lobby at `/host/rooms/[roomId]` shows the Join Code, the join link, a QR code, Copy and Share buttons, the live roster, the scoring rule, and Start.
+- A Guest or a User joins at `/join` or `/join/[code]` with a display name. The Lobby roster updates live for each member of that Room.
+- The Game Server keeps a maximum of 50 Participants in each Room. Only the Host can start the Room, and only one time.
 - The simulator opens 50 connections by default.
 - The database package generates a Prisma client.
 
 The following functions are not available:
 
-- A Host cannot create or control a Room.
-- A Participant cannot join a Room or submit an Answer.
+- A Participant cannot submit an Answer. The Game Server does not deliver timed Questions.
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
@@ -155,7 +158,17 @@ The Game Server is a long-running Node.js process. Socket.IO supplies the WebSoc
 
 The Game Server uses server time for its responses. The browser time does not control a game decision.
 
-The current process keeps no Room state. A later product slice must add Room orchestration.
+The process keeps live Room state in memory. Each Room has its registration, its Game Engine state, its roster, and its join and start idempotency records.
+
+`POST /internal/rooms` accepts a Room from the web application. The body is `{ "registration": <token> }`. The token is an HS256 JSON Web Token signed with `GAME_SERVER_SECRET`, with the audience `aptiquiz-game-server-internal` and a lifetime of 60 seconds. A bad token gets 401, a bad body gets 400, a body larger than 2 MB gets 413, and a Join Code of another live Room gets 409. A repeated registration of the same Room is accepted and does not reset the roster.
+
+The Socket.IO Room commands are:
+
+- `room:host`: only the Host User subscribes to the Lobby.
+- `room:join`: a Guest or a User joins a Room in the Lobby. A User is one Participant in each Room. A Guest is identified by the join idempotency key. The server reserves the slot before the database write, so a Room never has more than 50 Participants. A join that ends after the start is refused.
+- `room:start`: only the Host starts the Room. The Game Engine `START` transition leaves `LOBBY`. A retry with the same key returns the first result.
+
+Each command is validated and gets a typed acknowledgement. A command without an acknowledgement callback is ignored. `room:lobby` sends the roster and the phase to the members of one Room only. The Lobby data does not contain `correctOptionId`. The Game Server writes Participants and the `RUNNING` status to PostgreSQL through `@aptiquiz/database`, and needs `DATABASE_URL`.
 
 A Socket.IO connection middleware identifies each connection before any event handler runs. The middleware reads `ticket` from the handshake `auth` payload:
 
@@ -185,6 +198,8 @@ The Contracts package contains Zod schemas and TypeScript event types. The Game 
 The package currently defines these interfaces:
 
 - `roomCodeSchema`
+- `roomRegistrationSchema`, `createRoomRequestSchema`, and `lobbySnapshotSchema`
+- `roomHostSchema`, `roomJoinSchema`, `roomStartSchema`, and their response schemas
 - `displayNameSchema`
 - `timePingSchema`
 - `timePingResponseSchema`
@@ -260,7 +275,7 @@ The schema contains these main models:
 
 The unique key on `(roundId, participantId)` prevents two stored Answers for one Participant and one Round.
 
-The application does not use these models in a product flow at this time.
+Room creation uses `College`, `QuestionSet`, `Question`, and `Room`. Room join uses `Participant`, which links to the joining User or to no User for a Guest. The application does not use `Round`, `Answer`, or `MatchResult` at this time.
 
 ### Simulator
 
@@ -285,11 +300,11 @@ The current WebSocket data flow is as follows:
 7. The Game Server validates the payload and acknowledges it with `serverReceivedAt`.
 8. The browser shows the returned identity and round-trip time.
 
-The Game Engine is not connected to the Socket.IO handlers at this time.
+The Room handlers call the Game Engine only for the `START` transition at this time.
 
 ## Planned Match Data Flow
 
-This section describes an accepted plan. The flow is not implemented.
+This section describes an accepted plan. Steps 1 to 5 are implemented for the Lobby; the other steps are not implemented.
 
 1. The Host creates a Room through the web application.
 2. The web server checks the User and the Question Set.
@@ -330,8 +345,9 @@ ADR 0007 accepts Better Auth and short-lived Socket Tickets. The web application
 | `GAME_SERVER_PORT` | Game Server | Implemented | Selects the HTTP and WebSocket port. |
 | `GAME_SERVER_ORIGIN` | Game Server | Implemented | Selects the allowed web origin. |
 | `LOG_LEVEL` | Game Server | Implemented | Selects the Pino log level. |
-| `DATABASE_URL` | Database tools | Implemented | Connects Prisma to PostgreSQL. |
-| `GAME_SERVER_SECRET` | Web and Game Server | Implemented | Signs and verifies Socket Tickets. |
+| `DATABASE_URL` | Web, Game Server, and database tools | Implemented | Connects Prisma to PostgreSQL. |
+| `GAME_SERVER_SECRET` | Web and Game Server | Implemented | Signs and verifies Socket Tickets and Room registrations. |
+| `GAME_SERVER_INTERNAL_URL` | Web server only | Implemented, optional | Selects the Game Server URL for Room registration. The default is `NEXT_PUBLIC_GAME_SERVER_URL`. |
 | `BETTER_AUTH_SECRET` | Web | Implemented | Signs Better Auth data. |
 | `BETTER_AUTH_URL` | Web | Implemented | Selects the Better Auth URL. |
 | `GOOGLE_CLIENT_ID` | Web | Implemented, optional | Identifies the Google OAuth client. |
@@ -433,7 +449,8 @@ pnpm simulate
 | The Game Server validates the `time:ping` payload. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` and `Apti-App/apps/game-server/src/server.ts` | Add tests when the event interface changes. | - |
 | The Game Engine controls phase changes and provisional scores. | VERIFIED | `Apti-App/packages/game-engine/src/index.ts` and `index.test.ts` | Keep game rules outside transport handlers. | - |
 | The simulator creates 50 connections by default. | VERIFIED | `Apti-App/apps/simulator/src/index.ts` and `docs/build-memory.yaml` | Repeat the test after transport changes. | - |
-| A complete 50-Participant Match is not implemented. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` contains no Room or Answer events. | Implement and test the complete flow. | - |
+| A complete 50-Participant Match is not implemented. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` contains Room events but no Answer events. | Implement and test the complete flow. | - |
+| A Host creates a Room, Guests and Users join a live Lobby of at most 50, and only the Host starts it one time. | VERIFIED | `Apti-App/apps/game-server/src/rooms.test.ts`, `Apti-App/packages/database/src/rooms.test.ts`, `Apti-App/apps/web/src/lib/rooms-handler.test.ts`, and a two-browser check on 2026-10-10 | Repeat the browser check when Room handling changes. | - |
 | The Game Server identifies Users and Guests from Socket Tickets. | VERIFIED | `Apti-App/apps/game-server/src/handshake.ts`, `server.test.ts`, and `Apti-App/packages/socket-ticket/src/index.test.ts` | Keep the handshake tests successful. | - |
 | Email/password sign-in and Socket Ticket issue are implemented; the Dokploy health endpoints respond; Redis and Kafka are unused. | PARTIALLY VERIFIED | Auth and handshake source; public HTTPS health responses checked 2026-10-10 | Finish the deployment checks in #11. | - |
 | Google sign-in creates a User, links only to a verified User with the same email, and keeps `GOOGLE_CLIENT_SECRET` on the server. | VERIFIED | `Apti-App/apps/web/src/lib/google-sign-in.ts`, `google-sign-in.integration.test.ts`, and the production build output | Repeat the manual Google round trip when real credentials are available. | - |

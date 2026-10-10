@@ -1,6 +1,68 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-4"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Rooms & Lobby"
+    status: "working_with_limitations"
+    summary: "A Host creates a Room from a Question Set, shares its Join Code, link, or QR code, sees Guests and Users join a live Lobby of up to 50, and starts it once."
+    areas:
+      - "rooms"
+      - "Game Server"
+      - "web interface"
+      - "database schema"
+      - "contracts"
+    working:
+      - "POST /api/rooms creates a Room for a signed-in, non-suspended User with a Home College from an owned or starter set; Guest 401, suspended 403, no Home College 409, foreign set 404, empty set 422; the same idempotency key returns the same Room."
+      - "The Room stores Host, Home College, Question Set, a stable Question snapshot, and a unique six-character Join Code; later set edits do not change it."
+      - "The web server hands the Room to the Game Server at POST /internal/rooms with a token signed by GAME_SERVER_SECRET; registration is idempotent and the Host Lobby page repeats it after a Game Server restart."
+      - "The Host Lobby shows the Join Code, join link, browser-generated QR code, Copy, Share (native sheet or copy with confirmation), live roster, scoring rule, and Start."
+      - "Guests and Users join at /join or /join/[code] with only a display name; the roster updates live for that Room only; invalid codes, names, unknown Rooms, a full Room, and joins after start get clear errors."
+      - "At most 50 Participant identities per Room, including concurrent joins; a User is one identity per Room, a Guest is one per join key, and a Guest's key survives a refresh in the same tab."
+      - "Participants store userId (null for a Guest) and the User's Home College or the Room College."
+      - "Only the Host starts the Room, once, through the Game Engine START transition; all members see the phase change and the Room becomes RUNNING."
+    limitations:
+      - "Timed Questions, answers, and scoring after start belong to PRD #5; start uses a provisional Question duration."
+      - "Live Rooms are in Game Server memory and are lost on restart; Resume Tokens and reconnect recovery belong to PRD #6."
+      - "Participants are never removed from a Lobby, and Rooms are never evicted from memory."
+      - "QR scanning with a phone camera and the phone share sheet were not checked on a physical device."
+      - "A locally built web app needs the same GAME_SERVER_SECRET and local URLs as the Game Server; apps/web/.env currently holds production values."
+    prd:
+      issue: 4
+      url: "https://github.com/codesuke/AptiQuiz/issues/4"
+    slices:
+      - issue: 30
+        title: "Host creates a Room"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/30"
+      - issue: 31
+        title: "Participants join the Lobby"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/31"
+      - issue: 32
+        title: "Host starts the Room"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/32"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "e565f70"
+        - "deafa8a"
+      tests:
+        - "game-server 60, web 110, database Rooms 10/10 against the configured PostgreSQL, socket-ticket 12, contracts 2; typecheck, Biome, and production build pass"
+        - "Puppeteer two-browser run on a production build: Host at 1280 px, Guest and signed-in User at 375 px, live roster, Share fallback, errors, start, late join refused"
+    archive:
+      prd: "docs/Specs-Completed/4-rooms-and-lobby/PRD.md"
+      slices:
+        - "docs/Specs-Completed/4-rooms-and-lobby/slices/30-host-creates-a-room.md"
+        - "docs/Specs-Completed/4-rooms-and-lobby/slices/31-participants-join-the-lobby.md"
+        - "docs/Specs-Completed/4-rooms-and-lobby/slices/32-host-starts-the-room.md"
   - id: "2026-10-10-github-prd-3"
     changed_at: "2026-10-10"
     kind: "feature"
