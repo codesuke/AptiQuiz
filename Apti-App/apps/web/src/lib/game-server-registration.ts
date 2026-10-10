@@ -42,19 +42,36 @@ export function createRoomRegistrar(dependencies: RoomRegistrarDependencies) {
       dependencies.getSecret(),
       dependencies.now(),
     );
+    // The token and secret are never logged; the URL carries no credentials.
+    let url = "unresolved";
     try {
-      const response = await dependencies.fetch(dependencies.getRegistrationUrl(), {
+      url = dependencies.getRegistrationUrl();
+      const response = await dependencies.fetch(url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ registration: token }),
         cache: "no-store",
         signal: AbortSignal.timeout(REGISTRATION_TIMEOUT_MS),
       });
-      const parsed = roomRegistrationResponseSchema.safeParse(await response.json());
+      const payload: unknown = await response.json();
+      const parsed = roomRegistrationResponseSchema.safeParse(payload);
       const accepted =
         parsed.success && parsed.data.ok && parsed.data.roomId === registration.roomId;
+      if (!accepted) {
+        console.error("Game Server refused Room registration", {
+          roomId: registration.roomId,
+          url,
+          status: response.status,
+          body: payload,
+        });
+      }
       return { ok: accepted };
-    } catch {
+    } catch (error: unknown) {
+      console.error("Game Server Room registration failed", {
+        roomId: registration.roomId,
+        url,
+        error,
+      });
       return { ok: false };
     }
   };
