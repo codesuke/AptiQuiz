@@ -1,6 +1,73 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-3"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Question Set Authoring"
+    status: "working_with_limitations"
+    summary: "Hosts can create, edit, and reorder reusable Question Sets with text, image, and table Questions, use a shared read-only starter set, and take an immutable snapshot of a set for a Room."
+    areas:
+      - "question sets"
+      - "database schema"
+      - "web interface"
+    working:
+      - "A signed-in Host creates a Question Set with text, image-URL, and table Questions; the server rejects invalid options, correct answer, Topic, Difficulty, and media."
+      - "A Host edits a Question and reorders the set at /question-sets/[setId]; invalid or foreign requests change nothing; concurrent writes to one set are serialised."
+      - "One ownerless starter set is seeded idempotently, visible to every signed-in User and read-only."
+      - "snapshotQuestionSet returns a deep-frozen ordered copy of an owned or starter set; later edits and reorders do not alter earlier snapshots, and a set can be snapshotted repeatedly."
+    limitations:
+      - "snapshotQuestionSet is not yet called; PRD #4 must call it at Room creation and persist the result."
+      - "A set title cannot be renamed, and a set cannot be deleted or duplicated."
+      - "The edit and reorder pages were not exercised in a browser."
+    prd:
+      issue: 3
+      url: "https://github.com/codesuke/AptiQuiz/issues/3"
+    slices:
+      - issue: 24
+        title: "Create Question Sets with text Questions"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/24"
+      - issue: 25
+        title: "Add image and table Questions and a starter set"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/25"
+      - issue: 26
+        title: "Edit and reorder a Question Set"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/26"
+      - issue: 27
+        title: "Snapshot Questions when a Room uses a set"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/27"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors:
+      - name: "OpenAI Codex"
+        type: "agent"
+    evidence:
+      pull_requests: []
+      commits:
+        - "fd3f0a4"
+        - "77b1e8d"
+        - "659c2ed"
+        - "f1ef680"
+        - "151b6fa"
+        - "01c286a"
+        - "534e625"
+        - "fdfde7f"
+        - "6e182c7"
+      tests:
+        - "database 19/19 against the configured PostgreSQL, web 66, game-server 13, contracts 2; typecheck, biome, and production build pass"
+    archive:
+      prd: "docs/Specs-Completed/3-question-set-authoring/PRD.md"
+      slices:
+        - "docs/Specs-Completed/3-question-set-authoring/slices/24-create-question-sets-with-text-questions.md"
+        - "docs/Specs-Completed/3-question-set-authoring/slices/25-add-image-and-table-questions-and-a-starter-set.md"
+        - "docs/Specs-Completed/3-question-set-authoring/slices/26-edit-and-reorder-a-question-set.md"
+        - "docs/Specs-Completed/3-question-set-authoring/slices/27-snapshot-questions-when-a-room-uses-a-set.md"
   - id: "2026-10-10-github-prd-2"
     changed_at: "2026-10-10"
     kind: "feature"
