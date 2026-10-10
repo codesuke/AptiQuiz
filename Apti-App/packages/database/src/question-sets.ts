@@ -227,6 +227,34 @@ export async function reorderQuestions(db: PrismaClient, hostId: string | null, 
   });
 }
 
+function deepFreeze<T>(value: T): T {
+  if (typeof value === "object" && value !== null) {
+    for (const child of Object.values(value)) deepFreeze(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+export async function snapshotQuestionSet(db: PrismaClient, hostId: string | null, setId: string) {
+  const readerId = requireHostId(hostId);
+  const set = await db.$transaction(
+    (tx) =>
+      tx.questionSet.findFirst({
+        where: { id: setId, ...readableQuestionSets(readerId) },
+        include: { questions: { orderBy: { position: "asc" } } },
+      }),
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
+  if (!set) throw new Error("Question Set not found.");
+  return deepFreeze({
+    questionSetId: set.id,
+    questions: set.questions.map((row) => {
+      const question = questionInputSchema.parse({ ...row, media: row.media ?? undefined });
+      return { ...questionFields(question), ...(question.media ? { media: question.media } : {}) };
+    }),
+  });
+}
+
 const STARTER_SET_KEY = "c8922f1e-7bcc-4cd4-82a0-2df902d98611";
 const STARTER_SET_ID = "starter-aptitude-practice";
 

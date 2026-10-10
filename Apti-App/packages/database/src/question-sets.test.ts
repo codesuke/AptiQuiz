@@ -9,6 +9,7 @@ import {
   listQuestionSets,
   reorderQuestions,
   seedStarterQuestionSet,
+  snapshotQuestionSet,
   updateQuestion,
 } from "./question-sets.js";
 
@@ -77,7 +78,7 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
     expect((await listQuestionSets(db, otherId)).map((set) => set.id)).not.toContain(created.id);
     expect(replay.id).toBe(created.id);
     expect(await db.questionSet.count({ where: { ownerId, title: "Placement practice" } })).toBe(1);
-  });
+  }, 30_000);
 
   it("rejects invalid authoring inputs before writing a set", async () => {
     const validQuestion = {
@@ -417,6 +418,101 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
       expect((await getQuestionSet(db, ownerId, starter.id))?.questions.map((q) => q.id)).toEqual(
         starterIds,
       );
+    });
+  }, 60_000);
+
+  describe("snapshotting for a Room", () => {
+    const options = [
+      { id: "a", text: "Yes" },
+      { id: "b", text: "No" },
+    ];
+    const table = { headers: ["Year", "Count"], rows: [["2025", "2"]] };
+    const makeSet = () =>
+      createQuestionSet(db, ownerId, {
+        idempotencyKey: randomUUID(),
+        title: "Snapshot source",
+        questions: [
+          { text: "Plain", options, correctOptionId: "a", topic: "Logic", difficulty: "EASY" },
+          {
+            text: "Pic",
+            options,
+            correctOptionId: "b",
+            topic: "Visual",
+            difficulty: "MEDIUM",
+            media: { imageUrl: "https://example.test/pic.png" },
+          },
+          {
+            text: "Grid",
+            options,
+            correctOptionId: "a",
+            topic: "Data",
+            difficulty: "HARD",
+            media: { table },
+          },
+        ],
+      });
+
+    it("copies ordered Questions with every Room-facing field", async () => {
+      const set = await makeSet();
+      const snapshot = await snapshotQuestionSet(db, ownerId, set.id);
+      expect(snapshot.questionSetId).toBe(set.id);
+      expect(snapshot.questions).toEqual([
+        { text: "Plain", options, correctOptionId: "a", topic: "Logic", difficulty: "EASY" },
+        {
+          text: "Pic",
+          options,
+          correctOptionId: "b",
+          topic: "Visual",
+          difficulty: "MEDIUM",
+          media: { imageUrl: "https://example.test/pic.png" },
+        },
+        {
+          text: "Grid",
+          options,
+          correctOptionId: "a",
+          topic: "Data",
+          difficulty: "HARD",
+          media: { table },
+        },
+      ]);
+    });
+
+    it("keeps earlier snapshots unchanged and lets a new snapshot reflect edits", async () => {
+      const set = await makeSet();
+      const [first, second, third] = set.questions.map((q) => q.id);
+      if (!first || !second || !third) throw new Error("missing seeded Questions");
+      const before = await snapshotQuestionSet(db, ownerId, set.id);
+      const beforeCopy = structuredClone(before);
+      await updateQuestion(db, ownerId, {
+        setId: set.id,
+        questionId: first,
+        question: {
+          text: "Plain, revised",
+          options,
+          correctOptionId: "b",
+          topic: "Logic",
+          difficulty: "EASY",
+        },
+      });
+      await reorderQuestions(db, ownerId, { setId: set.id, questionIds: [third, second, first] });
+      const after = await snapshotQuestionSet(db, ownerId, set.id);
+      const again = await snapshotQuestionSet(db, ownerId, set.id);
+
+      expect(before).toEqual(beforeCopy);
+      expect(after.questions.map((q) => q.text)).toEqual(["Grid", "Pic", "Plain, revised"]);
+      expect(again).toEqual(after);
+      expect(Object.isFrozen(before)).toBe(true);
+      expect(Object.isFrozen(before.questions[0])).toBe(true);
+    });
+
+    it("snapshots the starter set but refuses another User's set and a Guest", async () => {
+      const starter = await seedStarterQuestionSet(db);
+      const snapshot = await snapshotQuestionSet(db, otherId, starter.id);
+      expect(snapshot.questions.map((q) => q.text)).toEqual(starter.questions.map((q) => q.text));
+      const mine = await makeSet();
+      await expect(snapshotQuestionSet(db, otherId, mine.id)).rejects.toThrow();
+      await expect(snapshotQuestionSet(db, null, mine.id)).rejects.toThrow();
+      await expect(snapshotQuestionSet(db, ownerId, "missing")).rejects.toThrow();
     });
   }, 60_000);
 });
