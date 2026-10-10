@@ -22,6 +22,10 @@ describe("normalizeCollegeName", () => {
 });
 
 describe("approved College list", () => {
+  it("includes Noida Institute of Engineering and Technology", () => {
+    expect(APPROVED_COLLEGES).toContain("Noida Institute of Engineering and Technology");
+  });
+
   it("has no two entries with the same normalized name", () => {
     const normalized = APPROVED_COLLEGES.map(normalizeCollegeName);
     expect(new Set(normalized).size).toBe(normalized.length);

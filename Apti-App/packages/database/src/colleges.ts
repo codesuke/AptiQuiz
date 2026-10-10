@@ -48,6 +48,7 @@ export const APPROVED_COLLEGES: readonly string[] = [
   "Lovely Professional University",
   "Chandigarh University",
   "Amity University Noida",
+  "Noida Institute of Engineering and Technology",
   "Symbiosis Institute of Technology",
   "Dwarkadas J. Sanghvi College of Engineering",
   "Sardar Patel Institute of Technology",
