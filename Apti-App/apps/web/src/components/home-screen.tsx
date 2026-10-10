@@ -39,6 +39,7 @@ export function HomeScreen({ signedIn }: Readonly<{ signedIn: boolean }>) {
                 href={paths.hosting}
                 label="Host a Room"
                 icon={<MoveUpRight size={17} />}
+                iconClassName={styles.secondaryButtonIcon}
               />
             </div>
           </div>
@@ -195,6 +196,7 @@ export function HomeScreen({ signedIn }: Readonly<{ signedIn: boolean }>) {
               href={paths.hosting}
               label="Host a Room"
               icon={<MoveUpRight size={17} />}
+              iconClassName={styles.secondaryButtonIcon}
             />
           </div>
         </div>
