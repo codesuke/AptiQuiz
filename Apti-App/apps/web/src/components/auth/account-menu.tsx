@@ -1,7 +1,9 @@
 "use client";
 
+import { GraduationCap, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import styles from "./account-menu.module.css";
 
 export function AccountMenu({
   name,
@@ -11,10 +13,7 @@ export function AccountMenu({
 
   if (!name) {
     return (
-      <Link
-        className="inline-flex min-h-11 items-center rounded-full border border-stone-300 bg-white/70 px-4 font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
-        href="/sign-in"
-      >
+      <Link className={styles.signIn} href="/sign-in">
         Sign in
       </Link>
     );
@@ -34,21 +33,35 @@ export function AccountMenu({
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="hidden text-sm font-medium sm:inline">{name}</span>
+    <div className={styles.account}>
       <Link
-        className="inline-flex min-h-11 max-w-48 items-center truncate rounded-full border border-stone-300 bg-white/70 px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
+        className={styles.college}
         href="/college"
+        title={collegeName ?? "Choose your Home College"}
       >
-        {collegeName ?? "Choose College"}
+        <GraduationCap
+          aria-hidden="true"
+          className={styles.collegeIcon}
+          size={20}
+          strokeWidth={1.8}
+        />
+        <span className={styles.collegeName}>{collegeName ?? "Choose College"}</span>
       </Link>
+      <span className={styles.person} title={name}>
+        <span aria-hidden="true" className={styles.avatar}>
+          {name.trim().charAt(0).toLocaleUpperCase()}
+        </span>
+        <span className={styles.personName}>{name}</span>
+      </span>
       <button
-        className="min-h-11 rounded-full border border-stone-300 bg-white/70 px-4 font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
+        aria-label="Sign out"
+        className={styles.signOut}
         disabled={isSigningOut}
         onClick={signOut}
         type="button"
       >
-        {isSigningOut ? "Signing out…" : "Sign out"}
+        <LogOut aria-hidden="true" size={18} strokeWidth={1.8} />
+        <span className={styles.signOutText}>{isSigningOut ? "Signing out…" : "Sign out"}</span>
       </button>
     </div>
   );

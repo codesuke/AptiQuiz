@@ -18,7 +18,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-[#fdfbf7] text-[#15372d]">
-      <div className="relative z-10 bg-[#fdfbf7]">
+      <div className="relative z-10 border-b border-[#d6d8cf] bg-[#fdfbf7]">
         <header className="mx-auto flex min-h-[82px] max-w-[1600px] flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:px-12">
           <Link
             aria-label="AptiQuiz home"
@@ -35,15 +35,18 @@ export default async function HomePage() {
               width={2172}
             />
           </Link>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+          <nav
+            aria-label="Main navigation"
+            className="flex w-full min-w-0 flex-wrap items-center gap-x-5 gap-y-2 sm:gap-x-7 xl:w-auto xl:justify-end"
+          >
             <Link
-              className="inline-flex min-h-11 items-center text-sm font-medium text-[#344039] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
+              className="inline-flex min-h-11 items-center font-[Georgia] text-base text-[#15372d] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
               href="/question-sets"
             >
               Question Sets
             </Link>
             <Link
-              className="hidden min-h-11 items-center text-sm font-medium text-[#344039] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700] sm:inline-flex"
+              className="hidden min-h-11 items-center font-[Georgia] text-base text-[#15372d] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700] sm:inline-flex"
               href="#how-it-works"
             >
               How it works
@@ -52,7 +55,7 @@ export default async function HomePage() {
               collegeName={homeCollege?.name ?? null}
               name={session?.user.name ?? null}
             />
-          </div>
+          </nav>
         </header>
       </div>
       {needsEmailVerification(session) ? (

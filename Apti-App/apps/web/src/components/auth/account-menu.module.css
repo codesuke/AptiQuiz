@@ -1,0 +1,123 @@
+.account {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 16px;
+  color: #15372d;
+}
+
+.college,
+.person,
+.signOut,
+.signIn {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.college {
+  min-width: 0;
+  max-width: 220px;
+  gap: 9px;
+  color: #35564a;
+  text-decoration: none;
+}
+
+.college:hover,
+.signOut:hover,
+.signIn:hover {
+  color: #a63f00;
+}
+
+.collegeIcon {
+  flex: none;
+  color: #bd4c08;
+}
+
+.collegeName,
+.personName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person {
+  min-width: 0;
+  max-width: 170px;
+  gap: 9px;
+  border-left: 1px solid #d6d8cf;
+  padding-left: 16px;
+}
+
+.avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #15372d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.signOut {
+  flex: none;
+  gap: 7px;
+  border: 0;
+  border-left: 1px solid #d6d8cf;
+  padding: 0 0 0 16px;
+  background: none;
+  color: #57665d;
+  cursor: pointer;
+}
+
+.signOut:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.signIn {
+  color: #15372d;
+  text-decoration: none;
+}
+
+.college:focus-visible,
+.signOut:focus-visible,
+.signIn:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid #b84700;
+  outline-offset: 4px;
+}
+
+@media (max-width: 639px) {
+  .account {
+    width: 100%;
+    gap: 12px;
+    border-top: 1px solid #d6d8cf;
+    padding-top: 8px;
+  }
+
+  .college {
+    max-width: none;
+    flex: 1;
+  }
+
+  .person {
+    max-width: 110px;
+    padding-left: 12px;
+  }
+
+  .signOut {
+    padding-left: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .signOutText {
+    display: none;
+  }
+}
