@@ -89,7 +89,8 @@ describe.runIf(hasDatabase)("password reset", () => {
       const mailLog = await vi.waitFor(() => {
         const entry = log.mock.calls
           .map(([line]) => String(line))
-          .find((line) => line.includes(email));
+          // Sign-up also logs a verification email for this address; pick the reset one.
+          .find((line) => line.includes(email) && resetLinkPattern.test(line));
         if (!entry) throw new Error("reset email not logged yet");
         return entry;
       });
