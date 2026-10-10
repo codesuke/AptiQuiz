@@ -144,6 +144,105 @@ describe("Host live Room view", () => {
     expect(html).toContain(">Correct answer<");
   });
 
+  it("highlights the fastest correct Participant by server time and shows Round points beside totals", () => {
+    vi.spyOn(Date, "now").mockReturnValue(32_000);
+    const view: RevealedRound = {
+      ...revealed,
+      questionIndex: 1,
+      scores: [
+        {
+          participantId: "p-1",
+          displayName: "Player 1",
+          answered: true,
+          correct: true,
+          points: 780,
+          effectiveResponseMs: 6_600,
+        },
+        {
+          participantId: "p-2",
+          displayName: "Player 2",
+          answered: true,
+          correct: true,
+          points: 960,
+          effectiveResponseMs: 1_200,
+        },
+        {
+          participantId: "p-3",
+          displayName: "Player 3",
+          answered: true,
+          correct: false,
+          points: 0,
+          effectiveResponseMs: 400,
+        },
+      ],
+      leaderboard: [
+        { participantId: "p-1", displayName: "Player 1", rank: 1, totalScore: 1_680, movement: 0 },
+        { participantId: "p-3", displayName: "Player 3", rank: 2, totalScore: 990, movement: -1 },
+        { participantId: "p-2", displayName: "Player 2", rank: 3, totalScore: 960, movement: 0 },
+      ],
+    };
+    const html = render({
+      lobby: { ...lobby, phase: "QUESTION_REVEAL" },
+      round: { view, clockOffsetMs: 0 },
+    });
+    const standings = html.slice(positionOf(html, "Standings after Question 2"));
+
+    expect(standings).toContain("Fastest correct");
+    expect(standings).toContain("Player 2");
+    expect(standings).toContain("1.2 s");
+    expect(standings).toContain("2 of 3 players answered correctly");
+    expect(standings).not.toContain("No correct answers this Round");
+    expect(positionOf(standings, "Fastest correct")).toBeLessThan(
+      positionOf(standings, ">Leaderboard<"),
+    );
+
+    const board = standings.slice(positionOf(standings, ">Leaderboard<"));
+    // Server order is kept even though Player 2 earned the most points this Round.
+    expect(positionOf(board, "Player 1")).toBeLessThan(positionOf(board, "Player 3"));
+    expect(positionOf(board, "Player 3")).toBeLessThan(positionOf(board, "Player 2"));
+    expect(board).toContain("+780");
+    expect(board).toContain("+0");
+    expect(board).toContain("+960");
+    expect(positionOf(board, "+780")).toBeLessThan(positionOf(board, "1680"));
+  });
+
+  it("shows an honest no-winner state when no Participant is correct", () => {
+    vi.spyOn(Date, "now").mockReturnValue(32_000);
+    const view: RevealedRound = {
+      ...revealed,
+      scores: [
+        {
+          participantId: "p-1",
+          displayName: "Player 1",
+          answered: true,
+          correct: false,
+          points: 0,
+          effectiveResponseMs: 800,
+        },
+        {
+          participantId: "p-2",
+          displayName: "Player 2",
+          answered: false,
+          correct: false,
+          points: 0,
+          effectiveResponseMs: null,
+        },
+      ],
+      leaderboard: [
+        { participantId: "p-1", displayName: "Player 1", rank: 1, totalScore: 0, movement: null },
+        { participantId: "p-2", displayName: "Player 2", rank: 2, totalScore: 0, movement: null },
+      ],
+    };
+    const html = render({
+      lobby: { ...lobby, phase: "QUESTION_REVEAL" },
+      round: { view, clockOffsetMs: 0 },
+    });
+
+    expect(html).toContain("No correct answers this Round");
+    expect(html).toContain("0 of 2 players answered correctly");
+    expect(html).not.toContain("Fastest correct");
+  });
+
   it("keeps the Participant count and a focusable, labelled scroll region for the full roster", () => {
     vi.spyOn(Date, "now").mockReturnValue(2_000);
     const html = render({

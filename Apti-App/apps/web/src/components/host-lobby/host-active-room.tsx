@@ -9,9 +9,11 @@ import { ParticipantIdentity, ScoringRuleCard } from "@/components/lobby/lobby-d
 import { GettingReady } from "@/components/round/getting-ready";
 import { Leaderboard } from "@/components/round/leaderboard";
 import { LiveStage } from "@/components/round/live-motion";
+import { revealOutcome } from "@/components/round/reveal-outcome";
 import { RoundQuestion } from "@/components/round/round-question";
 import type { ReceivedRound } from "@/lib/server-clock";
 import { JoinQrCode } from "./join-qr";
+import { RevealHighlights } from "./reveal-highlights";
 
 export const JOINING_CLOSED_MESSAGE = "Match in progress — joining is closed.";
 
@@ -77,8 +79,9 @@ function HostStage({
   );
 }
 
-/** Cumulative standings after a reveal. Reveal highlights belong above the Leaderboard. */
+/** The Round outcome highlights above the cumulative standings, both from server data. */
 function HostRevealStandings({ view }: { readonly view: RevealedRound }) {
+  const outcome = revealOutcome(view.scores);
   return (
     <section
       aria-labelledby="reveal-standings-heading"
@@ -90,7 +93,14 @@ function HostRevealStandings({ view }: { readonly view: RevealedRound }) {
       >
         Standings after Question {view.questionIndex + 1}
       </h2>
-      <Leaderboard entries={view.leaderboard} viewerId={null} />
+      <div className="mt-5">
+        <RevealHighlights outcome={outcome} />
+      </div>
+      <Leaderboard
+        entries={view.leaderboard}
+        roundPoints={outcome.pointsByParticipant}
+        viewerId={null}
+      />
     </section>
   );
 }
