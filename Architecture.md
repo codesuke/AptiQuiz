@@ -25,6 +25,7 @@ The following functions are available:
 - A verified User in `ADMIN_EMAILS` can open the placeholder `/admin` area.
 - A suspended User cannot create a session or use an existing session on the next request.
 - A signed-in User searches the approved Colleges at `/college` and sets one Home College. The account menu shows it.
+- The "Host a match" link opens `/host`. A Guest is sent to sign in. A User without a Home College is sent to `/college` and returns to `/host` after choosing one. The page does not create a Room.
 - The web application issues short-lived Socket Tickets to signed-in Users.
 - The browser connects to the Game Server as a User or a Guest and shows the identity reported by `server:ready`.
 - The Game Server supplies `GET /health`.
@@ -136,7 +137,7 @@ After email sign-up, Better Auth sends a verification email. The link expires af
 
 The web application sends auth email through Gmail SMTP when `GMAIL_USER` and `GMAIL_APP_PASSWORD` are set. Without them, development and test write the email to the server log, and other environments refuse to send.
 
-`GET /api/colleges?q=` searches the approved Colleges. `PUT /api/home-college` sets the signed-in User's one Home College. Both return 401 with no session and 403 for a suspended User. The seed (`pnpm --filter @aptiquiz/database db:seed`) loads the approved Colleges and is safe to run again. A Guest has no Home College and sees no College picker. No Pending College state exists in the MVP.
+`GET /api/colleges?q=` searches the approved Colleges. `PUT /api/home-college` sets the signed-in User's one Home College. Both return 401 with no session and 403 for a suspended User. The seed (`pnpm --filter @aptiquiz/database db:seed`) loads the approved Colleges and is safe to run again. A Guest has no Home College and sees no College picker. No Pending College state exists in the MVP. `requireHostCollege` returns the Home College that a new Room must store, or the refusal `home_college_required`. The page `/college` accepts a `next` value only when it is `/host`.
 
 The `/admin` placeholder reads the User's current verification and suspension state. It derives Admin access from the current `ADMIN_EMAILS` setting for each request. Guests are redirected to sign in; other Users see a not-allowed page.
 

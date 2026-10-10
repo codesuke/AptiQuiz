@@ -2,7 +2,6 @@ import { ArrowRight, Gauge, ShieldCheck, Users } from "lucide-react";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
-import Link from "next/link";
 import { AccountMenu } from "@/components/auth/account-menu";
 import { EmailVerificationNotice } from "@/components/auth/verification-resend";
 import { GameServerStatus } from "@/components/game-server-status";
@@ -84,6 +83,12 @@ export default async function HomePage() {
                 Join a room
                 <ArrowRight aria-hidden="true" className="size-4" />
               </button>
+              <Link
+                className="rounded-xl border border-stone-300 bg-white/50 px-5 py-3 font-semibold text-stone-800 transition hover:bg-white/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-stone-500"
+                href="/host"
+              >
+                Host a match
+              </Link>
               <Link
                 className="rounded-xl border border-stone-300 bg-white/50 px-5 py-3 font-semibold text-stone-800 transition hover:bg-white/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-stone-500"
                 href="/question-sets"

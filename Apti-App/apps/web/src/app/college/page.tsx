@@ -5,14 +5,18 @@ import { HomeCollegePicker } from "@/components/home-college-picker";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { getHomeCollege } from "@/lib/home-college";
+import { resolveHostReturnTarget } from "@/lib/host-college";
 
 export const dynamic = "force-dynamic";
 
-export default async function CollegePage() {
+export default async function CollegePage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<{ next?: string }> }>) {
   const session = await getActiveSession(await headers());
   if (!session) redirect("/sign-in");
 
   const current = await getHomeCollege(database, session.user.id);
+  const returnTo = resolveHostReturnTarget((await searchParams).next);
   return (
     <main className="min-h-screen bg-[#efece5] px-6 py-10 text-stone-900">
       <section className="mx-auto max-w-xl">
@@ -29,7 +33,7 @@ export default async function CollegePage() {
             : "Choose the College you represent. Your Rooms and League results use it."}
         </p>
         <div className="mt-8">
-          <HomeCollegePicker current={current} />
+          <HomeCollegePicker current={current} returnTo={returnTo} />
         </div>
       </section>
     </main>

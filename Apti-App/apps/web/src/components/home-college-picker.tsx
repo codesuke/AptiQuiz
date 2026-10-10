@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authInputClassName, authLabelClassName } from "@/components/auth/form-styles";
 
@@ -41,7 +42,11 @@ function useCollegeSearch(query: string) {
   return { colleges, failed };
 }
 
-export function HomeCollegePicker({ current }: Readonly<{ current: College | null }>) {
+export function HomeCollegePicker({
+  current,
+  returnTo,
+}: Readonly<{ current: College | null; returnTo: string | null }>) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [homeCollege, setHomeCollege] = useState(current);
   const [status, setStatus] = useState<SaveStatus>("idle");
@@ -58,6 +63,7 @@ export function HomeCollegePicker({ current }: Readonly<{ current: College | nul
       if (!response.ok) throw new Error("save failed");
       setHomeCollege(college);
       setStatus("saved");
+      if (returnTo) router.push(returnTo);
     } catch {
       setStatus("failed");
     }
