@@ -294,7 +294,7 @@ The following rules apply to new product code:
 - Admin access requires a verified email in the current `ADMIN_EMAILS` allow-list. The role is not stored in the database.
 - Use an explicit Cross-Origin Resource Sharing origin outside local development.
 
-ADR 0007 accepts Better Auth and short-lived Socket Tickets. The Game Server verifies Socket Tickets. The web application does not implement Better Auth or issue Socket Tickets at this time.
+ADR 0007 accepts Better Auth and short-lived Socket Tickets. The web application uses Better Auth for email and password sessions. The Game Server verifies Socket Tickets, but the web application does not issue them yet.
 
 ## Environment Variables
 
