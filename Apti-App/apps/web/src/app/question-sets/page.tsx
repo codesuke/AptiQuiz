@@ -31,7 +31,6 @@ export default async function QuestionSetsPage({
     <QuestionSetShell backHref="/" backLabel="Back to home">
       <section className={styles.hero}>
         <div className={styles.heroInner}>
-          <p className={styles.eyebrow}>Your authoring workspace</p>
           <h1>Question sets</h1>
           <p>Build once. Play together.</p>
         </div>

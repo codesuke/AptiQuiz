@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { updateQuestionAction } from "../../../actions";
+import { OPTION_LETTERS } from "../../../option-labels";
 import { QuestionFields } from "../../../question-fields";
 import { QuestionSetShell } from "../../../question-set-shell";
 import styles from "../../../question-sets.module.css";
@@ -29,15 +30,14 @@ export default async function EditQuestionPage({
 
   return (
     <QuestionSetShell backHref={`/question-sets/${set.id}`} backLabel="Back to set">
-      <div className={styles.container}>
-        <div className={styles.intro}>
-          <p className={styles.eyebrow}>
-            {set.title} / Question {String(question.position + 1).padStart(2, "0")}
-          </p>
-          <h1>Refine the question.</h1>
-          <div className={styles.introMeta}>Make your wording clear, then save your changes.</div>
-        </div>
-        <div className={styles.editorGrid}>
+      <div className={styles.editorLayout}>
+        <div className={styles.editorMain}>
+          <div className={styles.intro}>
+            <h1>Refine the question.</h1>
+            <div className={styles.introMeta}>
+              Question {String(question.position + 1).padStart(2, "0")} in {set.title}
+            </div>
+          </div>
           <div>
             {query.error ? (
               <p className={styles.error} role="alert">
@@ -62,26 +62,29 @@ export default async function EditQuestionPage({
               </div>
             </form>
           </div>
-          <aside className={styles.editorSide}>
-            <h2>Current question</h2>
-            <p>This is the saved version. Your changes appear here after you save.</p>
-            <div className={styles.preview}>
-              <span className={styles.previewLabel}>
-                Question {String(question.position + 1).padStart(2, "0")}
-              </span>
-              <p className={styles.previewQuestion}>{question.text}</p>
-              {options.map((option) => (
-                <div className={styles.previewOption} key={option.id}>
-                  <strong>{option.id}.</strong> {option.text}
-                </div>
-              ))}
-            </div>
-            <p className={styles.sideMedia}>
-              Tip: keep answer options distinct so players can make a confident choice under time
-              pressure.
-            </p>
-          </aside>
         </div>
+        <aside className={styles.editorSide}>
+          <h2>Current question</h2>
+          <p>Saved version. Updates appear here after you save.</p>
+          <div className={styles.preview}>
+            <span className={styles.previewLabel}>
+              Question {String(question.position + 1).padStart(2, "0")}
+            </span>
+            <p className={styles.previewQuestion}>{question.text}</p>
+            {options.map((option, optionIndex) => (
+              <div className={styles.previewOption} key={option.id}>
+                <span className={styles.previewOptionKey}>
+                  {OPTION_LETTERS[optionIndex] ?? option.id}
+                </span>
+                <span>{option.text}</span>
+              </div>
+            ))}
+          </div>
+          <p className={styles.sideMedia}>
+            Tip: keep answer options distinct so players can make a confident choice under time
+            pressure.
+          </p>
+        </aside>
       </div>
     </QuestionSetShell>
   );

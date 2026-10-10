@@ -7,6 +7,7 @@ import { notFound, redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { addQuestionAction, reorderQuestionsAction } from "../actions";
+import { OPTION_LETTERS } from "../option-labels";
 import { QuestionFields } from "../question-fields";
 import { QuestionMedia } from "../question-media";
 import { QuestionSetShell } from "../question-set-shell";
@@ -72,29 +73,26 @@ export default async function QuestionSetPage({
 
   return (
     <QuestionSetShell backHref="/question-sets" backLabel="All question sets">
-      <div className={styles.container}>
-        <div className={`${styles.intro} ${styles.introActions}`}>
-          <div>
-            <p className={styles.eyebrow}>
-              {set.isStarter ? "Shared collection" : "Your collection"}
-            </p>
-            <h1>{set.title}</h1>
-            <div className={styles.introMeta}>
-              <span>
-                {set.questions.length} {set.questions.length === 1 ? "question" : "questions"}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span className={styles.status}>{set.isStarter ? "Read only" : "Your set"}</span>
+      <div className={styles.detailLayout}>
+        <div className={styles.detailMain}>
+          <div className={`${styles.intro} ${styles.introActions}`}>
+            <div>
+              <h1>{set.title}</h1>
+              <div className={styles.introMeta}>
+                <span>
+                  {set.questions.length} {set.questions.length === 1 ? "question" : "questions"}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className={styles.status}>{set.isStarter ? "Read only" : "Your set"}</span>
+              </div>
             </div>
+            <Link
+              className={styles.inlineLink}
+              href={`/host?questionSetId=${encodeURIComponent(set.id)}`}
+            >
+              Host with this set <span aria-hidden="true">↗</span>
+            </Link>
           </div>
-          <Link
-            className={styles.inlineLink}
-            href={`/host?questionSetId=${encodeURIComponent(set.id)}`}
-          >
-            Host with this set <span aria-hidden="true">↗</span>
-          </Link>
-        </div>
-        <div className={styles.detailGrid}>
           <section aria-label="Questions in this set">
             {set.questions.length === 0 ? (
               <p className={styles.empty}>
@@ -114,7 +112,7 @@ export default async function QuestionSetPage({
                     <h2>{question.text}</h2>
                     <QuestionMedia media={question.media} />
                     <ol className={styles.answers}>
-                      {questionOptionsSchema.parse(question.options).map((option) => {
+                      {questionOptionsSchema.parse(question.options).map((option, optionIndex) => {
                         const isCorrect = option.id === question.correctOptionId;
                         return (
                           <li
@@ -122,7 +120,9 @@ export default async function QuestionSetPage({
                             key={option.id}
                           >
                             {isCorrect ? <Check aria-label="Correct answer" size={16} /> : null}
-                            <span className={styles.answerKey}>{option.id}.</span>
+                            <span className={styles.answerKey}>
+                              {OPTION_LETTERS[optionIndex] ?? option.id}
+                            </span>
                             <span>{option.text}</span>
                           </li>
                         );
@@ -157,40 +157,43 @@ export default async function QuestionSetPage({
               ))}
             </ol>
           </section>
-          {!set.isStarter ? (
-            <section aria-labelledby="add-question-heading" className={styles.composer}>
-              <h2 id="add-question-heading">Add a question</h2>
-              <p>It will appear at the end of this set.</p>
-              {query.error ? (
-                <p className={styles.error} role="alert">
-                  {query.error}
-                </p>
-              ) : null}
-              <form action={addQuestionAction} className={styles.form}>
-                <input name="setId" type="hidden" value={set.id} />
-                <input name="idempotencyKey" type="hidden" value={randomUUID()} />
-                <QuestionFields />
-                <button className={styles.primary} type="submit">
-                  Add question <span aria-hidden="true">↗</span>
-                </button>
-              </form>
-            </section>
-          ) : (
-            <aside className={styles.editorSide}>
-              <h2>Ready to play?</h2>
-              <p>
-                This shared starter set is ready to use in a room. Host a session and invite others
-                to join.
-              </p>
-              <Link
-                className={styles.inlineLink}
-                href={`/host?questionSetId=${encodeURIComponent(set.id)}`}
-              >
-                Set up a room <span aria-hidden="true">↗</span>
-              </Link>
-            </aside>
-          )}
         </div>
+        {!set.isStarter ? (
+          <section
+            aria-labelledby="add-question-heading"
+            className={`${styles.composer} ${styles.detailAside}`}
+          >
+            <h2 id="add-question-heading">Add a question</h2>
+            <p>It will appear at the end of this set.</p>
+            {query.error ? (
+              <p className={styles.error} role="alert">
+                {query.error}
+              </p>
+            ) : null}
+            <form action={addQuestionAction} className={styles.form}>
+              <input name="setId" type="hidden" value={set.id} />
+              <input name="idempotencyKey" type="hidden" value={randomUUID()} />
+              <QuestionFields />
+              <button className={styles.primary} type="submit">
+                Add question <span aria-hidden="true">↗</span>
+              </button>
+            </form>
+          </section>
+        ) : (
+          <aside className={`${styles.composer} ${styles.detailAside}`}>
+            <h2>Ready to play?</h2>
+            <p>
+              This shared starter set is ready to use in a room. Host a session and invite others to
+              join.
+            </p>
+            <Link
+              className={styles.inlineLink}
+              href={`/host?questionSetId=${encodeURIComponent(set.id)}`}
+            >
+              Set up a room <span aria-hidden="true">↗</span>
+            </Link>
+          </aside>
+        )}
       </div>
     </QuestionSetShell>
   );
