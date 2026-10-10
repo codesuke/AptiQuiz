@@ -1,82 +1,106 @@
 ---
-version: "aptiquiz-design-reference"
+version: "aptiquiz-home-standard-v1"
 name: "AptiQuiz Design System"
-description: "AptiQuiz uses an energetic, focused interface for live aptitude competition, Question Sets, Rooms, Leaderboards, and College Leagues. The reference demonstrates typography, component hierarchy, and responsive composition."
+description: "The shipped home page defines the visual language for new and refreshed AptiQuiz interfaces."
 colors:
   primary: "#E65C00"
   action: "#B84700"
+  action-prominent: "#C84F00"
+  action-prominent-hover: "#A63F00"
   action-hover: "#993A00"
-  secondary: "#FDFBF7"
-  accent: "#FFB380"
   background: "#FDFBF7"
-  surface: "#F7F4EB"
-  text-primary: "#111827"
-  text-secondary: "#4B5563"
-  border: "#E5E7EB"
+  surface: "#F5F3EB"
+  hero-surface: "#F6F0E4"
+  ink: "#15372D"
+  ink-deep: "#102E26"
+  ink-footer: "#123B2E"
+  text-muted: "#4C6257"
+  text-on-dark: "#D7E4DA"
+  rule: "#D7DACF"
 typography:
-  display-lg:
-    fontFamily: "Inter"
-    fontSize: "64px"
-    fontWeight: 500
-    lineHeight: "1.04"
-    letterSpacing: "0"
-  body-md:
-    fontFamily: "Inter"
-    fontSize: "16px"
+  display:
+    fontFamily: "Georgia, Times New Roman, serif"
     fontWeight: 400
+    letterSpacing: "-0.055em"
+  body:
+    fontFamily: "Inter, system sans-serif"
+    fontSize: "16px"
     lineHeight: "1.6"
-  label-md:
-    fontFamily: "JetBrains Mono"
-    fontSize: "12px"
+  label:
+    fontFamily: "ui-monospace, SFMono-Regular, monospace"
+    fontSize: "11px"
     fontWeight: 600
-    lineHeight: "1.2"
 spacing:
   base: "8px"
-  gap: "16px"
-  card-padding: "24px"
-  section-padding: "80px"
+  desktop-gutter: "40px"
+  mobile-gutter: "20px"
+  content-width: "1420px"
+  desktop-section: "105px to 125px"
+  mobile-section: "78px"
 rounded:
-  card: "16px"
-  control: "8px"
-  pill: "9999px"
-components:
-  card:
-    background: "Use the surface token with subtle borders and HTML-matched shadow depth"
-    radius: "Match the declared card radius token"
-  button:
-    background: "Use primary or accent colors for the main action"
-    radius: "Use the control or pill radius based on the source HTML"
+  functional-control: "8px"
+  action-pill: "9999px"
 ---
+
 # AptiQuiz Design System
-Reference: [AptiQuiz design reference](reference.html).
-Tags: live competition, aptitude practice, question sets, rooms, leaderboards, college leagues.
-## Overview
-AptiQuiz turns placement aptitude practice into a fair live competition. Its focused, energetic interface supports Question Sets, Rooms, Leaderboards, and College Leagues while preserving the reference's typography, component hierarchy, and responsive composition.
 
-Use AptiQuiz as the product name throughout this reference. Write direct, energetic, precise, and encouraging interface copy using the domain terms in `CONTEXT.md`. The HTML is a visual reference; its controls illustrate component styling.
-## Composition
-Use `reference.html` as the visual source of truth. Preserve the visible hierarchy, first-screen composition, section rhythm, density, and interaction tone before adapting copy or content.
-Key visible headings include: Run live AptiQuiz Rooms; AptiQuiz match center; Question Sets; Race the clock; Build your next Question Set.
-## Colors
-Anchor the palette in primary #E65C00, secondary #FDFBF7, accent #FFB380, background #FDFBF7, surface #F7F4EB, text-primary #111827. Keep background, surface, text, and border roles distinct so generated layouts retain the same contrast pattern as the source.
+## Source of truth
+
+The [implemented desktop home page](design-mocks/aptiquiz-home-premium/implemented-desktop.png) and [mobile home page](design-mocks/aptiquiz-home-premium/implemented-mobile.png) are the canonical visual reference for new and refreshed AptiQuiz screens. The [six section mocks](design-mocks/aptiquiz-home-premium/README.md) explain the art direction; the shipped interface takes precedence when a mock differs. Use the CSS custom properties in [globals.css](Apti-App/apps/web/src/app/globals.css) and the layout examples in [home-screen.module.css](Apti-App/apps/web/src/components/home-screen.module.css). [Brand.md](Brand.md) controls logo, voice, and naming.
+
+This standard applies to the app's visual language, not the literal marketing-page composition. A dense Question editor or live Round needs more compact controls than the home hero, while retaining its typography hierarchy, spacing rhythm, colors, and calm use of surfaces.
+
+## Visual character
+
+AptiQuiz is warm, focused, and energetic. Warm ivory carries most screens; deep forest green provides the strongest contrast; orange marks action and progress. Paper, answer sheets, pencils, and shared study give imagery a tangible subject. Use one focal scene or artifact at a time. Avoid generic dashboards, purple gradients, decorative blobs, fake metrics, and card grids with no content reason.
+
+## Color roles
+
+| Role | Value | Use |
+| --- | --- | --- |
+| Canvas | `#FDFBF7` | Default page background |
+| Quiet surface | `#F5F3EB` | Secondary zones and functional panels |
+| Hero surface | `#F6F0E4` | Warm image-backed opening scenes |
+| Ink | `#15372D` | Main headings and text on light backgrounds |
+| Deep ink | `#102E26` | Immersive feature areas |
+| Brand orange | `#E65C00` | Logo and decorative punctuation |
+| Action orange | `#B84700` | Small buttons and links with accessible contrast |
+| Prominent action | `#C84F00` | Large primary action on light backgrounds |
+| Action hover | `#993A00` | Hover fill for action controls |
+| Prominent hover | `#A63F00` | Hover fill for the large orange action |
+| Muted text | `#4C6257` | Supporting copy on ivory |
+| Text on dark | `#D7E4DA` | Supporting copy on forest surfaces |
+| Rule | `#D7DACF` | Hairline dividers and open grids |
+
+The orange `#E65C00` is a brand accent, not the default small-text color. Check contrast for each text and surface pair. Keep a visible keyboard focus outline and never convey game state through color alone.
+
 ## Typography
-Use Inter for display moments and Inter for body copy unless the HTML clearly demands a compatible fallback. Labels and technical metadata should use JetBrains Mono or an equivalent mono face.
-## Layout
-Keep spacing deliberate and stable. Favor the same grid direction, max-width behavior, card density, and responsive stacking seen in the HTML. Do not replace distinctive source structures with generic SaaS sections.
-## Components
-Use the Q/check logo assets and usage rules in [Brand.md](Brand.md). Current branding takes precedence over the older marks in generated screen references. Preserve its aspect ratio and accessible naming.
 
-The authentication prototype and design reference use a darker orange action token, #B84700, for small link text and buttons with white labels to meet WCAG AA contrast; #993A00 is the hover fill. The primary brand orange remains #E65C00 for the logo and decorative emphasis.
+- **Display:** Georgia with Times New Roman fallback, regular weight, tight tracking around `-0.055em`. Use it for the page statement, section titles, and a few key feature headings. The home hero uses `clamp(4rem, 6.1vw, 7.25rem)` at `0.98` line height; section titles use `clamp(3.2rem, 5vw, 6rem)` at `1.08`. On mobile, fit the line breaks deliberately at the 390px reference width.
+- **Body and controls:** Inter with system sans fallback. Use 16px and about `1.6` line height for normal copy; important introductions can use 18–22px. Keep body lines within roughly 570–760px rather than running across the page.
+- **Labels:** A restrained monospace face at 11–13px, medium to semibold, with generous tracking. Use uppercase labels for section wayfinding and technical metadata, not for long prose or every control.
+- **Hierarchy:** One clear H1 per screen. Use display scale selectively; forms, question options, timers, and error messages prioritize fast reading over theatrical type.
 
-Room lookup, Question Set actions, and live-match controls should preserve the reference button hierarchy, input density, and clear focus states.
-## Motion
-Preserve existing motion cues such as masked reveals, staggered entrance, hover lift, scroll-triggered transitions, and ambient movement. Keep easing smooth and restrained.
-## WebGL & Effects
+Do not substitute a heavy sans heading system, gradient headline, or a different serif on a new screen without a specific design reason.
 
-If the source includes canvas, WebGL, Three.js, gradients, particles, or atmospheric effects, rebuild them as supporting layers behind the content. Keep effects performant, responsive, and secondary to the interface.
+## Spacing and layout
 
-## Guardrails
-- Do not flatten the source into a generic card grid.
-- Do not swap the color mode unless the source clearly supports it.
-- Preserve the first viewport signal, focal object, and visual density.
-- Keep buttons, cards, and badges aligned to the same radius and border language.
+- Use a maximum content width of 1420px with 40px desktop side gutters and 20px mobile gutters. A hero may use a wider 1510px inner frame. Preserve safe text insets over images.
+- Give major editorial sections about 105–125px of vertical space on desktop and about 78px on mobile. Inside a section, keep the relationships visible on the home page: label to title about 19–28px, title to introduction about 24–32px, and copy to action about 30–45px.
+- Alternate section density and background treatment with purpose: an open ivory section, one dark focal section, a precise divided process, an image-led story, then a decisive action. Do not repeat the same card row down a page.
+- Use thin rules and open columns before adding enclosing boxes. Reserve bordered panels for actual tasks, state, or controls. Avoid cards inside cards.
+- At 760px and below, stack editorial columns, keep the 20px gutter, and preserve the text-first reading order. Check at 390px and a small laptop viewport. No horizontal scrolling.
+
+For in-app workflows, use this spacing rhythm at a smaller scale: generous page framing and clear group separation, with compact, consistent spacing inside inputs, Question options, and Lobby controls.
+
+## Components and imagery
+
+- **Primary action:** one unmistakable filled action per decision area. The home page uses a large orange pill with a 55–60px minimum height and 18–20px type. Functional forms may use an 8px control radius when a pill would waste space.
+- **Secondary action:** underlined text with a small arrow, never a second equally loud filled button. Keep keyboard targets at least 44px high.
+- **Panels and cards:** forest panels can carry one important action or state; neutral panels support forms. Let content determine padding and grouping instead of decorating every item.
+- **Imagery:** use AptiQuiz-specific, warm, tactile photos or illustrations. Keep visible copy as HTML, give informative images useful alt text, and mark purely decorative art as decorative. Use the approved [Q/check logo](Brand.md) without redrawing it.
+- **Motion:** restrained hover lift and transitions may support hierarchy. Honor reduced-motion preferences. Motion never hides an action or delays a live-game state.
+
+## Applying the standard
+
+When designing a new screen, start from the home page's palette, type roles, page gutters, spacing cadence, and action hierarchy. Then adapt density to the task. Compare a desktop and a 390px mobile capture with the canonical references before considering it done. Preserve the implemented domain behavior and terms in [CONTEXT.md](CONTEXT.md); visual polish must not imply an unfinished feature is available.

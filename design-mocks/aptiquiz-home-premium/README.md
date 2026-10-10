@@ -1,5 +1,7 @@
 # Premium home page design
 
+This shipped home page is the canonical visual reference for new and refreshed AptiQuiz screens. [DESIGN.md](../../DESIGN.md) defines how its typography, spacing, layout rhythm, and component language carry through the application.
+
 Six standalone horizontal section references generated with the `imagegen-frontend-web` workflow:
 
 1. [Hero](01-hero.png)

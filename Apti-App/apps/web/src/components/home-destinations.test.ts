@@ -7,6 +7,7 @@ describe("home destinations", () => {
       questionSets: "/question-sets",
       hosting: "/host",
       joining: "/join",
+      league: "/league",
     });
   });
 
@@ -15,6 +16,7 @@ describe("home destinations", () => {
       questionSets: "/sign-in",
       hosting: "/host",
       joining: "/join",
+      league: "/league",
     });
   });
 });

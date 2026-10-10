@@ -1,6 +1,55 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-8"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "College League"
+    status: "working_with_limitations"
+    summary: "A public /league page shows the current Monday–Sunday UTC week with the top 10 eligible Participants and top 10 Colleges, summed from persisted completed MatchResults."
+    areas:
+      - "College League"
+      - "database queries"
+      - "web interface"
+    working:
+      - "The page needs no sign-in, is rendered per request, and is linked from the home footer."
+      - "Only results with a User id and email verified at completion count; Guests and unverified Users are excluded; zero scores count."
+      - "The week is chosen by completion time (Monday 00:00 UTC inclusive, next Monday exclusive)."
+      - "Each result counts for the College captured when the Participant played; a User who played for two Colleges has one Participant row listing both."
+      - "Tables are ordered by score, then name, then id, with sequential ranks and a limit of 10 applied after aggregation; both have empty states."
+      - "Completion retries do not change totals."
+    limitations:
+      - "The page was not opened in a browser; mobile layout and keyboard use are checked only by markup."
+      - "Display names are the User's current name, and the two queries are not read in one snapshot."
+      - "No monthly or all-time periods, no live updates, and no Admin voiding (PRD #9)."
+    prd:
+      issue: 8
+      url: "https://github.com/codesuke/AptiQuiz/issues/8"
+    slices:
+      - issue: 39
+        title: "Weekly College League and Participant standings"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/39"
+      - issue: 41
+        title: "College standings from captured MatchResults"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/41"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "5a4a985"
+      tests:
+        - "database 63 against the configured PostgreSQL, web 194; workspace typecheck and Biome pass"
+    archive:
+      prd: "docs/Specs-Completed/8-college-league/PRD.md"
+      slices:
+        - "docs/Specs-Completed/8-college-league/slices/39-weekly-college-league-and-participant-standings.md"
+        - "docs/Specs-Completed/8-college-league/slices/41-college-standings-from-captured-matchresults.md"
   - id: "2026-10-10-github-prd-6"
     changed_at: "2026-10-10"
     kind: "feature"

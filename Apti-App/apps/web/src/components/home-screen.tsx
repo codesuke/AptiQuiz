@@ -203,6 +203,7 @@ export function HomeScreen({ signedIn }: Readonly<{ signedIn: boolean }>) {
             <Link href={paths.questionSets}>Question Sets</Link>
             <Link href={paths.hosting}>Host</Link>
             <Link href={paths.joining}>Join</Link>
+            <Link href={paths.league}>College League</Link>
           </nav>
         </div>
       </footer>
