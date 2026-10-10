@@ -88,11 +88,11 @@ pnpm dev
 
 The [environment template](Apti-App/.env.example) documents server ports, browser URLs, and reserved authentication settings. The Game Server reads `Apti-App/.env` and refuses to start unless `GAME_SERVER_SECRET` contains at least 32 characters; generate one with `openssl rand -base64 32`.
 
-Google sign-in is optional. To enable it, create an OAuth client of type "Web application" in the Google Cloud console, add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`. When either value is empty, the sign-in and sign-up pages show only the email form. Production redirect URIs are configured with the Dokploy deployment.
+Google sign-in is optional. To enable it, create an OAuth client of type "Web application" in the Google Cloud console, add `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI, and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`. When either value is empty, the sign-in and sign-up pages show only the email form. For production, also add `https://aptiquiz.codesuke.in/api/auth/callback/google`; see [Deployment](#deployment).
 
 ### Prepare Google SMTP for transactional email
 
-The project includes a Gmail/Nodemailer sender configured through `GMAIL_USER` and `GMAIL_APP_PASSWORD`. **Email verification and password-reset callbacks have not yet been connected to Better Auth**, so these values do not send auth email by themselves today. Configure them now only when preparing a deployment or when wiring those callbacks.
+The project includes a Gmail/Nodemailer sender configured through `GMAIL_USER` and `GMAIL_APP_PASSWORD`. Better Auth sends verification and password-reset email through this sender when both values are set. Without them, development and test write the email to the server log, and other environments refuse to send.
 
 1. Use a dedicated Gmail or Google Workspace sender mailbox.
 2. Turn on [Google 2-Step Verification](https://support.google.com/mail/answer/185839).
@@ -212,6 +212,27 @@ pnpm db:studio
 
 Migrations and Prisma Studio need a reachable PostgreSQL database and a valid `DATABASE_URL`. The schema lives in [packages/database](Apti-App/packages/database/prisma/schema.prisma).
 
+## Deployment
+
+AptiQuiz runs on Dokploy as two applications built from `Apti-App/Dockerfile` (see the [deployment guides](docs/guide/README.md) and [ADR 0008](docs/ADR/0008-dokploy-deployment-redis-deferred.md)).
+
+| Service | URL | Dockerfile target | Health check |
+| --- | --- | --- | --- |
+| Web app | `https://aptiquiz.codesuke.in` | `web` | `GET /api/health` |
+| Game Server | `https://game.aptiquiz.codesuke.in` | `game-server` | `GET /health` |
+
+- **TLS and WebSocket:** Traefik in Dokploy terminates TLS and proxies WebSocket connections.
+- **CORS:** the Game Server allows only `GAME_SERVER_ORIGIN`, set to `https://aptiquiz.codesuke.in` in production.
+- **Migrations:** the `web` container runs `prisma migrate deploy` before it starts. The `game-server` container never migrates.
+- **Seed:** run `pnpm db:seed` from `Apti-App/` against the production `DATABASE_URL` to load the approved Colleges and the starter Question Set. It is safe to run again.
+- **Configuration names:** values come from Dokploy environment settings and are never committed. See `Apti-App/.env.example` for `DATABASE_URL`, `GAME_SERVER_SECRET`, `GAME_SERVER_ORIGIN`, `NEXT_PUBLIC_GAME_SERVER_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS`, `GMAIL_USER`, and `GMAIL_APP_PASSWORD`.
+- **Production auth:** `BETTER_AUTH_URL` is the production web URL, and the Google OAuth client lists `https://aptiquiz.codesuke.in/api/auth/callback/google`. Verification and reset emails link to the production domain.
+- **Redis:** provisioned but unused in the one-process MVP.
+- **Restarts:** live Rooms are held in memory and are lost when the Game Server restarts. Avoid a redeploy during a live demo.
+- **Result of the 50-Participant run:** see the [50-Participant proof](#50-participant-proof).
+
+Verified on 2026-10-10: both health endpoints respond over HTTPS; a WebSocket-only handshake from the web origin connects; the Game Server CORS policy only ever grants the web origin; all migrations apply to an empty schema with the web start command; the repository holds no secret value; production Google sign-in and email links were checked by the owner.
+
 ## Architecture
 
 The web interface and realtime runtime share validated contracts and deterministic game rules. A separate Game Server owns timing; the browser is not authoritative for answers or scores.
@@ -286,7 +307,7 @@ The values are configured in [`Apti-App/apps/game-server/src/config.ts`](Apti-Ap
 | Persistence | PostgreSQL, Prisma ORM 7 |
 | Monorepo & quality | pnpm 11, Turborepo, Biome, Vitest |
 
-Better Auth integration and the Dokploy deployment are present; remaining deployment acceptance checks are tracked in [issue #11](https://github.com/codesuke/AptiQuiz/issues/11). Exact dependency versions are recorded in [the workspace](Apti-App/package.json) and [lockfile](Apti-App/pnpm-lock.yaml).
+Better Auth integration and the Dokploy deployment are present and verified (see [Deployment](#deployment)). Exact dependency versions are recorded in [the workspace](Apti-App/package.json) and [lockfile](Apti-App/pnpm-lock.yaml).
 
 ## Roadmap
 
