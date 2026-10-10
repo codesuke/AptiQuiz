@@ -42,11 +42,11 @@ export function GoogleSignInButton({ errorPath, initialError }: GoogleSignInButt
 
   return (
     <div>
-      <div className="my-7 flex items-center gap-4 text-sm text-[#4b5563] before:h-px before:flex-1 before:bg-[#e5e7eb] after:h-px after:flex-1 after:bg-[#e5e7eb]">
-        or
+      <div className="my-7 flex items-center gap-4 text-xs font-medium uppercase tracking-[0.12em] text-[#6b7280] before:h-px before:flex-1 before:bg-[#e5e1d9] after:h-px after:flex-1 after:bg-[#e5e1d9]">
+        or continue with
       </div>
       <button
-        className="inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-lg border border-[#b7b8bd] bg-transparent px-5 font-medium transition hover:bg-[#f7f4eb] disabled:cursor-wait disabled:opacity-70 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
+        className="inline-flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-xl border border-[#d9d6cf] bg-white/80 px-5 font-semibold text-[#27303d] transition-colors hover:border-[#aaa49a] hover:bg-[#f7f4eb] disabled:cursor-wait disabled:opacity-70 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
         disabled={isRedirecting}
         onClick={continueWithGoogle}
         type="button"
@@ -54,9 +54,11 @@ export function GoogleSignInButton({ errorPath, initialError }: GoogleSignInButt
         <GoogleMark />
         {isRedirecting ? "Opening Google…" : "Continue with Google"}
       </button>
-      <p aria-live="polite" className="mt-4 min-h-6 text-sm text-red-700" role="status">
-        {error}
-      </p>
+      {error ? (
+        <p aria-live="polite" className="mt-4 text-sm text-red-700" role="status">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

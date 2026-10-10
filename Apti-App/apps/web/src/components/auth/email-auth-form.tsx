@@ -55,7 +55,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
   const buttonLabel = isSubmitting ? "Please wait…" : isSignUp ? "Create account" : "Sign in";
 
   return (
-    <form className="mt-8" onSubmit={submit}>
+    <form className="mt-9" onSubmit={submit}>
       {isSignUp ? (
         <div className="mb-6">
           <label className={authLabelClassName} htmlFor="name">
@@ -71,7 +71,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
           />
         </div>
       ) : null}
-      <div className="mb-6">
+      <div className="mb-5">
         <label className={authLabelClassName} htmlFor="email">
           Email
         </label>
@@ -113,9 +113,11 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
       >
         {buttonLabel}
       </button>
-      <p aria-live="polite" className={authStatusClassName} role="status">
-        {error}
-      </p>
+      {error ? (
+        <p aria-live="polite" className={authStatusClassName} role="status">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }
