@@ -111,6 +111,38 @@ changes:
         - "docs/Specs-Completed/7-leaderboard-and-final-results/slices/40-show-the-leaderboard-after-each-round.md"
         - "docs/Specs-Completed/7-leaderboard-and-final-results/slices/42-save-completed-room-results-once.md"
         - "docs/Specs-Completed/7-leaderboard-and-final-results/slices/43-show-final-results-to-the-room.md"
+  - id: "2026-10-10-host-room-visual-refresh"
+    changed_at: "2026-10-10"
+    kind: "improvement"
+    title: "Host and Join Room visual refresh"
+    status: "working_with_limitations"
+    summary: "Refreshed hosting setup, Host and player Lobbies, Join entry, and the live Host Round view with the AptiQuiz visual system and saved five generated design references."
+    areas:
+      - "hosting"
+      - "live Room"
+      - "joining"
+      - "web interface"
+      - "design references"
+    working:
+      - "The Host setup retains real Question Set selection and Room creation in an editorial ivory and forest layout."
+      - "The Host Room emphasizes the Join Code, QR code, link sharing, live roster, Start action, and a clear in-match Question hierarchy."
+      - "Start follows the roster on narrow screens; Copy code and the Share fallback provide visible confirmation."
+      - "Join Code entry and the player Lobby use the same visual system; the Join Code remains one accessible input that accepts paste."
+      - "Five generated references and their visual rules are saved under design-mocks/aptiquiz-host-room/."
+    limitations:
+      - "The refreshed Host Room was visually checked with a temporary component preview; an authenticated live Room browser session was not run in this change."
+    author:
+      name: "OpenAI Codex"
+      type: "agent"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "Web TypeScript typecheck, 182 web tests, and the Next.js production build passed."
+        - "Biome passed for the changed Host UI files; git diff --check passed."
+        - "Chromium component preview at 1440 px and 390 px showed a hydrated QR code with no horizontal overflow; Copy code and the Share fallback copied the expected values."
+        - "Chromium loaded the real /join and /join/AB3CD9 pages at mobile width with no horizontal overflow; empty-code validation and uppercase normalization worked."
   - id: "2026-10-10-question-set-workspace-design"
     changed_at: "2026-10-10"
     kind: "improvement"

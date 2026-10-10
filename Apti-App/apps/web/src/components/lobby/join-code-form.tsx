@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useId, useState } from "react";
 import { parseJoinCodeInput } from "@/lib/room-errors";
-import { fieldErrorClass, primaryButtonClass, textInputClass } from "./form-styles";
+import { primaryButtonClass, textInputClass } from "./form-styles";
 
 const JOIN_CODE_LENGTH = 6;
 
@@ -30,14 +30,20 @@ export function JoinCodeForm() {
 
   return (
     <form
-      className="max-w-md rounded-2xl border border-[#e4dfd3] bg-[#f7f4eb] p-5 sm:p-7"
+      className="w-full max-w-xl rounded-xl bg-[var(--aq-ink)] p-6 text-white shadow-[0_28px_60px_-32px_rgba(18,42,34,0.6)] sm:p-10"
       noValidate
       onSubmit={handleSubmit}
     >
-      <label className="block font-semibold text-[#172823]" htmlFor={inputId}>
+      <p className="mb-8 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-[var(--aq-text-on-dark)]">
+        Join a live quiz
+      </p>
+      <label
+        className="block font-[family-name:var(--aq-font-display)] text-3xl text-white"
+        htmlFor={inputId}
+      >
         Join Code
       </label>
-      <p className="mt-1 text-sm leading-6 text-[#526159]">
+      <p className="mt-2 text-sm leading-6 text-[var(--aq-text-on-dark)]">
         Six letters or numbers, shown on the Host's screen.
       </p>
       <input
@@ -46,7 +52,7 @@ export function JoinCodeForm() {
         autoCapitalize="characters"
         autoComplete="off"
         autoCorrect="off"
-        className={`${textInputClass} mt-3 font-mono text-2xl uppercase tracking-[0.3em]`}
+        className={`${textInputClass} mt-5 min-h-16 border-white/20 font-mono text-2xl uppercase tracking-[0.3em] sm:text-3xl`}
         id={inputId}
         inputMode="text"
         maxLength={JOIN_CODE_LENGTH}
@@ -55,13 +61,20 @@ export function JoinCodeForm() {
         spellCheck={false}
         value={code}
       />
-      <p aria-live="polite" className={`${fieldErrorClass} mt-2 min-h-6`} id={errorId}>
+      <p
+        aria-live="polite"
+        className="mt-2 min-h-6 text-sm font-medium text-[#ffbd91]"
+        id={errorId}
+      >
         {error}
       </p>
-      <button className={`${primaryButtonClass} mt-3 w-full`} type="submit">
+      <button className={`${primaryButtonClass} mt-3 min-h-14 w-full`} type="submit">
         Find Room
         <ArrowRight aria-hidden="true" className="size-4" />
       </button>
+      <p className="mt-7 border-t border-white/20 pt-6 text-center text-sm text-[var(--aq-text-on-dark)]">
+        No account needed. Just a code and you’re in.
+      </p>
     </form>
   );
 }
