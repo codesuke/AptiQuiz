@@ -4,7 +4,6 @@ import {
   type LockedAnswer,
   type RevealedRound,
   type RoundView,
-  roomAdvanceResponseSchema,
   roomResumeResponseSchema,
   roomStartResponseSchema,
   roundAnswerResponseSchema,
@@ -29,6 +28,11 @@ const LATE_ANSWER_MARGIN_MS = 50;
 const REVEAL_WAIT_MARGIN_MS = 15_000;
 const MIN_POINTS = 500;
 const MAX_POINTS = 1000;
+/**
+ * The server opens the next Question 6 s (reveal) + 3 s (ready) after a reveal, and saves the
+ * results after the last reveal; one ordinary step timeout is too tight for that.
+ */
+const AUTOMATIC_PHASE_TIMEOUT_MS = STEP_TIMEOUT_MS * 2;
 
 type OpenRound = Extract<RoundView, { phase: "QUESTION_OPEN" }>;
 
@@ -148,10 +152,9 @@ class MatchRun {
     this.invariants.check(start.lobby.phase !== "LOBBY", "Room stayed in LOBBY after start");
     await this.checkHostOnlyCommands();
 
-    let commandSentAt = startedAt;
+    // After the start, the Game Server opens each next Question by itself after the reveal.
     for (let index = 0; index < this.questionCount; index += 1) {
-      await this.playRound(index, commandSentAt);
-      commandSentAt = await this.advance(index);
+      await this.playRound(index, index === 0 ? startedAt : null);
     }
     await this.checkFinalResults();
     for (const leak of session.secrecy.leaks) {
@@ -190,11 +193,11 @@ class MatchRun {
       "hostOnlyRefusalAck",
       (acknowledge) =>
         intruder.socket.emit(
-          "room:advance",
+          "room:start",
           { roomId: this.session.roomId, idempotencyKey: randomUUID() },
           acknowledge,
         ),
-      (reply) => roomAdvanceResponseSchema.parse(reply),
+      (reply) => roomStartResponseSchema.parse(reply),
       "Participant Host-command refusal",
     );
     this.invariants.check(
@@ -203,14 +206,19 @@ class MatchRun {
     );
   }
 
-  private async playRound(index: number, commandSentAt: number): Promise<void> {
+  /** `startSentAt` is set only for the first Question; later Questions open without a command. */
+  private async playRound(index: number, startSentAt: number | null): Promise<void> {
     const { session } = this;
     const viewers = [session.host.log, ...session.participants.map((p) => p.log)];
     const opened = await Promise.all(
-      viewers.map((log) => log.waitForRound(isOpen(index), `Round ${index} open`, STEP_TIMEOUT_MS)),
+      viewers.map((log) =>
+        log.waitForRound(isOpen(index), `Round ${index} open`, AUTOMATIC_PHASE_TIMEOUT_MS),
+      ),
     );
-    for (const entry of opened) {
-      session.recorder.record("hostCommandToRoundState", entry.arrivedAt - commandSentAt);
+    if (startSentAt !== null) {
+      for (const entry of opened) {
+        session.recorder.record("hostCommandToRoundState", entry.arrivedAt - startSentAt);
+      }
     }
     this.lockedAnswers.clear();
     this.checkOpenViews(index);
@@ -461,7 +469,7 @@ class MatchRun {
     const isSaved = (lobby: LobbySnapshot) =>
       lobby.phase === "FINISHED" && lobby.results !== undefined;
     const lobbies = await Promise.all(
-      logs.map((log) => log.waitForLobby(isSaved, "Final results")),
+      logs.map((log) => log.waitForLobby(isSaved, "Final results", AUTOMATIC_PHASE_TIMEOUT_MS)),
     );
     const reference = JSON.stringify(lobbies[0]?.results);
     invariants.check(
@@ -557,34 +565,6 @@ class MatchRun {
         entry?.points === points,
       `${who}: score entry differs from own result`,
     );
-  }
-
-  private async advance(index: number): Promise<number> {
-    const { session } = this;
-    const sentAt = performance.now();
-    const response = await timed(
-      session.recorder,
-      "roomAdvanceAck",
-      (acknowledge) =>
-        session.host.socket.emit(
-          "room:advance",
-          { roomId: session.roomId, idempotencyKey: randomUUID() },
-          acknowledge,
-        ),
-      (reply) => {
-        const parsed = roomAdvanceResponseSchema.parse(reply);
-        return parsed.ok ? parsed : refused(`Advance after Question ${index}`, parsed);
-      },
-      `Advance after Question ${index}`,
-    );
-    this.session.secrecy.inspect("Host advance ack", response);
-    const last = index === this.questionCount - 1;
-    const finished = (lobby: LobbySnapshot) => lobby.phase === "FINISHED";
-    this.invariants.check(
-      last ? finished(response.lobby) && response.round === null : response.round !== null,
-      `Advance after Question ${index}: unexpected Room state`,
-    );
-    return sentAt;
   }
 }
 
