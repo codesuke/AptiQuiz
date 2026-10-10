@@ -1,6 +1,72 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-10"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "50-Participant Simulator & Proof"
+    status: "working_with_limitations"
+    summary: "pnpm simulate now plays a complete starter Match with 50 virtual Participants through the public Socket.IO interface and checks gameplay, secrecy, resume, Leaderboard, and result invariants. One run passed against the deployed servers."
+    areas:
+      - "simulator"
+      - "verification"
+      - "documentation"
+    working:
+      - "The simulator creates a starter Room through the web app as a signed-in Host (or uses a supplied Room and Host ticket), joins 1 to 50 Guests, and exits nonzero on any failure or timeout."
+      - "Cohorts submit correct, wrong, new-key duplicate, exact-key replay, and late Answers; revealed points, score tables, and Question content are checked against the starter fixture."
+      - "Every pre-reveal payload is scanned for correctness, explanation, or points."
+      - "A subset resumes mid-Round and keeps identity, score, Answer state, option order, and deadline."
+      - "Every viewer's ordered Leaderboard matches the revealed Round points, and the 50 saved results match the totals."
+      - "The JSON report gives counts and labelled client-observed p50/p95/max latency; the Host cookie, Host ticket, and Resume Tokens are scrubbed."
+      - "The deployed 50-Participant run on 2026-10-10 14:56 UTC exited 0; the README records it."
+    limitations:
+      - "One Room only; many Rooms, more than 50 Participants, restart recovery, and browser load are untested."
+      - "Late Answers are rejected as round_not_open because the deadline timer closes the Round first; answer_too_late is not exercised."
+      - "Server hardware for the deployed run is not visible to the runner and is not recorded."
+    prd:
+      issue: 10
+      url: "https://github.com/codesuke/AptiQuiz/issues/10"
+    slices:
+      - issue: 44
+        title: "Simulate an authorized Room and 50-Participant Lobby"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/44"
+      - issue: 45
+        title: "Simulate multi-Question Answers and reveal checks"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/45"
+      - issue: 46
+        title: "Prove a completed 50-Participant match with resume and Leaderboards"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/46"
+      - issue: 47
+        title: "Record the deployed 50-Participant proof"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/47"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "c4c82fd"
+        - "ec42947"
+        - "7298213"
+        - "12a9eaa"
+        - "69495fb"
+      tests:
+        - "Simulator: 66 unit tests, Biome, and TypeScript typecheck passed."
+        - "Local 5- and 50-Participant runs exited 0; a bad Host session, a count of 51, and a killed Game Server exited nonzero or failed before connecting."
+        - "Deployed 50-Participant run on 2026-10-10 exited 0 (README section 50-Participant proof)."
+    archive:
+      prd: "docs/Specs-Completed/10-50-participant-simulator-and-proof/PRD.md"
+      slices:
+        - "docs/Specs-Completed/10-50-participant-simulator-and-proof/slices/44-authorized-room-and-50-participant-lobby.md"
+        - "docs/Specs-Completed/10-50-participant-simulator-and-proof/slices/45-multi-question-answers-and-reveal-checks.md"
+        - "docs/Specs-Completed/10-50-participant-simulator-and-proof/slices/46-completed-match-with-resume-and-leaderboards.md"
+        - "docs/Specs-Completed/10-50-participant-simulator-and-proof/slices/47-record-the-deployed-50-participant-proof.md"
   - id: "2026-10-10-host-room-reference-alignment"
     changed_at: "2026-10-10"
     kind: "improvement"
