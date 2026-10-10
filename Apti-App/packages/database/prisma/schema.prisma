@@ -247,4 +247,5 @@ model MatchResult {
   @@index([collegeId, emailVerifiedAtCompletion, completedAt])
   @@index([userId, completedAt])
   @@index([totalScore])
+  @@index([completedAt])
 }
