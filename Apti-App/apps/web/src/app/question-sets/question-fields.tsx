@@ -14,6 +14,10 @@ export type StoredQuestion = {
   media: unknown;
 };
 
+/** Placement-test sections; suggested so topic-wise results group consistently across sets. */
+const SUGGESTED_TOPICS = ["Quantitative", "Logical", "Verbal", "Data Interpretation"] as const;
+const TOPIC_SUGGESTIONS_ID = "question-topic-suggestions";
+
 function tableToText(table: { headers: string[]; rows: string[][] } | undefined) {
   if (!table) return "";
   return [table.headers, ...table.rows].map((row) => row.join(",")).join("\n");
@@ -84,11 +88,17 @@ export function QuestionFields({ question }: { question?: StoredQuestion }) {
           <input
             className={styles.input}
             defaultValue={question?.topic}
+            list={TOPIC_SUGGESTIONS_ID}
             maxLength={100}
             name="topic"
-            placeholder="e.g. Percentages"
+            placeholder="e.g. Quantitative"
             required
           />
+          <datalist id={TOPIC_SUGGESTIONS_ID}>
+            {SUGGESTED_TOPICS.map((topic) => (
+              <option key={topic} value={topic} />
+            ))}
+          </datalist>
         </label>
         <label className={styles.field}>
           Difficulty
