@@ -57,6 +57,7 @@ export function createConfiguredRegistry(
       scoreBucketMs: config.scoreBucketMs,
     },
     resumeSecret: config.gameServerSecret,
+    reconnectGraceMs: config.reconnectGraceMs,
   });
 }
 

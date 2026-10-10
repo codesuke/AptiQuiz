@@ -32,6 +32,10 @@ describe("game server config", () => {
     });
   });
 
+  it("gives a dropped Participant 5 seconds to reconnect before early Round closure", () => {
+    expect(readGameServerConfig(validEnvironment).reconnectGraceMs).toBe(5_000);
+  });
+
   it("refuses to start without GAME_SERVER_SECRET", () => {
     expect(() => readGameServerConfig({ DATABASE_URL: databaseUrl })).toThrow("GAME_SERVER_SECRET");
   });

@@ -42,6 +42,7 @@ The following functions are available:
 - A joined Participant answers the open Round with `round:answer`. The Game Server accepts the first valid Answer received at or before the deadline, by server receipt time. It scores the Answer with delay compensation from server-initiated `latency:ping` samples. The acknowledgement and later views do not show correctness before the reveal. The Lobby shows the scoring rule and the delay policy from the server values.
 - The Round closes once: at the server deadline, or earlier when every connected Participant has answered. Then each Participant receives the correct option in their own option ids, their result, and the Round scores of all Participants. The Host receives the same reveal with the authored ids.
 - After a reveal, only the Host advances. Each next Question opens with a new server deadline. After the last Question, the Room moves to `FINISHED`, the browsers show "Match finished.", and the Game Server saves one `MatchResult` for each joined Participant and writes the `FINISHED` status and completion time to PostgreSQL in one transaction. The Room moves to `FINISHED` only after that commit. If the commit fails, the advance returns `advance_failed` and the Host can send it again. A complete Match was played in two headless browsers on 2026-10-10.
+- A Participant who refreshes or reconnects resumes the same Participant with a Resume Token. They get the Room phase, the roster, the current Round in their own option order with their locked Answer, the server deadline, and their score from revealed Rounds. A resume adds no Participant and broadcasts no join. Guest and signed-in refreshes in the Lobby and during an open Round were checked in headless browsers on 2026-10-10.
 - The simulator opens 50 connections by default.
 - The database package generates a Prisma client.
 
@@ -49,7 +50,6 @@ The following functions are not available:
 
 - The application does not calculate a live Leaderboard.
 - The application does not show the final results to the browsers. The saved `MatchResult` rows are not yet read by any screen.
-- The application does not implement reconnect tokens.
 - The application does not use Redis or Kafka.
 - The web app and Game Server are deployed on Dokploy. Both public HTTPS health endpoints responded on 2026-10-10; WebSocket, CORS, and migration checks remain open in issue #11.
 
@@ -170,6 +170,7 @@ The Socket.IO Room commands are:
 - `room:host`: only the Host User subscribes to the Lobby.
 - `room:join`: a Guest or a User joins a Room in the Lobby. A User is one Participant in each Room. A Guest is identified by the join idempotency key. The server reserves the slot before the database write, so a Room never has more than 50 Participants. A join that ends after the start is refused.
 - `room:advance`: only the Host advances, and only from `QUESTION_REVEAL`. The Game Engine `ADVANCE` transition opens the next Question through the same path as start, or moves the Room to `FINISHED` after the last Question. A replayed key returns its first result. A new key while a Round is open gets `round_not_revealed`, so no command can skip a Question or open two Rounds. A finished Room refuses with `room_finished`.
+- `room:resume`: a Participant reclaims their place on a new connection with `{joinCode, resumeToken}`. The registry finds the token hash in that Room only. A token of a signed-in User's Participant works only on a connection authenticated as that User. A malformed, unknown, or other-Room token gets `invalid_resume_token` and no Participant data. A success subscribes the socket like a join and returns the Lobby, the current Round view for that Participant, and `score`. The score uses the same totals as the Leaderboard and counts revealed Rounds only. A resume adds no Participant, uses no roster place, broadcasts nothing, and does not touch the database. A repeated resume returns the same result.
 - `room:start`: only the Host starts the Room. The Game Engine `START` transition leaves `LOBBY` and opens Question 0 for the configured Round duration. A retry with the same key returns the first result and never opens another Round or moves the deadline.
 
 `round:state` sends a Round view to one receiver. Each Participant has the channel `participant:<roomId>:<participantId>` and receives their own option order. The order is seeded by a random salt for each Room, the Question index, and the Participant id. Option ids are hashed from the same seed. The Host channel `host:<roomId>` receives the authored order. The `room:host` and `room:join` acknowledgements include the current Round view, or `null` in the Lobby, so a reconnecting browser recovers the Round. The Game Server builds the public Question field by field. It never copies a stored Question, because the stored Question holds `correctOptionId`.
@@ -190,6 +191,10 @@ The registry tracks the live sockets of each Participant. It closes the open Rou
 - An accepted Answer, or the disconnect of a Participant's last socket, leaves every connected Participant with an Answer. Early closure needs at least one connected Participant.
 
 The close happens only from `QUESTION_OPEN`, so a race between the timer and an Answer closes and reveals one time. The registry then publishes a revealed `round:state` to each receiver and `room:lobby` with `QUESTION_REVEAL`. After closure, a new Answer gets `round_not_open`, and a same-key replay returns the first result. The scores, Answers, and deadline do not change. Rejoin and host acknowledgements return the revealed view.
+
+The Resume Token is base64url HMAC-SHA256 of `resume:<roomId>:<participantId>`, keyed by `GAME_SERVER_SECRET`. Only the joining socket's acknowledgement carries it. A join retried after a lost acknowledgement gets the same token, and the server stores only its SHA-256 hash: in memory, and in `Participant.resumeTokenHash`. The browser keeps the token in `localStorage` for each Join Code. On every connection it resumes before it shows itself online. It retries a lost acknowledgement at most 5 times. After a refusal it drops the token.
+
+A Participant whose last socket disconnects during an open Round still counts as connected for early closure for 5 seconds. A refresh therefore does not close the Round for everyone. If the Participant does not return in that time, a scheduled re-check applies the normal early-closure rule. The re-check is bound to its Question, and the deadline never changes.
 
 `createGameServer` accepts an injectable `now` clock and an injectable scheduler for the deadline timer. Every game time uses the clock. Socket Ticket and Room registration expiry use the wall clock, because the web server signs them against real time.
 
@@ -213,6 +218,7 @@ The Game Server uses these default values:
 | HTTP and WebSocket port | `3001` | `src/config.ts` |
 | Round duration | `30000` ms | `src/config.ts` |
 | Delay compensation cap | `100` ms | `src/config.ts` |
+| Reconnect grace for early closure | `5000` ms | `src/config.ts` |
 | Score bucket | `100` ms | `src/config.ts` |
 | Latency sample interval, timeout, window | `2000` ms, `2000` ms, 5 samples | `src/config.ts` |
 | Allowed web origin | `http://localhost:3000` | `src/config.ts` |
@@ -232,6 +238,7 @@ The package currently defines these interfaces:
 - `publicQuestionSchema`, `openRoundSchema`, and `roundViewSchema`
 - `roundScoreSchema`, `roundResultSchema`, and `revealedRoundSchema`
 - `roomAdvanceSchema` and `roomAdvanceResponseSchema`
+- `resumeTokenSchema`, `roomResumeSchema`, and `roomResumeResponseSchema`
 - `roundRulesSchema`, `lockedAnswerSchema`, `roundAnswerSchema`, `answerErrorSchema`, `roundAnswerResponseSchema`, and `latencyPingSchema`
 - `displayNameSchema`
 - `timePingSchema`
@@ -344,7 +351,7 @@ The Room registry calls the Game Engine for the `START`, `CLOSE_QUESTION`, and `
 
 ## Planned Match Data Flow
 
-This section describes an accepted plan. Steps 1 to 7 are implemented, except Resume Tokens in step 4. Step 8 belongs to #7.
+This section describes an accepted plan. Steps 1 to 7 are implemented. Step 8 belongs to #7.
 
 1. The Host creates a Room through the web application.
 2. The web server checks the User and the Question Set.
@@ -445,7 +452,7 @@ Failure rules for health, time-ping, handshake, email/password authentication, A
 - If an HTTP path is not available, the Game Server returns HTTP 404 and `not_found`.
 - If an Answer is received after `endsAt`, the Game Server refuses it with `answer_too_late`.
 - If an Answer is a duplicate, the Game Server refuses it with `already_answered`. A retry with the same key returns the first result, and the score is never added two times.
-- If a future socket disconnects, the application must restore the Participant from a full Room snapshot.
+- If a socket disconnects, the browser resumes the Participant with the Resume Token and receives a full Room snapshot. A refused token returns the browser to the join form.
 - If PostgreSQL is not available during a future Round, the in-memory Round must continue.
 - If the Game Server restarts before Redis exists, active in-memory Rooms are lost.
 

@@ -9,6 +9,11 @@ export const DEFAULT_ROUND_DURATION_MS = 30_000;
 export const DEFAULT_MAX_DELAY_COMPENSATION_MS = 100;
 /** PRD #5: Effective Response Times are floored to 100 ms before scoring. */
 export const DEFAULT_SCORE_BUCKET_MS = 100;
+/**
+ * PRD #6: a Participant whose last socket drops during an open Round still counts as connected
+ * for early Round closure this long, so a browser refresh does not end the Question for everyone.
+ */
+export const DEFAULT_RECONNECT_GRACE_MS = 5_000;
 /** Server-initiated pings: one every 2 s, the last 5 acknowledged, each given 2 s to return. */
 export const DEFAULT_LATENCY_SAMPLING: LatencySamplingPolicy = {
   intervalMs: 2_000,
@@ -26,6 +31,7 @@ export interface GameServerConfig {
   readonly maxDelayCompensationMs: number;
   readonly scoreBucketMs: number;
   readonly latencySampling: LatencySamplingPolicy;
+  readonly reconnectGraceMs: number;
 }
 
 export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServerConfig {
@@ -46,6 +52,7 @@ export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServer
     maxDelayCompensationMs: DEFAULT_MAX_DELAY_COMPENSATION_MS,
     scoreBucketMs: DEFAULT_SCORE_BUCKET_MS,
     latencySampling: DEFAULT_LATENCY_SAMPLING,
+    reconnectGraceMs: DEFAULT_RECONNECT_GRACE_MS,
   };
 }
 

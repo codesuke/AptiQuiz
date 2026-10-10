@@ -8,6 +8,7 @@ import {
 } from "@aptiquiz/contracts";
 import pino from "pino";
 import { afterEach, describe, expect, it } from "vitest";
+import { joinWithToken, openResumableTable, reconnect, resume } from "./testing/resume-harness.js";
 import {
   connectAs,
   hostRoom,
@@ -24,10 +25,9 @@ import {
   startServerWithRooms,
   startWithRooms,
   stopTestServer,
-  type TestServer,
   type TestSocket,
 } from "./testing/room-harness.js";
-import { CORRECT_OPTION_TEXT, openRound, optionIdFor, submit } from "./testing/round-harness.js";
+import { CORRECT_OPTION_TEXT, optionIdFor, submit } from "./testing/round-harness.js";
 
 const MINIMUM_TOKEN_LENGTH = 32;
 
@@ -38,46 +38,6 @@ const secondUser: SocketTicketSubject = {
 };
 
 afterEach(stopTestServer);
-
-interface JoinedGuest {
-  readonly socket: TestSocket;
-  readonly participantId: string;
-  readonly resumeToken: string;
-}
-
-async function joinWithToken(
-  port: number,
-  displayName: string,
-  options: { readonly user?: SocketTicketSubject; readonly joinCode?: string } = {},
-): Promise<JoinedGuest> {
-  const socket = await connectAs(port, options.user);
-  const joined = await join(socket, displayName, options.joinCode ?? roomA.joinCode);
-
-  if (!joined.ok) {
-    throw new Error(`${displayName} could not join: ${joined.error}`);
-  }
-
-  return {
-    socket,
-    participantId: joined.participant.participantId,
-    resumeToken: joined.resumeToken,
-  };
-}
-
-function resume(socket: TestSocket, resumeToken: string, joinCode = roomA.joinCode) {
-  return socket.emitWithAck("room:resume", { joinCode, resumeToken });
-}
-
-/** Reconnects on a fresh socket, as a browser refresh would, after the old socket is gone. */
-async function reconnect(
-  port: number,
-  old: TestSocket,
-  user?: SocketTicketSubject,
-): Promise<TestSocket> {
-  old.disconnect();
-  await settle();
-  return connectAs(port, user);
-}
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("base64url");
@@ -255,40 +215,8 @@ describe("room:resume", () => {
 });
 
 describe("room:resume during a Match", () => {
-  async function roundTable(): Promise<{
-    readonly testServer: TestServer;
-    readonly host: TestSocket;
-    readonly asha: JoinedGuest & { readonly round: RoundView };
-    readonly ravi: JoinedGuest & { readonly round: RoundView };
-  }> {
-    const testServer = await startServerWithRooms({}, roundRoom);
-    const [asha, ravi] = await Promise.all(
-      ["Asha", "Ravi"].map((name) =>
-        joinWithToken(testServer.port, name, { joinCode: roundRoom.joinCode }),
-      ),
-    );
-
-    if (asha === undefined || ravi === undefined) {
-      throw new Error("the players did not join");
-    }
-
-    const { host, rounds } = await openRound(testServer, [asha, ravi]);
-    const [ashaRound, raviRound] = rounds;
-
-    if (ashaRound === undefined || raviRound === undefined) {
-      throw new Error("the Round did not open");
-    }
-
-    return {
-      testServer,
-      host,
-      asha: { ...asha, round: ashaRound },
-      ravi: { ...ravi, round: raviRound },
-    };
-  }
-
   it("counts a resumed socket as connected, so the Round waits for its Answer", async () => {
-    const { testServer, asha, ravi } = await roundTable();
+    const { testServer, asha, ravi } = await openResumableTable();
     const fresh = await reconnect(testServer.port, ravi.socket);
     const resumed = await resume(fresh, ravi.resumeToken, roundRoom.joinCode);
 
@@ -311,7 +239,7 @@ describe("room:resume during a Match", () => {
   });
 
   it("returns only points from revealed Rounds", async () => {
-    const { testServer, host, asha, ravi } = await roundTable();
+    const { testServer, host, asha, ravi } = await openResumableTable();
     const answerCorrectly = (socket: TestSocket, round: RoundView) =>
       submit(socket, round, optionIdFor(round, CORRECT_OPTION_TEXT));
     const resumeAsha = async () => {

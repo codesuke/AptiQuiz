@@ -18,6 +18,7 @@ import {
   startServerWithRooms,
   stopTestServer,
   type TestServer,
+  type TestServerOptions,
   type TestSocket,
 } from "./testing/room-harness.js";
 import {
@@ -35,6 +36,8 @@ import {
 const ASHA_RESPONSE_MS = 1_299;
 const ASHA_POINTS = 880;
 const RAVI_RESPONSE_MS = 2_000;
+/** Ends well before the test deadline, so only the grace re-check can close the Round. */
+const SHORT_GRACE_MS = 1_000;
 const HIDDEN_QUESTION_FIELDS = ["correctOptionId", "explanation"] as const;
 
 afterEach(stopTestServer);
@@ -52,8 +55,8 @@ interface RoundTable {
 }
 
 /** Opens Question 0 of the Round Room for the Host and two Guests, Asha and Ravi. */
-async function openTable(): Promise<RoundTable> {
-  const testServer = await startServerWithRooms({}, roundRoom);
+async function openTable(options: TestServerOptions = {}): Promise<RoundTable> {
+  const testServer = await startServerWithRooms(options, roundRoom);
   const players = [await joinPlayer(testServer, "Asha"), await joinPlayer(testServer, "Ravi")];
   const { host, rounds } = await openRound(testServer, players);
   const hosted = await host.emitWithAck("room:host", { roomId: roundRoom.roomId });
@@ -209,8 +212,8 @@ describe("early Round closure", () => {
     expect(findFieldPaths(hosted, HIDDEN_QUESTION_FIELDS)).toEqual([]);
   });
 
-  it("closes when the last Participant without an Answer loses every socket", async () => {
-    const table = await openTable();
+  it("closes when the last Participant without an Answer loses every socket for the grace", async () => {
+    const table = await openTable({ config: { reconnectGraceMs: SHORT_GRACE_MS } });
     const secondSocket = await connectAs(table.testServer.port);
     await join(secondSocket, "Ravi", roundRoom.joinCode, table.ravi.key);
     const received = collectRounds(table.host);
@@ -223,8 +226,12 @@ describe("early Round closure", () => {
 
     const reveal = nextReveal(table.host);
     secondSocket.disconnect();
+    await settle();
+    table.testServer.clock.advance(SHORT_GRACE_MS);
+    table.testServer.deadlines.fireDue();
 
     await expect(reveal).resolves.toMatchObject({
+      closedAt: table.hostRound.startsAt + ASHA_RESPONSE_MS + SHORT_GRACE_MS,
       scores: [
         { ...score(table.asha, "Asha", ASHA_POINTS), answered: true },
         { ...score(table.ravi, "Ravi", 0), answered: false },

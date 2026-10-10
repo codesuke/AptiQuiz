@@ -200,12 +200,25 @@ interface LiveRoom {
   readonly resumable: Map<string, ResumableParticipant>;
   /** Live sockets of each joined Participant, keyed by Participant id. */
   readonly connections: Map<string, Set<string>>;
+  /** Participants who lost their last socket during an open Round, keyed by Participant id. */
+  readonly reconnecting: Map<string, ReconnectGrace>;
   /** Cancels the open Round's deadline timer; null when no timer is pending. */
   cancelDeadline: CancelScheduled | null;
   /** The in-flight result commit of the final advance; it never rejects. Null when idle. */
   completion: Promise<boolean> | null;
   /** The committed results, best rank first; null until the final advance saves them. */
   results: FinalResult[] | null;
+}
+
+/**
+ * A dropped Participant still counts as connected for early closure of one Round until `until`,
+ * so a browser refresh does not close the Question for everyone else.
+ */
+interface ReconnectGrace {
+  readonly questionIndex: number;
+  readonly until: number;
+  /** Cancels the re-check scheduled for `until`. */
+  readonly cancel: CancelScheduled;
 }
 
 /** The game state and Questions a Round view is built from. */
@@ -243,6 +256,8 @@ export interface RoomRegistryDependencies {
   readonly schedule: Schedule;
   /** Keys every Resume Token; the Game Server secret. */
   readonly resumeSecret: string;
+  /** How long a dropped Participant still counts as connected for early Round closure. */
+  readonly reconnectGraceMs: number;
 }
 
 export interface RoomRegistry {
@@ -263,13 +278,16 @@ export interface RoomRegistry {
   answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[];
   /** Records a live socket of a joined Participant. */
   connect(roomId: string, participantId: string, connectionId: string): void;
-  /** Forgets a socket; the open Round may close if the Participant has no socket left. */
+  /**
+   * Forgets a socket. A Participant left with no socket still counts as connected for the open
+   * Round's early closure until the reconnect grace ends; then the Round may close.
+   */
   disconnect(roomId: string, participantId: string, connectionId: string): void;
   /** Closes the open Round early once every connected Participant has an accepted Answer. */
   closeIfAllAnswered(roomId: string): void;
   /** Tells `listener` about each Round closure, whatever caused it; returns an unsubscribe. */
   onRoundClosed(listener: RoundClosedListener): () => void;
-  /** Cancels every pending deadline timer. */
+  /** Cancels every pending deadline and reconnect grace timer. */
   dispose(): void;
 }
 
@@ -295,7 +313,7 @@ const ALREADY_ANSWERED: AnswerFailure = { ok: false, error: "already_answered" }
 const INVALID_OPTION: AnswerFailure = { ok: false, error: "invalid_option" };
 
 export function createRoomRegistry(dependencies: RoomRegistryDependencies): RoomRegistry {
-  const { store, logger, rules, now, schedule, resumeSecret } = dependencies;
+  const { store, logger, rules, now, schedule, resumeSecret, reconnectGraceMs } = dependencies;
   const timing: TimingPolicy = {
     durationMs: rules.roundDurationMs,
     maxCompensationMs: rules.maxDelayCompensationMs,
@@ -328,6 +346,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       answers: new Map(),
       answerReceipts: new Map(),
       connections: new Map(),
+      reconnecting: new Map(),
       cancelDeadline: null,
       completion: null,
       results: null,
@@ -718,7 +737,13 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     const room = rooms.get(roomId);
     const round = room === undefined ? null : findOpenRound(room);
 
-    if (room !== undefined && round !== null && everyConnectedParticipantAnswered(room, round)) {
+    if (room !== undefined && round !== null) {
+      closeOpenRoundIfAllAnswered(room, round);
+    }
+  }
+
+  function closeOpenRoundIfAllAnswered(room: LiveRoom, round: ActiveRound): void {
+    if (everyConnectedParticipantAnswered(room, round, now())) {
       closeRound(room);
     }
   }
@@ -733,17 +758,52 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     const sockets = room.connections.get(participantId) ?? new Set<string>();
     sockets.add(connectionId);
     room.connections.set(participantId, sockets);
+    endReconnectGrace(room, participantId);
   }
 
   function disconnect(roomId: string, participantId: string, connectionId: string): void {
-    const connections = rooms.get(roomId)?.connections;
-    const sockets = connections?.get(participantId);
+    const room = rooms.get(roomId);
+    const sockets = room?.connections.get(participantId);
     const lostLastSocket = sockets?.delete(connectionId) === true && sockets.size === 0;
 
-    if (lostLastSocket) {
-      connections?.delete(participantId);
-      closeIfAllAnswered(roomId);
+    if (room === undefined || !lostLastSocket) {
+      return;
     }
+
+    room.connections.delete(participantId);
+    beginReconnectGrace(room, participantId);
+    // Without a grace, a Participant who was the last one unanswered closes the Round now.
+    closeIfAllAnswered(roomId);
+  }
+
+  /** The re-check is tied to its Question, so it is harmless after that Round closes. */
+  function beginReconnectGrace(room: LiveRoom, participantId: string): void {
+    const round = findOpenRound(room);
+
+    if (round === null) {
+      return;
+    }
+
+    endReconnectGrace(room, participantId);
+    const until = now() + reconnectGraceMs;
+    const cancel = schedule(until, () => {
+      room.reconnecting.delete(participantId);
+      recheckAfterGrace(room, round.questionIndex);
+    });
+    room.reconnecting.set(participantId, { questionIndex: round.questionIndex, until, cancel });
+  }
+
+  function recheckAfterGrace(room: LiveRoom, questionIndex: number): void {
+    const round = findOpenRound(room);
+
+    if (round !== null && round.questionIndex === questionIndex) {
+      closeOpenRoundIfAllAnswered(room, round);
+    }
+  }
+
+  function endReconnectGrace(room: LiveRoom, participantId: string): void {
+    room.reconnecting.get(participantId)?.cancel();
+    room.reconnecting.delete(participantId);
   }
 
   function onRoundClosed(listener: RoundClosedListener): () => void {
@@ -755,6 +815,10 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     for (const room of rooms.values()) {
       room.cancelDeadline?.();
       room.cancelDeadline = null;
+
+      for (const participantId of [...room.reconnecting.keys()]) {
+        endReconnectGrace(room, participantId);
+      }
     }
   }
 
@@ -882,13 +946,27 @@ function tryTransition(
   }
 }
 
-/** Nobody connected means nobody can still answer, so only the deadline closes the Round. */
-function everyConnectedParticipantAnswered(room: LiveRoom, round: ActiveRound): boolean {
-  const connected = [...room.connections.keys()];
+/**
+ * Nobody connected means nobody can still answer, so only the deadline closes the Round. A
+ * Participant within their reconnect grace counts as connected.
+ */
+function everyConnectedParticipantAnswered(
+  room: LiveRoom,
+  round: ActiveRound,
+  serverTime: number,
+): boolean {
+  const reconnecting = [...room.reconnecting.entries()]
+    .filter(([, grace]) => isWithinGrace(grace, round, serverTime))
+    .map(([participantId]) => participantId);
+  const connected = [...new Set([...room.connections.keys(), ...reconnecting])];
   return (
     connected.length > 0 &&
     connected.every((participantId) => recordedAnswerOf(room, round, participantId) !== undefined)
   );
+}
+
+function isWithinGrace(grace: ReconnectGrace, round: ActiveRound, serverTime: number): boolean {
+  return grace.questionIndex === round.questionIndex && serverTime < grace.until;
 }
 
 /** A Resume Token never signs anyone in as a different User; a Guest's token is enough alone. */

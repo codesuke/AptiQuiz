@@ -33,6 +33,7 @@ import {
   settleStoredJoin,
 } from "./join-key";
 import { LobbyDetails } from "./lobby-details";
+import { scoreAfter } from "./participant-score";
 import {
   forgetResumeToken,
   nextReconnectStep,
@@ -59,7 +60,8 @@ function toJoinedRoom(
   score: number,
 ): JoinedRoom {
   const receivedRound = round === null ? null : receiveRound(round, Date.now());
-  return { participant, lobby, round: receivedRound, score };
+  const knownScore = round === null ? score : scoreAfter(score, round, participant.participantId);
+  return { participant, lobby, round: receivedRound, score: knownScore };
 }
 
 interface JoinRoomProps {
@@ -236,7 +238,11 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
         if (current === null) return current;
         const view = parseRoundUpdate(payload, current.lobby.roomId);
         if (view === null) return current;
-        return { ...current, round: nextRound(current.round, receiveRound(view, receivedAt)) };
+        return {
+          ...current,
+          round: nextRound(current.round, receiveRound(view, receivedAt)),
+          score: scoreAfter(current.score, view, current.participant.participantId),
+        };
       });
     });
 
@@ -430,7 +436,7 @@ interface JoinedLobbyProps {
 }
 
 function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps) {
-  const { participant, lobby, round } = joined;
+  const { participant, lobby, round, score } = joined;
   const hasStarted = lobby.phase !== "LOBBY";
   const finished = isMatchFinished(lobby);
 
@@ -441,6 +447,7 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
           <CircleCheck aria-hidden="true" className="size-5 shrink-0 text-[#ffb380]" />
           <span className="min-w-0 truncate">You're in as {participant.displayName}</span>
         </p>
+        <p className="font-mono text-sm text-[#fdfbf7]">Score: {score}</p>
         <p
           aria-live="polite"
           className="flex items-center gap-2 text-sm text-[#d0ddd5]"
