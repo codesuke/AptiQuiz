@@ -56,7 +56,8 @@ changes:
         - "8a443e2"
       tests:
         - "Probe evidence comments on issues #63, #64, #65 (2026-10-10)."
-          - "Headless Chrome on https://aptiquiz.codesuke.in showed 'Game server online' as a Guest."
+        - "Web google-sign-in.integration and mail-sender tests: 9 passed after the test-config fix (outside #11 acceptance)."
+        - "Headless Chrome on https://aptiquiz.codesuke.in showed 'Game server online' as a Guest."
     archive:
       prd: "docs/Specs-Completed/11-dokploy-deployment/PRD.md"
       slices:
