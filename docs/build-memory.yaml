@@ -1,6 +1,103 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-1"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Accounts, Roles & Sign-in"
+    status: "working_with_limitations"
+    summary: "Added User accounts with email-and-password and Google sign-in, email verification, password reset, Admin role from ADMIN_EMAILS, suspension, and signed Socket Tickets so the Game Server identifies Users and Guests."
+    areas:
+      - "authentication"
+      - "web interface"
+      - "Game Server handshake"
+      - "database schema"
+    working:
+      - "A visitor can sign up with display name, email, and password (8 to 128 characters), sign in, and sign out; the header shows Guest or signed-in state."
+      - "Sign-up sends a verification email; following the link verifies the User; a signed-in unverified User sees a notice with a resend action limited to 3 per 5 minutes. Verification gates no page or action."
+      - "Password reset sends a one-hour, single-use link; unknown emails get the same confirmation; a reset rejects the old password, ends other sessions, and marks the email verified; expired or used links show the expired-link page."
+      - "Continue with Google signs in or creates a User when Google credentials are configured; it links to an existing password User only when that User's email is verified (approved spec change on #18)."
+      - "A User is Admin only with a verified email in the trimmed, case-insensitive ADMIN_EMAILS list, computed per request; /admin redirects Guests to sign-in and shows Not allowed to other Users."
+      - "A suspended User cannot sign in, existing sessions stop working on the next request, and POST /api/socket-ticket returns 403; without a session it returns 401."
+      - "The browser requests a fresh 60-second HS256 Socket Ticket for every Game Server connection attempt; server:ready reports the User or Guest identity; bad tickets are refused with socket_ticket_expired or socket_ticket_invalid, never downgraded to Guest."
+      - "Question Set and Room reference owning and hosting User ids instead of token hashes (initial Prisma migration)."
+      - "Without Gmail credentials in development, verification and reset emails are written to the web server log."
+    limitations:
+      - "The verification notice is rendered on the home page only."
+      - "A real Google consent-and-callback round trip was not verified; it is covered by an integration test with a stubbed Google token endpoint."
+      - "Auth rate limiting uses Better Auth's in-memory store and is correct only for one web server process."
+      - "Google OAuth redirect URIs for production are not configured; they belong to the Dokploy Deployment PRD (#11)."
+      - "Setting GMAIL_USER without GMAIL_APP_PASSWORD (or the reverse) makes the mail sender throw 'GMAIL_USER and GMAIL_APP_PASSWORD must be set together'; the shared .env was in that state at one point."
+      - "The browser does not parse the Game Server connect_error code with socketHandshakeErrorCodeSchema."
+      - "The /admin Not allowed page returns HTTP 200."
+    prd:
+      issue: 1
+      url: "https://github.com/codesuke/AptiQuiz/issues/1"
+    slices:
+      - issue: 14
+        title: "Game Server identifies Users and Guests from Socket Tickets"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/14"
+      - issue: 15
+        title: "Sign up, sign in, and sign out with email and password"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/15"
+      - issue: 16
+        title: "Email verification"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/16"
+      - issue: 17
+        title: "Password reset"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/17"
+      - issue: 18
+        title: "Sign in with Google"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/18"
+      - issue: 19
+        title: "Admin role and suspension"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/19"
+      - issue: 20
+        title: "Signed-in browser connects to the Game Server as its User"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/20"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors:
+      - name: "OpenAI Codex"
+        type: "agent"
+    evidence:
+      pull_requests: []
+      commits:
+        - "2524e16"
+        - "6c0daaf"
+        - "0595127"
+        - "1eba2a3"
+        - "059315d"
+        - "ebd8fce"
+        - "6aba7a6"
+        - "eea2d65"
+        - "dc9410f"
+      tests:
+        - "@aptiquiz/socket-ticket 9/9 tests and Game Server 13/13 in-process Socket.IO handshake tests; pnpm simulate connected 50/50 Guests (#14)."
+        - "Prisma migration deployed to the configured PostgreSQL server; live sign-up, sign-in, sign-out, invalid credentials, and 429 rate limiting verified (#15)."
+        - "Live /admin check against PostgreSQL for Guest, unverified allow-listed User, verified Admin, non-Admin, and suspended session (#19)."
+        - "Live Chromium check of Guest and User identities and reconnect with a newly issued ticket after ticket expiry and Game Server restart (#20)."
+        - "After #16, #17, #18: biome check clean, pnpm typecheck 7/7, pnpm test 11/11 tasks (web 45 tests including database-backed auth tests), pnpm build 7/7; code-review findings fixed in eea2d65 and dc9410f."
+        - "Client bundle and tracked-file scans found no configured secret or database URL (#15, #18, #20)."
+    archive:
+      prd: "docs/Specs-Completed/1-accounts-roles-sign-in/PRD.md"
+      slices:
+        - "docs/Specs-Completed/1-accounts-roles-sign-in/slices/14-game-server-identifies-users-and-guests-from-socket-tickets.md"
+        - "docs/Specs-Completed/1-accounts-roles-sign-in/slices/15-sign-up-sign-in-and-sign-out-with-email-and-password.md"
+        - "docs/Specs-Completed/1-accounts-roles-sign-in/slices/16-email-verification.md"
+        - "docs/Specs-Completed/1-accounts-roles-sign-in/slices/17-password-reset.md"
+        - "docs/Specs-Completed/1-accounts-roles-sign-in/slices/18-sign-in-with-google.md"
+        - "docs/Specs-Completed/1-accounts-roles-sign-in/slices/19-admin-role-and-suspension.md"
+        - "docs/Specs-Completed/1-accounts-roles-sign-in/slices/20-signed-in-browser-connects-to-the-game-server-as-its-user.md"
   - id: "2026-10-10-aptiquiz-brand-and-readme"
     changed_at: "2026-10-10"
     kind: "change"
