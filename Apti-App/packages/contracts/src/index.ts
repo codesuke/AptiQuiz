@@ -129,6 +129,7 @@ export const createRoomResponseSchema = z.object({
 
 export const roomPhaseSchema = z.enum([
   "LOBBY",
+  "GETTING_READY",
   "QUESTION_OPEN",
   "QUESTION_REVEAL",
   "LEADERBOARD",
@@ -177,6 +178,14 @@ export const lobbySnapshotSchema = z.object({
   roomId: roomIdSchema,
   joinCode: roomCodeSchema,
   phase: roomPhaseSchema,
+  /** Present in Getting ready; clients derive a countdown from this server timestamp. */
+  ready: z
+    .object({
+      questionIndex: z.number().int().nonnegative(),
+      endsAt: timestampSchema,
+      serverTime: timestampSchema,
+    })
+    .optional(),
   college: collegeSchema,
   questionSetTitle: z.string().min(1),
   questionCount: z.number().int().positive(),

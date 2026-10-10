@@ -21,6 +21,7 @@ export { type RankedStanding, rankStandings, type Standing } from "./standings.j
 
 export const gamePhases = [
   "LOBBY",
+  "GETTING_READY",
   "QUESTION_OPEN",
   "QUESTION_REVEAL",
   "LEADERBOARD",
@@ -38,10 +39,12 @@ export interface GameState {
   readonly roundEndsAt: number | null;
   /** Server time the current Question closed, or null while it is open or none exists. */
   readonly roundClosedAt: number | null;
+  readonly readyEndsAt: number | null;
 }
 
 export type GameCommand =
-  | { readonly type: "START"; readonly durationMs: number }
+  | { readonly type: "START"; readonly durationMs: number; readonly readyDurationMs?: number }
+  | { readonly type: "OPEN_READY_QUESTION"; readonly durationMs: number }
   | { readonly type: "CLOSE_QUESTION" }
   | { readonly type: "SHOW_LEADERBOARD" }
   | { readonly type: "ADVANCE"; readonly durationMs: number };
@@ -74,6 +77,7 @@ export function createGameState(roomId: string, questionCount: number): GameStat
     roundStartsAt: null,
     roundEndsAt: null,
     roundClosedAt: null,
+    readyEndsAt: null,
   };
 }
 
@@ -90,7 +94,22 @@ export function transitionGame(
   switch (command.type) {
     case "START":
       assertPhase(state, ["LOBBY"], command.type);
+      if (command.readyDurationMs !== undefined) {
+        assertDuration(command.readyDurationMs);
+        return {
+          state: {
+            ...state,
+            phase: "GETTING_READY",
+            questionIndex: 0,
+            readyEndsAt: serverTime + command.readyDurationMs,
+          },
+          events: [],
+        };
+      }
       return openQuestion(state, 0, command.durationMs, serverTime);
+    case "OPEN_READY_QUESTION":
+      assertPhase(state, ["GETTING_READY"], command.type);
+      return openQuestion(state, requireQuestionIndex(state), command.durationMs, serverTime);
     case "CLOSE_QUESTION":
       assertPhase(state, ["QUESTION_OPEN"], command.type);
       return {
@@ -192,6 +211,7 @@ function openQuestion(
       roundStartsAt: serverTime,
       roundEndsAt: serverTime + durationMs,
       roundClosedAt: null,
+      readyEndsAt: null,
     },
     events: [{ type: "QUESTION_OPENED", questionIndex }],
   };

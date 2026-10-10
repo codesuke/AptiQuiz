@@ -3,6 +3,7 @@
 import type { RoomError } from "@aptiquiz/contracts";
 import { LobbyDetails, ScoringRuleCard } from "@/components/lobby/lobby-details";
 import { FinalResults } from "@/components/results/final-results";
+import { GettingReady } from "@/components/round/getting-ready";
 import { RoundQuestion } from "@/components/round/round-question";
 import { isMatchFinished } from "@/components/round/round-view";
 import { describeRoomError } from "@/lib/rooms-client";
@@ -66,7 +67,9 @@ export function HostLobby({
             : "grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(22rem,0.6fr)] lg:gap-7"
         }
       >
-        {round ? (
+        {lobby?.phase === "GETTING_READY" && lobby.ready ? (
+          <GettingReady key={lobby.ready.endsAt} ready={lobby.ready} />
+        ) : round ? (
           <div className="min-w-0 space-y-4">
             <RoundQuestion round={round} />
             <AdvanceControl

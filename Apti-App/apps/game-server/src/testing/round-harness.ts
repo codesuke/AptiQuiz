@@ -71,8 +71,10 @@ export async function openRound(
   players: readonly Pick<Player, "socket">[],
 ): Promise<OpenedRound> {
   const host = await hostRoom(port, roundRoom.roomId);
+  const hostOpened = nextRound(host);
   const rounds = Promise.all(players.map((player) => nextRound(player.socket)));
   await startRoom(host, roundRoom.roomId);
+  await hostOpened;
   return { host, rounds: await rounds };
 }
 

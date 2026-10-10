@@ -90,7 +90,12 @@ export type RoundClosedListener = (closure: RoundClosure) => void;
 
 /** `delivery` is null when a retried start repeats the first result without a transition. */
 export type StartResult =
-  | { readonly ok: true; readonly lobby: LobbySnapshot; readonly delivery: RoundDelivery | null }
+  | {
+      readonly ok: true;
+      readonly lobby: LobbySnapshot;
+      readonly delivery: RoundDelivery | null;
+      readonly started: boolean;
+    }
   | RoomFailure;
 
 /** What a fresh advance publishes; `delivery` is null when the Room finished. */
@@ -287,6 +292,7 @@ export interface RoomRegistry {
   closeIfAllAnswered(roomId: string): void;
   /** Tells `listener` about each Round closure, whatever caused it; returns an unsubscribe. */
   onRoundClosed(listener: RoundClosedListener): () => void;
+  onReadyOpened(listener: (publication: AdvancePublication) => void): () => void;
   /** Cancels every pending deadline and reconnect grace timer. */
   dispose(): void;
 }
@@ -322,6 +328,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
   const rooms = new Map<string, LiveRoom>();
   const roomIdsByJoinCode = new Map<string, string>();
   const closedListeners = new Set<RoundClosedListener>();
+  const readyListeners = new Set<(publication: AdvancePublication) => void>();
 
   function register(registration: RoomRegistration): RegistrationResult {
     if (rooms.has(registration.roomId)) {
@@ -366,7 +373,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       return NOT_ROOM_HOST;
     }
 
-    return { ok: true, lobby: toLobby(room), round: currentRoundView(room, HOST_RECEIVER) };
+    return { ok: true, lobby: toLobby(room, now()), round: currentRoundView(room, HOST_RECEIVER) };
   }
 
   function currentRoundView(room: LiveRoom, receiver: RoundReceiver): RoundView | null {
@@ -397,7 +404,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       return Promise.resolve({
         ok: true,
         participant: joined,
-        lobby: toLobby(room),
+        lobby: toLobby(room, now()),
         round: currentRoundView(room, participantReceiver(joined)),
         resumeToken: resumeTokenFor(room, joined.participantId),
         rosterChanged: false,
@@ -462,7 +469,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       return {
         ok: true,
         participant,
-        lobby: toLobby(room),
+        lobby: toLobby(room, now()),
         round: null,
         resumeToken,
         rosterChanged: true,
@@ -498,7 +505,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     return {
       ok: true,
       participant,
-      lobby: toLobby(room),
+      lobby: toLobby(room, now()),
       round: currentRoundView(room, participantReceiver(participant)),
       score: revealedScoreOf(room, participant.participantId),
     };
@@ -521,7 +528,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
 
     if (room.start !== null) {
       return room.start.idempotencyKey === idempotencyKey
-        ? { ok: true, lobby: room.start.lobby, delivery: null }
+        ? { ok: true, lobby: room.start.lobby, delivery: null, started: false }
         : ROOM_NOT_IN_LOBBY;
     }
 
@@ -536,18 +543,40 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     const serverTime = now();
     const started = tryTransition(
       room.game,
-      { type: "START", durationMs: rules.roundDurationMs },
+      { type: "START", durationMs: rules.roundDurationMs, readyDurationMs: 3_000 },
       serverTime,
     );
-    const delivery = started === null ? null : openRoundAt(room, started, serverTime);
-
-    if (delivery === null) {
+    if (started?.phase !== "GETTING_READY" || started.readyEndsAt === null) {
       return START_FAILED;
     }
-
-    const lobby = toLobby(room);
+    room.game = started;
+    scheduleReady(room, started.readyEndsAt);
+    const lobby = toLobby(room, serverTime);
     room.start = { idempotencyKey, lobby };
-    return { ok: true, lobby, delivery };
+    return { ok: true, lobby, delivery: null, started: true };
+  }
+
+  function scheduleReady(room: LiveRoom, endsAt: number): void {
+    room.cancelDeadline = schedule(endsAt, () => {
+      room.cancelDeadline = null;
+      if (room.game.phase !== "GETTING_READY" || room.game.readyEndsAt !== endsAt) return;
+      if (now() < endsAt) {
+        scheduleReady(room, endsAt);
+        return;
+      }
+      const delivery = openRoundAt(
+        room,
+        transitionGame(
+          room.game,
+          { type: "OPEN_READY_QUESTION", durationMs: rules.roundDurationMs },
+          now(),
+        ).state,
+        now(),
+      );
+      if (delivery === null) return;
+      const publication = { lobby: toLobby(room, now()), delivery };
+      for (const listener of readyListeners) listener(publication);
+    });
   }
 
   async function advance(
@@ -656,7 +685,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     idempotencyKey: string,
     delivery: RoundDelivery | null,
   ): AdvanceResult {
-    const record: AdvanceRecord = { lobby: toLobby(room), round: delivery?.host ?? null };
+    const record: AdvanceRecord = { lobby: toLobby(room, now()), round: delivery?.host ?? null };
     room.advances.set(idempotencyKey, record);
     return { ok: true, ...record, publication: { lobby: record.lobby, delivery } };
   }
@@ -724,7 +753,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     }
 
     const closure: RoundClosure = {
-      lobby: toLobby(room),
+      lobby: toLobby(room, now()),
       delivery: deliverRound(room, round, closedAt),
     };
 
@@ -809,6 +838,11 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
   function onRoundClosed(listener: RoundClosedListener): () => void {
     closedListeners.add(listener);
     return () => closedListeners.delete(listener);
+  }
+
+  function onReadyOpened(listener: (publication: AdvancePublication) => void): () => void {
+    readyListeners.add(listener);
+    return () => readyListeners.delete(listener);
   }
 
   function dispose(): void {
@@ -929,6 +963,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     disconnect,
     closeIfAllAnswered,
     onRoundClosed,
+    onReadyOpened,
     dispose,
   };
 }
@@ -1336,13 +1371,22 @@ function asRetry(result: JoinResult): JoinResult {
   return result.ok ? { ...result, rosterChanged: false } : result;
 }
 
-function toLobby(room: LiveRoom): LobbySnapshot {
+function toLobby(room: LiveRoom, serverTime: number): LobbySnapshot {
   const { registration } = room;
 
   return {
     roomId: registration.roomId,
     joinCode: registration.joinCode,
     phase: room.game.phase,
+    ...(room.game.phase === "GETTING_READY" && room.game.readyEndsAt !== null
+      ? {
+          ready: {
+            questionIndex: room.game.questionIndex ?? 0,
+            endsAt: room.game.readyEndsAt,
+            serverTime,
+          },
+        }
+      : {}),
     college: registration.college,
     questionSetTitle: registration.questionSetTitle,
     questionCount: registration.questions.length,

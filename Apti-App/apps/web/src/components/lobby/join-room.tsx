@@ -4,6 +4,7 @@ import type { LobbyParticipant, LobbySnapshot, RoomJoin } from "@aptiquiz/contra
 import { Hourglass, Lightbulb, Play, Radio } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { FinalResults } from "@/components/results/final-results";
+import { GettingReady } from "@/components/round/getting-ready";
 import { ParticipantRound } from "@/components/round/participant-round";
 import { isMatchFinished, nextRound } from "@/components/round/round-view";
 import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
@@ -516,7 +517,9 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(30rem,1fr)]">
         <div className="min-w-0 space-y-5">
-          {round !== null ? (
+          {lobby.phase === "GETTING_READY" && lobby.ready ? (
+            <GettingReady key={lobby.ready.endsAt} ready={lobby.ready} />
+          ) : round !== null ? (
             <ParticipantRound
               online={connection === "online"}
               participantId={participant.participantId}

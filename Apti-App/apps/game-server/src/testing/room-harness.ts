@@ -22,6 +22,7 @@ export const gameServerSecret = "test-secret-with-at-least-32-characters";
 export const SILENCE_WINDOW_MS = 150;
 export const TEST_ROUND_DURATION_MS = 5_000;
 export const ROUND_OPENED_AT = 1_800_000_000_000;
+export const ROOM_STARTED_AT = ROUND_OPENED_AT - 3_000;
 /** Long enough that a test only ever sees the first latency sample of a socket. */
 const TEST_LATENCY_INTERVAL_MS = 60_000;
 const TEST_LATENCY_TIMEOUT_MS = 100;
@@ -141,6 +142,8 @@ function createTestScheduler(clock: TestClock): TestScheduler {
 }
 
 let server: RunningGameServer | undefined;
+let activeClock: TestClock | undefined;
+let activeDeadlines: TestScheduler | undefined;
 const openSockets: TestSocket[] = [];
 
 /** Disconnects every test socket and stops the running server; call it after each test. */
@@ -150,6 +153,8 @@ export async function stopTestServer(): Promise<void> {
   }
   await server?.close();
   server = undefined;
+  activeClock = undefined;
+  activeDeadlines = undefined;
 }
 
 function testConfig(overrides: Partial<GameServerConfig> = {}): GameServerConfig {
@@ -182,8 +187,10 @@ export async function startServerWithStore<Store extends RoomStore>(
 ): Promise<TestServer<Store>> {
   const { logger = pino({ level: "silent" }) } = options;
   const config = testConfig(options.config);
-  const clock = createTestClock(ROUND_OPENED_AT);
+  const clock = createTestClock(ROOM_STARTED_AT);
   const deadlines = createTestScheduler(clock);
+  activeClock = clock;
+  activeDeadlines = deadlines;
   const registry = createConfiguredRegistry(config, {
     store,
     logger,
@@ -258,8 +265,14 @@ export function nextRound(socket: TestSocket): Promise<RoundView> {
   return new Promise((resolve) => socket.once("round:state", resolve));
 }
 
-export function startRoom(host: TestSocket, roomId = roomA.roomId, key = randomUUID()) {
-  return host.emitWithAck("room:start", { roomId, idempotencyKey: key });
+/** Most existing Round tests begin after the new three-second ready phase. */
+export async function startRoom(host: TestSocket, roomId = roomA.roomId, key = randomUUID()) {
+  const result = await host.emitWithAck("room:start", { roomId, idempotencyKey: key });
+  if (result.ok && result.lobby.ready && activeClock && activeDeadlines) {
+    activeClock.advance(Math.max(0, result.lobby.ready.endsAt - activeClock.now()));
+    activeDeadlines.fireDue();
+  }
+  return result;
 }
 
 export async function hostRoom(port: number, roomId: string): Promise<TestSocket> {

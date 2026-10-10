@@ -12,7 +12,7 @@ import { safeAcknowledge } from "./acknowledgement.js";
 import type { GameServerConfig } from "./config.js";
 import { identifyConnection } from "./handshake.js";
 import { createLatencySampler } from "./latency-sampler.js";
-import { publishRoundClosure, registerRoomHandlers } from "./room-handlers.js";
+import { publishAdvance, publishRoundClosure, registerRoomHandlers } from "./room-handlers.js";
 import { handleRoomRegistration } from "./room-registration.js";
 import type { RoomStore } from "./room-store.js";
 import { createRoomRegistry, type RoomRegistry } from "./rooms.js";
@@ -125,6 +125,9 @@ export function createGameServer(
   const stopPublishingClosures = registry.onRoundClosed((closure) =>
     publishRoundClosure(io, closure),
   );
+  const stopPublishingReady = registry.onReadyOpened((publication) =>
+    publishAdvance(io, publication),
+  );
 
   io.on("connection", (socket) => {
     const { identity } = socket.data;
@@ -170,6 +173,7 @@ export function createGameServer(
     close: () =>
       new Promise((resolve) => {
         stopPublishingClosures();
+        stopPublishingReady();
         registry.dispose();
         io.close(() => resolve());
       }),

@@ -362,7 +362,7 @@ describe("latency:ping", () => {
     await join(socket, "Asha", roundRoom.joinCode);
     await settle();
 
-    expect(pings).toEqual([{ serverSentAt: ROUND_OPENED_AT }]);
+    expect(pings).toEqual([{ serverSentAt: ROUND_OPENED_AT - 3_000 }]);
   });
 
   it("keeps one sampler when a socket joins again", async () => {

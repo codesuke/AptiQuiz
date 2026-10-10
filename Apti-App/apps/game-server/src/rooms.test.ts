@@ -22,6 +22,7 @@ import {
   nextRound,
   otherUser,
   postRegistration,
+  ROOM_STARTED_AT,
   ROUND_OPENED_AT,
   recordEveryEvent,
   registerRoom,
@@ -476,6 +477,63 @@ describe("room:join", () => {
 });
 
 describe("room:start", () => {
+  it("shows a shared Getting ready countdown before opening Question 1", async () => {
+    const { port, clock, deadlines } = await startWithRooms(roomA);
+    const host = await hostLobby(port);
+    const guest = await connectAs(port);
+    const joined = await join(guest, "Asha");
+    expect(joined.ok).toBe(true);
+    const guestReady = nextLobby(guest, (lobby) => lobby.phase === "GETTING_READY");
+    const firstRound = nextRound(guest);
+
+    const started = await host.emitWithAck("room:start", {
+      roomId: roomA.roomId,
+      idempotencyKey: randomUUID(),
+    });
+
+    expect(started).toMatchObject({
+      ok: true,
+      lobby: {
+        phase: "GETTING_READY",
+        ready: { endsAt: ROUND_OPENED_AT },
+      },
+    });
+    await expect(guestReady).resolves.toMatchObject({
+      phase: "GETTING_READY",
+      ready: { endsAt: ROUND_OPENED_AT },
+    });
+    if (joined.ok) {
+      await expect(
+        guest.emitWithAck("round:answer", {
+          roomId: roomA.roomId,
+          questionIndex: 0,
+          optionId: "anything",
+          idempotencyKey: randomUUID(),
+        }),
+      ).resolves.toEqual({ ok: false, error: "round_not_open" });
+      const returned = await connectAs(port);
+      await expect(
+        returned.emitWithAck("room:resume", {
+          joinCode: roomA.joinCode,
+          resumeToken: joined.resumeToken,
+        }),
+      ).resolves.toMatchObject({
+        ok: true,
+        lobby: { phase: "GETTING_READY", ready: { endsAt: ROUND_OPENED_AT } },
+        round: null,
+      });
+    }
+
+    expect(clock.now()).toBe(ROOM_STARTED_AT);
+    clock.advance(3_000);
+    deadlines.fireDue();
+    await expect(firstRound).resolves.toMatchObject({
+      phase: "QUESTION_OPEN",
+      startsAt: ROUND_OPENED_AT,
+      endsAt: ROUND_OPENED_AT + TEST_ROUND_DURATION_MS,
+    });
+  });
+
   it.each([
     ["a Guest", undefined],
     ["another User", otherUser],
@@ -491,7 +549,7 @@ describe("room:start", () => {
   });
 
   it("leaves the Lobby once and tells every member", async () => {
-    const { port, store } = await startWithRooms(roomA);
+    const { port, store, clock, deadlines } = await startWithRooms(roomA);
     const host = await hostLobby(port);
     const guest = await connectAs(port);
     await join(guest, "Asha");
@@ -503,11 +561,15 @@ describe("room:start", () => {
       idempotencyKey: randomUUID(),
     });
 
-    expect(response).toMatchObject({ ok: true, lobby: { phase: "QUESTION_OPEN" } });
-    await expect(guestSees).resolves.toMatchObject({ phase: "QUESTION_OPEN" });
-    await expect(hostSees).resolves.toMatchObject({ phase: "QUESTION_OPEN" });
+    expect(response).toMatchObject({ ok: true, lobby: { phase: "GETTING_READY" } });
+    await expect(guestSees).resolves.toMatchObject({ phase: "GETTING_READY" });
+    await expect(hostSees).resolves.toMatchObject({ phase: "GETTING_READY" });
     expect(JSON.stringify(await guestSees)).not.toContain("correctOptionId");
     expect(store.startedRoomIds).toEqual([roomA.roomId]);
+    const guestOpens = nextLobby(guest, (lobby) => lobby.phase === "QUESTION_OPEN");
+    clock.advance(3_000);
+    deadlines.fireDue();
+    await expect(guestOpens).resolves.toMatchObject({ phase: "QUESTION_OPEN" });
   });
 
   it("returns the original result for a retried key without a second transition", async () => {

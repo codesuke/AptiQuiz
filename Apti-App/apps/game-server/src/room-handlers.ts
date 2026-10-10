@@ -77,7 +77,10 @@ export function publishRoundClosure(io: GameSocketServer, { lobby, delivery }: R
 }
 
 /** A finished Room only changes its phase; a new Round also reaches every receiver. */
-function publishAdvance(io: GameSocketServer, { lobby, delivery }: AdvancePublication): void {
+export function publishAdvance(
+  io: GameSocketServer,
+  { lobby, delivery }: AdvancePublication,
+): void {
   publishLobby(io, lobby);
 
   if (delivery !== null) {
@@ -198,9 +201,9 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     socket.join(hostChannels(roomId));
     acknowledge({ ok: true, lobby: result.lobby });
 
-    if (result.delivery !== null) {
+    if (result.started) {
       publishLobby(io, result.lobby);
-      publishRound(io, roomId, result.delivery);
+      if (result.delivery !== null) publishRound(io, roomId, result.delivery);
       await persistRoomStatus(() => store.markRoomStarted(roomId), roomId, logger);
     }
   });
