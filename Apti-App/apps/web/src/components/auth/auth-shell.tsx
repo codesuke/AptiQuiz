@@ -48,37 +48,53 @@ export function AuthShell({
       <div className="mx-auto grid min-h-[calc(100svh-120px)] max-w-[1500px] gap-8 lg:grid-cols-[minmax(0,54fr)_minmax(0,46fr)] lg:gap-0">
         <section
           aria-labelledby="auth-artwork-title"
-          className="relative hidden min-h-[680px] overflow-hidden rounded-[28px] bg-[#f7e7d3] lg:flex lg:flex-col"
+          className="relative hidden min-h-[680px] overflow-hidden rounded-[28px] bg-[#15191f] text-[#fdfbf7] lg:flex lg:flex-col"
         >
-          <Image
-            alt=""
-            className="object-cover object-center"
-            fill
-            priority
-            sizes="(min-width: 1024px) 54vw, 0px"
-            src="/images/auth-orbit.png"
-          />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(253,251,247,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(253,251,247,0.055)_1px,transparent_1px)] bg-[size:42px_42px]" />
+          <div className="absolute -right-32 top-[18%] h-[34rem] w-[34rem] rounded-full border border-[#ffb380]/30" />
+          <div className="absolute -right-10 top-[32%] h-[22rem] w-[22rem] rounded-full border border-[#ffb380]/20" />
+
           <div className="relative z-10 p-10 xl:p-14">
-            <p className="inline-flex rounded-full border border-[#b84700]/20 bg-[#fdfbf7]/75 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[#85400f] backdrop-blur-sm">
-              Practice · Compete · Improve
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ffb380]">
+              Aptitude, under pressure
             </p>
             <h2
-              className="mt-7 max-w-[650px] text-[clamp(2.8rem,4vw,4.4rem)] font-medium leading-[1.03] tracking-[-0.055em]"
+              className="mt-7 max-w-xl text-[clamp(3rem,4.2vw,4.75rem)] font-medium leading-[0.98] tracking-[-0.06em]"
               id="auth-artwork-title"
             >
-              Make every second
-              <br />
-              count.
+              Every question is a chance to get sharper.
             </h2>
-            <p className="mt-5 max-w-[360px] text-base leading-relaxed text-[#4b5563] xl:text-lg">
-              Build your accuracy. Find your pace. Come back ready for the next Round.
+            <p className="mt-6 max-w-sm text-base leading-relaxed text-[#c9c4ba] xl:text-lg">
+              Come back to the work: clear thinking, quick decisions, and another chance to improve.
             </p>
           </div>
-          <div className="relative z-10 m-8 mt-auto flex items-center justify-between gap-3 rounded-2xl border border-white/70 bg-[#fdfbf7]/80 px-5 py-4 text-sm text-[#54351f] shadow-[0_12px_36px_rgba(107,65,20,0.1)] backdrop-blur-md xl:m-10 xl:px-6">
-            <span className="font-medium">Accuracy meets pace.</span>
-            <span aria-hidden="true" className="font-mono text-xs tracking-[0.16em]">
-              APTIQUIZ / 01
-            </span>
+
+          <div className="relative z-10 mx-8 mt-auto mb-8 xl:mx-10 xl:mb-10">
+            <div className="relative max-w-[510px] rotate-[-3deg] rounded-2xl border border-white/15 bg-[#fdfbf7] p-5 text-[#111827] shadow-[20px_24px_0_rgba(230,92,0,0.9)] transition-transform duration-700 ease-out hover:rotate-0 xl:p-7">
+              <div className="flex items-center justify-between gap-4 border-b border-[#e5e1d9] pb-4">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[#76563f]">
+                  Pattern reasoning
+                </span>
+                <span className="h-2.5 w-2.5 rounded-full bg-[#e65c00]" />
+              </div>
+              <p className="mt-6 max-w-sm text-xl font-medium leading-snug tracking-[-0.035em] xl:text-2xl">
+                Which number completes the pattern?
+              </p>
+              <div className="mt-7 grid grid-cols-4 gap-2 font-mono text-sm font-semibold sm:gap-3">
+                <span className="rounded-lg border border-[#ddd8cf] px-3 py-3 text-center text-[#4b5563]">
+                  6
+                </span>
+                <span className="rounded-lg border border-[#ddd8cf] px-3 py-3 text-center text-[#4b5563]">
+                  12
+                </span>
+                <span className="rounded-lg bg-[#b84700] px-3 py-3 text-center text-white shadow-[0_5px_0_#7f3000]">
+                  18
+                </span>
+                <span className="rounded-lg border border-[#ddd8cf] px-3 py-3 text-center text-[#4b5563]">
+                  24
+                </span>
+              </div>
+            </div>
           </div>
         </section>
 
