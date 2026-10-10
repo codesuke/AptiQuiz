@@ -1,7 +1,9 @@
 # Home College screen reference
 
-`screens/current/home-college.png` is a generated desktop design reference for `/college` (1672 × 941). It shows a User who has selected Indian Institute of Technology Bombay and arrived from the hosting flow. The live page uses the real College search results and only shows “Continue to hosting” when that return path is present.
+The [editorial reference](screens/current/home-college-editorial.png) follows the user-provided `design-mocks/College.png` direction: three open columns, serif headline, unboxed search results, a Rooms note, and campus line art. The older [first concept](screens/current/home-college.png) remains for comparison.
 
-The visual direction follows `DESIGN.md`: ivory canvas, ink typography, AptiQuiz orange, and an accessible dark-orange action. The search panel, selected state, and responsive layout are implemented in the web app. The PNG is a concept mock, not a browser capture of a signed-in session.
+The [desktop](screens/prototypes/home-college-desktop.png) and [mobile](screens/prototypes/home-college-mobile.png) captures show the implemented `/college` UI with sample search results. They were rendered in a temporary development preview with mocked College data; the preview path was removed afterward. The real page uses approved Colleges returned by the API. Selection and hosting navigation remain live.
 
-Generation prompt: `prompts/home-college.txt`.
+The generated [campus illustration](../../../Apti-App/apps/web/public/images/college-campus-engraving.png) is decorative. It depicts no named institution. The UI uses the approved AptiQuiz logo asset, dark-orange action color, and accurate product copy. College monograms are derived from names; the image reference's institutional crests and location metadata were not copied because the app does not store them.
+
+Generation prompts: [first concept](prompts/home-college.txt), [editorial reference](prompts/home-college-editorial.txt), [campus illustration](prompts/campus-engraving.txt).
