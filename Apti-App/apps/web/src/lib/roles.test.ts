@@ -22,4 +22,10 @@ describe("resolveRole", () => {
     vi.stubEnv("ADMIN_EMAILS", "other@example.com");
     expect(resolveRole(session)).toBe("user");
   });
+
+  it("never grants Admin access from empty or malformed allow-list entries", () => {
+    const session = { user: { email: "", emailVerified: true } };
+    expect(resolveRole(session, "")).toBe("user");
+    expect(resolveRole(session, ",  , invalid-address")).toBe("user");
+  });
 });

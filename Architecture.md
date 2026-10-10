@@ -351,13 +351,14 @@ The accepted target has these parts:
 
 ## Failure Rules
 
-Only the health, time-ping, and handshake failure behavior exists at this time. The other rules are requirements for future product slices.
+Health, time-ping, handshake, email/password authentication, and Admin access failure behavior exists at this time. The other rules are requirements for future product slices.
 
 - If a Socket Ticket is expired, the Game Server refuses the connection with `socket_ticket_expired`.
 - If a Socket Ticket is altered, malformed, or for another audience, the Game Server refuses the connection with `socket_ticket_invalid`.
 - If `GAME_SERVER_SECRET` is missing or shorter than 32 characters, the Game Server does not start.
 - If a `time:ping` payload is invalid, the Game Server returns `invalid_time_ping`.
 - If a User is suspended, Better Auth refuses a new session and rejects existing sessions on the next auth request. Server-rendered pages treat the session as inactive.
+- If an authenticated User lacks Admin access, `/admin` shows "Not allowed". A Guest is redirected to sign in.
 - If an HTTP path is not available, the Game Server returns HTTP 404 and `not_found`.
 - If a future Answer is late, the Game Server must reject the Answer by server time.
 - If a future Answer is a duplicate, the Game Server must not add the score two times.
