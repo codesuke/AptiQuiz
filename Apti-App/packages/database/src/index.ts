@@ -10,6 +10,15 @@ export function createDatabase(connectionString: string): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
+export {
+  type CollegeLeague,
+  type CollegeStanding,
+  getCollegeLeague,
+  LEAGUE_TABLE_SIZE,
+  type LeaguePeriod,
+  leaguePeriodAt,
+  type ParticipantStanding,
+} from "./college-league.js";
 export { APPROVED_COLLEGES, collegeIdFor, normalizeCollegeName, seedColleges } from "./colleges.js";
 export type { PrismaClient } from "./generated/prisma/client.js";
 export { Prisma } from "./generated/prisma/client.js";

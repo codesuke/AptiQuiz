@@ -3,5 +3,6 @@ export function getHomeDestinations(signedIn: boolean) {
     questionSets: signedIn ? "/question-sets" : "/sign-in",
     hosting: "/host",
     joining: "/join",
+    league: "/league",
   } as const;
 }
