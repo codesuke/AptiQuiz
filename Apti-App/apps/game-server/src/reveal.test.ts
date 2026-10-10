@@ -35,10 +35,13 @@ import {
 /** A correct Answer received this long after the Round opens scores 880 points. */
 const ASHA_RESPONSE_MS = 1_299;
 const ASHA_POINTS = 880;
+/** Asha's elapsed time floored to the 100 ms score bucket, with no latency samples. */
+const ASHA_EFFECTIVE_RESPONSE_MS = 1_200;
 const RAVI_RESPONSE_MS = 2_000;
 /** Ends well before the test deadline, so only the grace re-check can close the Round. */
 const SHORT_GRACE_MS = 1_000;
 const HIDDEN_QUESTION_FIELDS = ["correctOptionId", "explanation"] as const;
+const HIDDEN_RESULT_FIELDS = ["correct", "points", "effectiveResponseMs", "scores"] as const;
 
 afterEach(stopTestServer);
 
@@ -134,8 +137,18 @@ describe("Round closure at the deadline", () => {
       answer: null,
       result: { correct: false, points: 0 },
       scores: [
-        { ...score(table.asha, "Asha", ASHA_POINTS), answered: true, correct: true },
-        { ...score(table.ravi, "Ravi", 0), answered: false, correct: false },
+        {
+          ...score(table.asha, "Asha", ASHA_POINTS),
+          answered: true,
+          correct: true,
+          effectiveResponseMs: ASHA_EFFECTIVE_RESPONSE_MS,
+        },
+        {
+          ...score(table.ravi, "Ravi", 0),
+          answered: false,
+          correct: false,
+          effectiveResponseMs: null,
+        },
       ],
     });
   });
@@ -212,6 +225,21 @@ describe("early Round closure", () => {
     expect(findFieldPaths(hosted, HIDDEN_QUESTION_FIELDS)).toEqual([]);
   });
 
+  it("sends no correctness, points, or response time while the Round is open", async () => {
+    const table = await openTable();
+    const ashaViews = collectRounds(table.asha.socket);
+    const hostViews = collectRounds(table.host);
+    const accepted = await answerAt(table, table.asha, ASHA_RESPONSE_MS, CORRECT_OPTION_TEXT);
+    await settle();
+    const hosted = await table.host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+    const rejoined = await join(table.asha.socket, "Asha", roundRoom.joinCode, table.asha.key);
+    const openPayloads = [accepted, hosted, rejoined, ...ashaViews, ...hostViews];
+
+    expect(hosted).toMatchObject({ ok: true, round: { phase: "QUESTION_OPEN" } });
+    expect(rejoined).toMatchObject({ ok: true, round: { phase: "QUESTION_OPEN" } });
+    expect(findFieldPaths(openPayloads, HIDDEN_RESULT_FIELDS)).toEqual([]);
+  });
+
   it("closes when the last Participant without an Answer loses every socket for the grace", async () => {
     const table = await openTable({ config: { reconnectGraceMs: SHORT_GRACE_MS } });
     const secondSocket = await connectAs(table.testServer.port);
@@ -284,8 +312,18 @@ describe("Round reveal", () => {
     const ashaAnswer = await answerAt(table, table.asha, ASHA_RESPONSE_MS, CORRECT_OPTION_TEXT);
     const raviAnswer = await answerAt(table, table.ravi, RAVI_RESPONSE_MS, WRONG_OPTION_TEXT);
     const scores = [
-      { ...score(table.asha, "Asha", ASHA_POINTS), answered: true, correct: true },
-      { ...score(table.ravi, "Ravi", 0), answered: true, correct: false },
+      {
+        ...score(table.asha, "Asha", ASHA_POINTS),
+        answered: true,
+        correct: true,
+        effectiveResponseMs: ASHA_EFFECTIVE_RESPONSE_MS,
+      },
+      {
+        ...score(table.ravi, "Ravi", 0),
+        answered: true,
+        correct: false,
+        effectiveResponseMs: RAVI_RESPONSE_MS,
+      },
     ];
 
     await expect(ashaReveal).resolves.toMatchObject({

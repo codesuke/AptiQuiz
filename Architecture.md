@@ -191,7 +191,7 @@ The registry tracks the live sockets of each Participant. It closes the open Rou
 - The deadline timer fires after `endsAt`. The timer is set when the Round opens and does not depend on any Answer.
 - An accepted Answer, or the disconnect of a Participant's last socket, leaves every connected Participant with an Answer. Early closure needs at least one connected Participant.
 
-The close happens only from `QUESTION_OPEN`, so a race between the timer and an Answer closes and reveals one time. The registry then publishes a revealed `round:state` to each receiver and `room:lobby` with `QUESTION_REVEAL`. After closure, a new Answer gets `round_not_open`, and a same-key replay returns the first result. The scores, Answers, and deadline do not change. Rejoin and host acknowledgements return the revealed view.
+The close happens only from `QUESTION_OPEN`, so a race between the timer and an Answer closes and reveals one time. The registry then publishes a revealed `round:state` to each receiver and `room:lobby` with `QUESTION_REVEAL`. Each revealed score contains `effectiveResponseMs`, the same bucketed Effective Response Time that the server used for the points, or `null` for a Participant without an accepted Answer. An open Round view contains no correctness, points, or response time. After closure, a new Answer gets `round_not_open`, and a same-key replay returns the first result. The scores, Answers, and deadline do not change. Rejoin and host acknowledgements return the revealed view.
 
 The Resume Token is base64url HMAC-SHA256 of `resume:<roomId>:<participantId>`, keyed by `GAME_SERVER_SECRET`. Only the joining socket's acknowledgement carries it. A join retried after a lost acknowledgement gets the same token, and the server stores only its SHA-256 hash: in memory, and in `Participant.resumeTokenHash`. The browser keeps the token in `localStorage` for each Join Code. On every connection it resumes before it shows itself online. It retries a lost acknowledgement at most 5 times. After a refusal it drops the token.
 
@@ -238,7 +238,7 @@ The package currently defines these interfaces:
 - `roomRegistrationSchema`, `createRoomRequestSchema`, and `lobbySnapshotSchema`
 - `roomHostSchema`, `roomJoinSchema`, `roomStartSchema`, and their response schemas
 - `publicQuestionSchema`, `openRoundSchema`, and `roundViewSchema`
-- `roundScoreSchema`, `roundResultSchema`, and `revealedRoundSchema`
+- `roundScoreSchema`, `roundResultSchema`, and `revealedRoundSchema`. A Round score has `effectiveResponseMs`: the bucketed Effective Response Time used for its points, or `null` without an accepted Answer. Only a revealed Round contains Round scores.
 - `roomAdvanceSchema` and `roomAdvanceResponseSchema`
 - `resumeTokenSchema`, `roomResumeSchema`, and `roomResumeResponseSchema`
 - `roundRulesSchema`, `lockedAnswerSchema`, `roundAnswerSchema`, `answerErrorSchema`, `roundAnswerResponseSchema`, and `latencyPingSchema`

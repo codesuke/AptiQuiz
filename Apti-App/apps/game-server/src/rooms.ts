@@ -1263,11 +1263,20 @@ function resultOf(recorded: RecordedAnswer | undefined): RoundResult {
     : { correct: recorded.correct, points: recorded.points };
 }
 
-/** Every joined Participant in join order; without an accepted Answer a Participant earns 0. */
+/**
+ * Every joined Participant in join order; without an accepted Answer a Participant earns 0 and
+ * has no Effective Response Time. Only revealed Rounds carry these scores.
+ */
 function roundScores(room: LiveRoom, round: ActiveRound): RoundScore[] {
   return [...room.participants.values()].map(({ participantId, displayName }) => {
     const recorded = recordedAnswerOf(room, round, participantId);
-    return { participantId, displayName, answered: recorded !== undefined, ...resultOf(recorded) };
+    return {
+      participantId,
+      displayName,
+      answered: recorded !== undefined,
+      ...resultOf(recorded),
+      effectiveResponseMs: recorded?.effectiveResponseMs ?? null,
+    };
   });
 }
 

@@ -241,6 +241,11 @@ export const roundScoreSchema = roundResultSchema.extend({
   participantId: z.string().min(1),
   displayName: displayNameSchema,
   answered: z.boolean(),
+  /**
+   * The bucketed Effective Response Time the server scored this Participant's accepted Answer
+   * with, in milliseconds; null without an accepted Answer. Sent only in a revealed Round.
+   */
+  effectiveResponseMs: z.number().int().nonnegative().nullable().optional(),
 });
 
 /**
