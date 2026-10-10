@@ -1,6 +1,73 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-2"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Colleges & Home College"
+    status: "working_with_limitations"
+    summary: "Added a seeded list of 70 approved Colleges, a Home College for each User, a host entry point that requires one, and a Socket Ticket claim that carries it."
+    areas:
+      - "colleges"
+      - "web interface"
+      - "database schema"
+      - "Socket Ticket"
+    working:
+      - "Re-running the College seed creates no duplicates and keeps IDs stable (college_<slug>, unique normalized name)."
+      - "A signed-in User searches Colleges at /college and sets or changes one Home College; the account menu shows it; Guests never see the picker."
+      - "Host a match (/host) sends Guests to sign-in and Users without a Home College to /college?next=/host, then back; a User with one sees the College a Room will use."
+      - "requireHostCollege returns the Home College or home_college_required."
+      - "The Socket Ticket homeCollegeId claim carries the current Home College, or null."
+      - "GET /api/colleges rejects queries over 80 characters or 6 words with 400."
+    limitations:
+      - "Room creation does not exist; a Room storing the Host's College and Guest join without a picker belong to PRD #4."
+      - "A completed result keeping the College held at match time belongs to PRD #7."
+      - "db:seed exists but nothing runs it on deploy; that belongs to PRD #11."
+      - "The authenticated redirect-and-return flow and the Continue to hosting link were not checked in a browser."
+      - "Web tests read the built @aptiquiz/contracts dist; build contracts first on a fresh checkout."
+    prd:
+      issue: 2
+      url: "https://github.com/codesuke/AptiQuiz/issues/2"
+    slices:
+      - issue: 21
+        title: "Seed approved Colleges"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/21"
+      - issue: 22
+        title: "User chooses a Home College"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/22"
+      - issue: 23
+        title: "Hosting requires a Home College"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/23"
+      - issue: 37
+        title: "Socket Ticket carries the Home College"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/37"
+    author:
+      name: "Codesuke"
+      handle: "Codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "1429ab1"
+        - "d65908d"
+        - "ae521e7"
+        - "2d158ce"
+        - "da3c778"
+      tests:
+        - "web 64/64, game-server 13, contracts 2; typecheck, biome, and production build pass"
+        - "College seed idempotency and Home College selection against the configured PostgreSQL"
+    archive:
+      prd: "docs/Specs-Completed/2-colleges-and-home-college/PRD.md"
+      slices:
+        - "docs/Specs-Completed/2-colleges-and-home-college/slices/21-seed-approved-colleges.md"
+        - "docs/Specs-Completed/2-colleges-and-home-college/slices/22-user-chooses-a-home-college.md"
+        - "docs/Specs-Completed/2-colleges-and-home-college/slices/23-hosting-requires-a-home-college.md"
+        - "docs/Specs-Completed/2-colleges-and-home-college/slices/37-socket-ticket-carries-the-home-college.md"
   - id: "2026-10-10-github-prd-1"
     changed_at: "2026-10-10"
     kind: "feature"
