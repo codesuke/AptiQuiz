@@ -1,0 +1,19 @@
+# See https://github.com/github/gitignore for stack-specific starting points.
+
+# env
+.env
+.env*.local
+
+# misc
+.DS_Store
+*.pem
+*.log
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# TODO (BOOTSTRAP.md step 4): add stack-specific ignores once the project's
+# language/framework is chosen (e.g. /.next/, /build, /dist, /coverage,
+# *.tsbuildinfo, __pycache__/, target/).

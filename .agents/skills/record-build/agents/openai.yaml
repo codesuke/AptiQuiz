@@ -1,0 +1,4 @@
+interface:
+  display_name: "Record Build"
+  short_description: "Maintain the agent-readable project changelog"
+  default_prompt: "Use $record-build to record this implemented change in the agent-readable changelog."

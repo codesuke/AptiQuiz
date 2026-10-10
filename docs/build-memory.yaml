@@ -1,0 +1,64 @@
+schema_version: 1
+purpose: "Agent-readable changelog of implemented project behavior."
+changes:
+  - id: "2026-10-09-defer-project-automation"
+    changed_at: "2026-10-09"
+    kind: "removal"
+    title: "Remove generic project automation"
+    status: "working"
+    summary: "Removed stack-dependent automation from Starter-Pack so generated projects choose hooks, formatting, dependency management, security scanning, and CI/CD from their actual requirements."
+    areas:
+      - "project bootstrap"
+      - "developer tooling"
+      - "repository automation"
+    working:
+      - "Starter-Pack contains no enabled or placeholder GitHub Actions workflows."
+      - "Starter-Pack contains no Dependabot configuration."
+      - "Starter-Pack contains no Husky, lint-staged, or Prettier configuration."
+      - "BOOTSTRAP.md requires projects to select and document only the tooling they need."
+    limitations:
+      - "Generated projects have no automated checks until project-specific tooling is configured during bootstrap."
+    author:
+      name: "Codesuke"
+      type: "human"
+    co_authors:
+      - name: "OpenAI Codex"
+        type: "agent"
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "Repository scan confirms the generic automation files and active documentation references are absent."
+  - id: "2026-10-09-starter-pack-v0.1.0"
+    changed_at: "2026-10-09"
+    version: "0.1.0"
+    kind: "feature"
+    title: "GitHub-first agent delivery workflow"
+    status: "working"
+    summary: "Established the Starter Pack's canonical path from product grilling through GitHub PRDs and slices to verified implementation and durable completion records."
+    areas:
+      - "agent workflow"
+      - "project documentation"
+      - "skill management"
+    working:
+      - "Agents use /grilling, /to-specs, /to-tickets, and /implement-spec as the primary development lifecycle."
+      - "Planned and active PRDs and slices live only in GitHub Issues."
+      - "/to-tickets supports vertical, horizontal, and hybrid slices with native GitHub relationships."
+      - "Completed PRDs and slices are archived under docs/Specs-Completed/."
+      - "/record-build maintains this newest-first changelog with behavior, limitations, verification, and authorship."
+      - "Agents are instructed to read this changelog before changing existing behavior."
+    limitations:
+      - "PRD and slice operations require an authenticated GitHub CLI and a configured repository."
+    author:
+      name: "Codesuke"
+      type: "human"
+    co_authors:
+      - name: "OpenAI Codex"
+        type: "agent"
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "All five workflow skills passed quick_validate.py."
+        - "The changelog schema and example parsed successfully as YAML."
+        - "The lifecycle rule and skill-discovery audit passed."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "To Specs"
+  short_description: "Publish a settled PRD as a GitHub Issue"
+  default_prompt: "Use $to-specs to publish this settled feature as a PRD issue."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement Spec"
+  short_description: "Implement and archive a GitHub PRD"
+  default_prompt: "Use $implement-spec to implement this GitHub PRD and its slices."
