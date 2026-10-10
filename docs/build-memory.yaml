@@ -1,6 +1,54 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-69"
+    changed_at: "2026-10-10"
+    kind: "change"
+    title: "Host live Room roster, reveal ranking, and QR presence"
+    status: "working_with_limitations"
+    summary: "The active Host Room keeps the Question primary, moves Room details with QR and a scrollable roster below it, and shows fastest-correct, correct-count, and Round points at each reveal from server Effective Response Time."
+    areas:
+      - "contracts"
+      - "game server reveal"
+      - "live Room web UI"
+    working:
+      - "Revealed Round scores include effectiveResponseMs (server bucketed value) or null; open Round views expose no correctness, points, or timing."
+      - "Getting-ready, Question, and reveal phases show Question, then standings, then a utility row with QR Room details ('Match in progress — joining is closed.') and a ~7-row scrollable roster with count."
+      - "Each Host reveal shows the fastest correct Participant and time, or 'No correct answers this Round', plus the correct-answer count."
+      - "Leaderboard rows keep server order, show +Round points on the Host view, and slide from previous rank with reduced-motion support."
+    limitations:
+      - "Visual checks used fixture renders at 1440px and 390px; no full authenticated live Match was replayed in a browser."
+      - "Participants also see the rank-slide motion because it lives in the shared Leaderboard row."
+    prd:
+      issue: 69
+      url: "https://github.com/codesuke/AptiQuiz/issues/69"
+    slices:
+      - issue: 70
+        title: "Expose revealed Round speed data safely"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/70"
+      - issue: 71
+        title: "Reframe the active Host Room around the Question"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/71"
+      - issue: 72
+        title: "Make revealed Round outcomes and rank changes legible"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/72"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "a2d3290"
+        - "d1277c1"
+        - "2c32d7e"
+      tests:
+        - "Contracts 6/6, Game Server 165/165, Web 215/215 tests passed."
+        - "Workspace typecheck and Biome lint passed."
   - id: "2026-10-10-github-prd-67"
     changed_at: "2026-10-10"
     kind: "change"
