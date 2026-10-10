@@ -40,7 +40,7 @@ Percent-encode reserved characters in the username or password. For a Dokploy-ma
    NEXT_PUBLIC_GAME_SERVER_URL=https://game.example.com
    ```
 
-   If these build arguments are missing, the Dockerfile falls back to `http://localhost:3001` for the Game Server. The web server then tries to register each new Room at `localhost` inside its own container, and **Create Room** fails with "The Game Server did not accept the Room" (HTTP 502). Because Next.js inlines `NEXT_PUBLIC_*` values at build time, a runtime environment variable with the same name does not fix this; rebuild with the build arguments instead.
+   If these build arguments are missing, the Dockerfile falls back to the AptiQuiz production domains (`https://aptiquiz.codesuke.in` and `https://game.aptiquiz.codesuke.in`). Any other deployment must set them. Otherwise the web server registers each new Room at the wrong Game Server, and **Create Room** fails with "The Game Server did not accept the Room" (HTTP 502). Because Next.js inlines `NEXT_PUBLIC_*` values at build time, a runtime environment variable with the same name does not fix this; rebuild with the build arguments instead.
 
 5. Add these runtime environment variables in Dokploy's Environment tab:
 

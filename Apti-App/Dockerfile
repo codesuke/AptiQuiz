@@ -34,8 +34,10 @@ RUN --mount=type=cache,id=aptiquiz-pnpm-store,target=/pnpm/store \
     pnpm install --offline --frozen-lockfile
 
 # Next.js embeds NEXT_PUBLIC_* values into the browser bundle at build time.
-ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
-ARG NEXT_PUBLIC_GAME_SERVER_URL=http://localhost:3001
+# Defaults target the production deployment; override them with build arguments for any
+# other environment.
+ARG NEXT_PUBLIC_APP_URL=https://aptiquiz.codesuke.in
+ARG NEXT_PUBLIC_GAME_SERVER_URL=https://game.aptiquiz.codesuke.in
 
 ENV NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL"
 ENV NEXT_PUBLIC_GAME_SERVER_URL="$NEXT_PUBLIC_GAME_SERVER_URL"
