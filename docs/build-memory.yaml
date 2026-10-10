@@ -14,13 +14,12 @@ changes:
     working:
       - "A WebSocket-only Socket.IO handshake from the web origin connects to https://game.aptiquiz.codesuke.in."
       - "The Game Server CORS policy grants only https://aptiquiz.codesuke.in."
-      - "The web start command applies all migrations to an empty schema; the Game Server never migrates."
+      - "The web container applies a new migration at start: the deploy of 3068edd applied 20261010152001_match_result_completed_at_index on 2026-10-10 15:22:03 UTC (web container log and production _prisma_migrations row). The Game Server never migrates."
       - "A pattern scan of tracked files and history found only placeholders (no general scanner such as gitleaks was run)."
       - "Production Google sign-in and verification/reset email links were confirmed by the owner."
       - "README has a Deployment section; web tests blank GMAIL_USER and GMAIL_APP_PASSWORD so no test sends real mail."
     limitations:
       - "Probes ran from Node, not a real browser."
-      - "Migrations were proven on a scratch schema; the container and Dokploy logs were not inspected."
       - "Email link domain rests on the owner's report."
       - "Live Rooms are lost on a Game Server restart; Redis stays unused."
     prd:
@@ -54,9 +53,11 @@ changes:
         - "b955b73"
         - "8496c5a"
         - "8a443e2"
+        - "3068edd"
       tests:
         - "Probe evidence comments on issues #63, #64, #65 (2026-10-10)."
         - "Web google-sign-in.integration and mail-sender tests: 9 passed after the test-config fix (outside #11 acceptance)."
+        - "Dokploy web container log, 2026-10-10 15:22:03 UTC: Applying migration 20261010152001_match_result_completed_at_index, then All migrations have been successfully applied."
         - "Headless Chrome on https://aptiquiz.codesuke.in showed 'Game server online' as a Guest."
     archive:
       prd: "docs/Specs-Completed/11-dokploy-deployment/PRD.md"

@@ -231,7 +231,7 @@ AptiQuiz runs on Dokploy as two applications built from `Apti-App/Dockerfile` (s
 - **Restarts:** live Rooms are held in memory and are lost when the Game Server restarts. Avoid a redeploy during a live demo.
 - **Result of the 50-Participant run:** see the [50-Participant proof](#50-participant-proof).
 
-Checked on 2026-10-10: both health endpoints respond over HTTPS; a WebSocket-only handshake from the web origin connects, and a headless Chrome page load shows the Game Server online; the Game Server CORS policy only ever grants the web origin, so browsers on other origins block responses; the web start migration command applies all migrations to an empty schema (run by hand on a scratch schema, not observed in a Dokploy deploy); a pattern scan of tracked files and history found no secret value; the owner reported that production Google sign-in and email links work. Details and limits: [PRD #11 archive](docs/Specs-Completed/11-dokploy-deployment/PRD.md).
+Checked on 2026-10-10: both health endpoints respond over HTTPS; a WebSocket-only handshake from the web origin connects, and a headless Chrome page load shows the Game Server online; the Game Server CORS policy only ever grants the web origin, so browsers on other origins block responses; the web container applies a new migration at start (deploy of `3068edd` applied `20261010152001_match_result_completed_at_index`, seen in the container log); a pattern scan of tracked files and history found no secret value; the owner reported that production Google sign-in and email links work. Details and limits: [PRD #11 archive](docs/Specs-Completed/11-dokploy-deployment/PRD.md).
 
 ## Architecture
 

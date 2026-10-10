@@ -29,7 +29,6 @@
 ## Known limitations
 
 - Probes were run from Node, not a real browser.
-- Migrations were proven on a scratch schema; Docker was unavailable, so the container and Dokploy logs were not inspected.
 - The email link domain is confirmed by the owner's report only.
 - Live Rooms are lost on a Game Server restart.
 

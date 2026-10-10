@@ -40,3 +40,7 @@ Evidence comment on issue #64. Docker was unavailable, so the container itself a
 ## Authorship
 
 Codesuke <codesuke@gmail.com> is the repository author. Probes and docs were produced with an AI agent under the user's direction.
+
+## Addendum: deploy evidence
+
+The deploy of commit `3068edd` ran the web container with 9 migrations. Its log on 2026-10-10 15:22:03 UTC shows `Applying migration 20261010152001_match_result_completed_at_index` and `All migrations have been successfully applied`, followed by `next start`. The production `_prisma_migrations` row and the index `MatchResult_completedAt_idx` agree.
