@@ -1,5 +1,5 @@
 import { listQuestionSets, seedStarterQuestionSet } from "@aptiquiz/database";
-import { ArrowLeft, ArrowUpRight, Building2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Building2, Check } from "lucide-react";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
@@ -20,6 +20,13 @@ export default async function HostPage({
   if (!session) redirect("/sign-in");
   const query = await searchParams;
 
+  const initials = session.user.name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
   const decision = await requireHostCollege(database, session.user.id);
   if (!decision.ok) {
     const returnTo = query.questionSetId
@@ -29,9 +36,8 @@ export default async function HostPage({
   }
 
   await seedStarterQuestionSet(database);
-  const questionSets: HostableQuestionSet[] = (
-    await listQuestionSets(database, session.user.id)
-  ).map((set) => ({
+  const sets = await listQuestionSets(database, session.user.id);
+  const questionSets: HostableQuestionSet[] = sets.map((set) => ({
     id: set.id,
     title: set.title,
     questionCount: set.questions.length,
@@ -39,59 +45,87 @@ export default async function HostPage({
   }));
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#fdfbf7] px-5 text-[#1d2925] sm:px-8">
-      <div aria-hidden="true" className="absolute inset-x-0 top-[4.75rem] h-px bg-[#deded4]" />
+    <main className="relative min-h-screen overflow-hidden bg-[#fdfbf7] text-[#132922]">
+      <div aria-hidden="true" className="absolute inset-x-0 top-[4.75rem] h-px bg-[#e5e2dc]" />
       <div
         aria-hidden="true"
-        className="absolute right-0 top-[4.75rem] hidden h-[38rem] w-[min(39vw,36rem)] bg-[linear-gradient(to_right,transparent_0,transparent_23px,#e8e5dc_24px),linear-gradient(to_bottom,transparent_0,transparent_23px,#e8e5dc_24px)] bg-[size:24px_24px] opacity-60 lg:block"
+        className="absolute right-0 top-[4.75rem] hidden h-[45rem] w-[min(37vw,39rem)] bg-[linear-gradient(to_right,transparent_0,transparent_23px,#e8e5dc_24px),linear-gradient(to_bottom,transparent_0,transparent_23px,#e8e5dc_24px)] bg-[size:24px_24px] opacity-60 lg:block"
       />
 
-      <header className="relative mx-auto flex min-h-[4.75rem] max-w-7xl items-center justify-between gap-4">
-        <Link
-          aria-label="AptiQuiz home"
-          className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
-          href="/"
-        >
-          <Image
-            alt=""
-            className="h-auto w-32 sm:w-36"
-            height={724}
-            src="/brand/aptiquiz-logo.png"
-            width={2172}
-          />
-        </Link>
-        <Link
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#38463f] transition-colors hover:text-[#b84700] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
-          href="/"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Back to home
-        </Link>
+      <header className="relative mx-auto flex min-h-[4.75rem] max-w-[1720px] items-center justify-between gap-4 px-5 sm:px-8 xl:px-12">
+        <div className="flex min-w-0 items-center gap-4 sm:gap-7">
+          <Link
+            aria-label="AptiQuiz home"
+            className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
+            href="/"
+          >
+            <Image
+              alt=""
+              className="h-auto w-32 sm:w-36"
+              height={724}
+              src="/brand/aptiquiz-logo.png"
+              width={2172}
+            />
+          </Link>
+          <span aria-hidden="true" className="hidden h-8 w-px bg-[#d8d4cd] sm:block" />
+          <span className="hidden whitespace-nowrap font-mono text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#5e6a63] lg:block">
+            Practice today. Place tomorrow.
+          </span>
+        </div>
+        <div className="flex items-center gap-4 sm:gap-7">
+          <Link
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#24362f] transition-colors hover:text-[#b84700] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
+            href="/"
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            Back to home
+          </Link>
+          <span aria-hidden="true" className="hidden h-8 w-px bg-[#d8d4cd] sm:block" />
+          <span
+            aria-label={`Signed in as ${session.user.name}`}
+            className="hidden size-10 shrink-0 items-center justify-center rounded-full bg-[#e8e4da] text-sm font-semibold text-[#22342d] sm:flex"
+            role="img"
+          >
+            {initials || "U"}
+          </span>
+        </div>
       </header>
 
-      <section className="relative mx-auto grid max-w-7xl items-start gap-12 py-14 sm:py-20 lg:grid-cols-[minmax(0,0.82fr)_minmax(34rem,1.18fr)] lg:gap-16 lg:py-16">
-        <div className="max-w-xl pt-3 lg:sticky lg:top-12">
-          <p className="flex items-center gap-3 font-mono text-xs font-semibold uppercase tracking-[0.24em] text-[#627169]">
+      <section className="relative mx-auto grid max-w-[1720px] items-center gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:min-h-[calc(100vh-4.75rem)] lg:grid-cols-[minmax(0,0.95fr)_minmax(35rem,1.05fr)] lg:gap-12 lg:px-12 lg:py-12">
+        <div className="relative max-w-2xl pb-10 pt-3 lg:min-h-[42rem] lg:pb-20 lg:pt-8">
+          <p className="relative z-10 flex items-center gap-3 font-mono text-xs font-semibold uppercase tracking-[0.24em] text-[#627169]">
             <span aria-hidden="true" className="h-px w-9 bg-[#e65c00]" />
             Host a Room
           </p>
-          <h1 className="mt-7 text-balance text-5xl font-semibold leading-[0.96] tracking-[-0.055em] text-[#172823] sm:text-6xl lg:text-7xl">
-            Bring your next Room to life<span className="text-[#e65c00]">.</span>
+          <h1 className="relative z-10 mt-7 text-balance font-[family-name:var(--aq-font-display)] text-[clamp(3.8rem,6vw,7.1rem)] font-normal leading-[0.98] tracking-[-0.06em] text-[#122a22]">
+            Host your
+            <br />
+            next Room<span className="text-[#e65c00]">.</span>
           </h1>
-          <p className="mt-7 max-w-lg text-pretty text-lg leading-8 text-[#526159] sm:text-xl">
+          <p className="relative z-10 mt-7 max-w-lg text-pretty text-lg leading-8 text-[#526159] sm:text-xl">
             Choose a Question Set, create your live aptitude competition, and share its Join Code
             with your peers.
           </p>
-          <div className="mt-10 border-l-2 border-[#e65c00] pl-5 font-mono text-xs font-semibold uppercase leading-6 tracking-[0.2em] text-[#66736c]">
-            One College. One Room.
+          <div className="relative z-10 mt-10 border-l-2 border-[#e65c00] pl-5 font-mono text-xs font-semibold uppercase leading-6 tracking-[0.2em] text-[#66736c]">
+            Same campus. Bigger preparation.
             <br />
-            Practice under pressure.
+            Brighter placement prospects.
           </div>
+          <Image
+            alt=""
+            className="pointer-events-none absolute -bottom-6 -left-10 hidden h-auto w-[calc(100%+90px)] max-w-none opacity-20 grayscale lg:block"
+            height={724}
+            src="/images/college-campus-engraving.png"
+            width={2172}
+          />
+          <p className="absolute bottom-0 left-0 hidden font-mono text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#77837c] lg:block">
+            Students solve tomorrow.
+          </p>
         </div>
 
         <section
           aria-labelledby="room-setup-title"
-          className="relative overflow-hidden rounded-2xl bg-[#19352d] px-5 py-6 text-[#fdfbf7] shadow-[0_28px_60px_-32px_rgba(18,42,34,0.72)] sm:px-8 sm:py-9"
+          className="relative overflow-hidden rounded-xl bg-[#15372d] px-5 py-7 text-[#fdfbf7] shadow-[0_28px_60px_-32px_rgba(18,42,34,0.72)] sm:px-8 sm:py-9"
         >
           <div
             aria-hidden="true"
@@ -99,21 +133,32 @@ export default async function HostPage({
           />
           <div className="relative">
             <div className="flex items-center justify-between gap-4 font-mono text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#d0ddd5]">
-              <span>Room setup</span>
+              <span>Create Room</span>
               <span className="hidden sm:block">AptiQuiz</span>
             </div>
-            <h2
-              className="mt-8 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl"
-              id="room-setup-title"
-            >
-              Create a live Room.
-            </h2>
-            <p className="mt-3 max-w-xl text-pretty leading-7 text-[#d0ddd5]">
-              Pick the Question Set you want to run. We’ll keep its Questions exactly as they are
-              when your Room opens.
-            </p>
+            <div className="mx-auto mt-4 flex max-w-xl flex-col items-center text-center sm:mt-6">
+              <div className="relative grid size-24 place-items-center rounded-full border-[11px] border-[#ec6b12] sm:size-28">
+                <Check
+                  aria-hidden="true"
+                  className="size-10 stroke-[3] text-[#ec6b12] sm:size-12"
+                />
+                <span
+                  aria-hidden="true"
+                  className="absolute -bottom-3 -right-1 h-8 w-5 rotate-[-45deg] bg-[#15372d]"
+                />
+              </div>
+              <h2
+                className="mt-5 text-balance font-[family-name:var(--aq-font-display)] text-3xl font-normal tracking-[-0.035em] sm:text-4xl"
+                id="room-setup-title"
+              >
+                Create a live Room.
+              </h2>
+              <p className="mt-2 max-w-xl text-pretty leading-7 text-[#d0ddd5]">
+                Select a Question Set to get started.
+              </p>
+            </div>
 
-            <div className="mt-8 rounded-xl border border-white/15 bg-white/[0.07] p-5 sm:p-6">
+            <div className="mt-5 border-t border-white/20 pt-5 sm:mt-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className="grid size-11 shrink-0 place-items-center rounded-full bg-[#fdfbf7] text-[#19352d]">
@@ -139,7 +184,7 @@ export default async function HostPage({
             </div>
 
             {questionSets.length === 0 ? (
-              <p className="mt-6 rounded-xl border border-dashed border-white/25 bg-black/10 p-5 leading-7 text-[#d0ddd5]">
+              <p className="mt-5 border border-dashed border-white/25 bg-black/10 p-5 leading-7 text-[#d0ddd5]">
                 You have no Question Sets yet.{" "}
                 <Link
                   className="font-semibold text-[#ffb380] underline decoration-[#ffb380]/60 underline-offset-4 hover:text-white focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffb380]"

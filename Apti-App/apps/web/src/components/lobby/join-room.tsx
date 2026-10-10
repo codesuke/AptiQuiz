@@ -232,17 +232,20 @@ function DisplayNameForm({
   return (
     <form
       aria-busy={busy}
-      className="max-w-md rounded-2xl border border-[#e4dfd3] bg-[#f7f4eb] p-5 sm:p-7"
+      className="max-w-xl rounded-xl bg-[var(--aq-ink)] p-6 text-white shadow-[0_28px_60px_-32px_rgba(18,42,34,0.6)] sm:p-9"
       noValidate
       onSubmit={handleSubmit}
     >
-      <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[#627169]">
-        Room <span className="text-[#b84700]">{joinCode}</span>
+      <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--aq-text-on-dark)]">
+        Room <span className="text-[#ffbd91]">{joinCode}</span>
       </p>
-      <label className="mt-4 block font-semibold text-[#172823]" htmlFor={inputId}>
+      <label
+        className="mt-6 block font-[family-name:var(--aq-font-display)] text-3xl text-white"
+        htmlFor={inputId}
+      >
         Display name
       </label>
-      <p className="mt-1 text-sm leading-6 text-[#526159]" id={hintId}>
+      <p className="mt-2 text-sm leading-6 text-[var(--aq-text-on-dark)]" id={hintId}>
         2 to 32 characters. Other players in the Room will see it.
       </p>
       <input
@@ -256,11 +259,15 @@ function DisplayNameForm({
         onChange={(event) => setDisplayName(event.target.value)}
         value={displayName}
       />
-      <p aria-live="polite" className={`${fieldErrorClass} mt-2 min-h-6`} id={errorId}>
+      <p
+        aria-live="polite"
+        className="mt-2 min-h-6 text-sm font-medium text-[#ffbd91]"
+        id={errorId}
+      >
         {shownError}
       </p>
       <button
-        className={`${primaryButtonClass} mt-3 w-full`}
+        className={`${primaryButtonClass} mt-3 min-h-14 w-full`}
         disabled={busy || !isConnected}
         type="submit"
       >
@@ -288,7 +295,7 @@ function ConnectionNote({ connection }: { readonly connection: ConnectionStatus 
   return (
     <p
       aria-live="polite"
-      className="mt-4 flex items-center gap-2 text-sm text-[#526159]"
+      className="mt-4 flex items-center gap-2 text-sm text-[var(--aq-text-on-dark)]"
       role="status"
     >
       <Radio
@@ -314,7 +321,7 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-col gap-3 rounded-2xl bg-[#19352d] px-5 py-4 text-[#fdfbf7] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl bg-[var(--aq-ink)] px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <p className="flex min-w-0 items-center gap-3 text-lg font-semibold">
           <CircleCheck aria-hidden="true" className="size-5 shrink-0 text-[#ffb380]" />
           <span className="min-w-0 truncate">You're in as {participant.displayName}</span>
@@ -336,38 +343,50 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
 
       {finished ? (
         <p
-          className="rounded-xl border-l-2 border-emerald-600 bg-emerald-50 px-4 py-3 font-semibold text-[#172823]"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 font-semibold text-[var(--aq-ink)]"
           role="status"
         >
           Match finished.
         </p>
       ) : null}
 
-      {round !== null ? (
-        <ParticipantRound online={connection === "online"} round={round} sendAnswer={sendAnswer} />
-      ) : finished ? null : (
-        <div aria-live="polite" role="status">
-          {hasStarted ? (
-            <p className="flex items-center gap-3 rounded-xl border-l-2 border-[#e65c00] bg-[#fff3ea] px-4 py-3 font-semibold text-[#172823]">
-              <Play aria-hidden="true" className="size-4 shrink-0 text-[#b84700]" />
-              The Host started the match. Questions will appear here.
-            </p>
-          ) : (
-            <p className="flex items-center gap-3 px-1 text-[#526159]">
-              <Hourglass aria-hidden="true" className="size-4 shrink-0 text-[#627169]" />
-              Waiting for the Host to start the match.
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.6fr)]">
+        <div className="min-w-0 space-y-5">
+          {round !== null ? (
+            <ParticipantRound
+              online={connection === "online"}
+              round={round}
+              sendAnswer={sendAnswer}
+            />
+          ) : finished ? null : (
+            <div aria-live="polite" role="status">
+              {hasStarted ? (
+                <p className="flex items-center gap-3 rounded-lg border border-[var(--aq-rule)] bg-[var(--aq-surface)] px-4 py-3 font-semibold text-[var(--aq-ink)]">
+                  <Play aria-hidden="true" className="size-4 shrink-0 text-[var(--aq-action)]" />
+                  The Host started the match. Questions will appear here.
+                </p>
+              ) : (
+                <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-xl border border-[var(--aq-rule)] bg-white px-6 py-12 text-center sm:min-h-[27rem]">
+                  <Hourglass aria-hidden="true" className="size-14 text-[var(--aq-action)]" />
+                  <h2 className="mt-5 font-[family-name:var(--aq-font-display)] text-3xl tracking-[-0.04em] text-[var(--aq-ink)] sm:text-4xl">
+                    Waiting for the Host to start
+                  </h2>
+                  <p className="mt-3 max-w-md leading-7 text-[var(--aq-text-muted)]">
+                    You’re all set. Keep this page open and stay connected; the first Question will
+                    appear here.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          {error === null ? null : (
+            <p className={`${fieldErrorClass} rounded-xl bg-[#fdecea] px-4 py-3`} role="alert">
+              {error}
             </p>
           )}
         </div>
-      )}
-
-      {error === null ? null : (
-        <p className={`${fieldErrorClass} rounded-xl bg-[#fdecea] px-4 py-3`} role="alert">
-          {error}
-        </p>
-      )}
-
-      <LobbyDetails lobby={lobby} />
+        <LobbyDetails lobby={lobby} />
+      </div>
     </div>
   );
 }

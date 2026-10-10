@@ -9,7 +9,8 @@ export default function JoinPage() {
     <JoinShell
       eyebrow="Join a Room"
       intro="Enter the Join Code from the Host's screen. No account needed."
-      title="Jump into the Lobby"
+      split
+      title="Join the Room"
     >
       <JoinCodeForm />
     </JoinShell>

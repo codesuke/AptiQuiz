@@ -21,15 +21,24 @@ export function RoundFrame({ view, status, children }: RoundFrameProps) {
   return (
     <section
       aria-labelledby="round-question"
-      className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6"
+      className="rounded-xl border border-[var(--aq-rule)] bg-white p-5 sm:p-8"
     >
-      <div className="flex items-center justify-between gap-4 text-sm text-stone-600">
-        <p>
-          Question {questionIndex + 1} of {questionCount}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--aq-rule)] pb-5 text-sm text-[var(--aq-text-muted)]">
+        <p className="font-[family-name:var(--aq-font-display)] text-2xl text-[var(--aq-ink)] sm:text-3xl">
+          Question{" "}
+          <span className="text-[var(--aq-action)]">
+            {String(questionIndex + 1).padStart(2, "0")}
+          </span>{" "}
+          of {questionCount}
         </p>
-        <p className="font-semibold tabular-nums text-stone-900">{status}</p>
+        <p className="font-mono text-base font-semibold tabular-nums text-[var(--aq-action)] sm:text-xl">
+          {status}
+        </p>
       </div>
-      <h2 className="mt-3 text-lg font-semibold" id="round-question">
+      <h2
+        className="mt-6 text-balance font-[family-name:var(--aq-font-display)] text-2xl leading-snug text-[var(--aq-ink)] sm:text-3xl"
+        id="round-question"
+      >
         {question.text}
       </h2>
       {children}
@@ -47,14 +56,14 @@ interface RevealedQuestionProps {
 export function RevealedQuestion({ view, children }: RevealedQuestionProps) {
   return (
     <RoundFrame status="Round closed" view={view}>
-      <ol className="mt-4 grid gap-2">
+      <ol className="mt-6 grid gap-2">
         {view.question.options.map((option) => {
           const labels = revealedOptionLabels(view, option.id);
           const correct = option.id === view.correctOptionId;
           return (
             <li
               className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-3 ${
-                correct ? "border-emerald-600 bg-emerald-50" : "border-stone-200"
+                correct ? "border-emerald-600 bg-emerald-50" : "border-[var(--aq-rule)]"
               }`}
               key={option.id}
             >
@@ -81,9 +90,18 @@ function OpenHostQuestion({ round }: OpenHostQuestionProps) {
 
   return (
     <RoundFrame status={countdownLabel(secondsLeft)} view={round.view}>
-      <ol className="mt-4 grid gap-2">
-        {round.view.question.options.map((option) => (
-          <li className="rounded-lg border border-stone-200 px-4 py-3" key={option.id}>
+      <ol className="mt-6 grid gap-2">
+        {round.view.question.options.map((option, index) => (
+          <li
+            className="flex min-h-14 items-center gap-4 rounded-lg border border-[var(--aq-rule)] px-4 py-3 text-[var(--aq-ink)]"
+            key={option.id}
+          >
+            <span
+              aria-hidden="true"
+              className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--aq-rule)] font-mono text-xs"
+            >
+              {index + 1}
+            </span>
             {option.text}
           </li>
         ))}
