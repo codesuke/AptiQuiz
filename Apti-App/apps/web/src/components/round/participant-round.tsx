@@ -4,7 +4,8 @@ import { answerFailureMessage, isTransientAnswerFailure } from "@/lib/room-error
 import type { SendRoundAnswer } from "@/lib/room-socket";
 import type { ReceivedRound } from "@/lib/server-clock";
 import { canSubmitAnswer, lockedAnswerLabel } from "./answer-state";
-import { RoundFrame } from "./round-question";
+import { RevealedQuestion, RoundFrame } from "./round-question";
+import { countdownLabel, roundResultLabel } from "./round-view";
 import { useCountdown } from "./use-countdown";
 import { useRoundAnswer } from "./use-round-answer";
 
@@ -14,8 +15,25 @@ interface ParticipantRoundProps {
   readonly sendAnswer: SendRoundAnswer;
 }
 
-/** The open Question with one button per option; the first accepted Answer locks the choice. */
+/** The current Round: answer buttons while open, the correct option and scores once revealed. */
 export function ParticipantRound({ round, online, sendAnswer }: ParticipantRoundProps) {
+  const { view } = round;
+  switch (view.phase) {
+    case "QUESTION_OPEN":
+      return <OpenParticipantRound online={online} round={round} sendAnswer={sendAnswer} />;
+    case "QUESTION_REVEAL":
+      return (
+        <RevealedQuestion view={view}>
+          <p className="mt-4 font-semibold text-stone-900" role="status">
+            {roundResultLabel(view)}
+          </p>
+        </RevealedQuestion>
+      );
+  }
+}
+
+/** The open Question with one button per option; the first accepted Answer locks the choice. */
+function OpenParticipantRound({ round, online, sendAnswer }: ParticipantRoundProps) {
   const secondsLeft = useCountdown(round);
   const { locked, pending, failure, submit } = useRoundAnswer(round.view, sendAnswer);
   const { question } = round.view;
@@ -28,7 +46,7 @@ export function ParticipantRound({ round, online, sendAnswer }: ParticipantRound
   });
 
   return (
-    <RoundFrame round={round} secondsLeft={secondsLeft}>
+    <RoundFrame status={countdownLabel(secondsLeft)} view={round.view}>
       <div className="mt-4 grid gap-2">
         {question.options.map((option) => (
           <button

@@ -13,7 +13,7 @@ import { safeAcknowledge } from "./acknowledgement.js";
 import type { GameSocket, GameSocketServer } from "./game-socket.js";
 import type { LatencySampler } from "./latency-sampler.js";
 import type { RoomStore } from "./room-store.js";
-import type { RoomRegistry, RoundDelivery, ValidJoinRequest } from "./rooms.js";
+import type { RoomRegistry, RoundClosure, RoundDelivery, ValidJoinRequest } from "./rooms.js";
 
 type JoinValidation =
   | { readonly ok: true; readonly request: ValidJoinRequest }
@@ -48,18 +48,40 @@ function hostChannels(roomId: string): string[] {
   return [lobbyChannel(roomId), hostChannel(roomId)];
 }
 
+function publishLobby(io: GameSocketServer, lobby: LobbySnapshot): void {
+  io.to(lobbyChannel(lobby.roomId)).emit("room:lobby", lobby);
+}
+
+function publishRound(io: GameSocketServer, roomId: string, delivery: RoundDelivery): void {
+  io.to(hostChannel(roomId)).emit("round:state", delivery.host);
+
+  for (const { participantId, round } of delivery.participants) {
+    io.to(participantChannel(roomId, participantId)).emit("round:state", round);
+  }
+}
+
+/** A closure may come from a timer rather than a socket event, so it publishes to the Room. */
+export function publishRoundClosure(io: GameSocketServer, { lobby, delivery }: RoundClosure): void {
+  publishLobby(io, lobby);
+  publishRound(io, lobby.roomId, delivery);
+}
+
 export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandlerDependencies) {
   const { io, registry, store, logger, latency, now } = dependencies;
   /** The Participant this socket joined as, by Room; it authorizes this socket's Answers. */
   const joinedParticipants = new Map<string, string>();
-  const publishLobby = (lobby: LobbySnapshot) =>
-    io.to(lobbyChannel(lobby.roomId)).emit("room:lobby", lobby);
-  const publishRound = (roomId: string, delivery: RoundDelivery) => {
-    io.to(hostChannel(roomId)).emit("round:state", delivery.host);
 
-    for (const { participantId, round } of delivery.participants) {
-      io.to(participantChannel(roomId, participantId)).emit("round:state", round);
+  /** Tracks which Participant this socket counts as connected for, one per Room. */
+  const attachParticipant = (roomId: string, participantId: string) => {
+    const previous = joinedParticipants.get(roomId);
+
+    if (previous !== undefined && previous !== participantId) {
+      registry.disconnect(roomId, previous, socket.id);
+      socket.leave(participantChannel(roomId, previous));
     }
+
+    joinedParticipants.set(roomId, participantId);
+    registry.connect(roomId, participantId, socket.id);
   };
 
   socket.on("room:host", (payload, callback) => {
@@ -97,16 +119,23 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     }
 
     const { participant, lobby, round } = result;
+
+    // The socket may have dropped during the database write; tracking it now would leave a
+    // connection that never disconnects and block early Round closure.
+    if (!socket.connected) {
+      return;
+    }
+
     socket.join([
       lobbyChannel(lobby.roomId),
       participantChannel(lobby.roomId, participant.participantId),
     ]);
-    joinedParticipants.set(lobby.roomId, participant.participantId);
+    attachParticipant(lobby.roomId, participant.participantId);
     acknowledge({ ok: true, participant, lobby, round });
     latency.track(socket);
 
     if (result.rosterChanged) {
-      publishLobby(result.lobby);
+      publishLobby(io, result.lobby);
     }
   });
 
@@ -131,8 +160,8 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     acknowledge({ ok: true, lobby: result.lobby });
 
     if (result.delivery !== null) {
-      publishLobby(result.lobby);
-      publishRound(roomId, result.delivery);
+      publishLobby(io, result.lobby);
+      publishRound(io, roomId, result.delivery);
       await persistRoomStart(store, roomId, logger);
     }
   });
@@ -147,14 +176,23 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
       return;
     }
 
+    const { roomId } = parsed.data;
     acknowledge(
       registry.answer({
         ...parsed.data,
-        participantId: joinedParticipants.get(parsed.data.roomId) ?? null,
+        participantId: joinedParticipants.get(roomId) ?? null,
         receivedAt,
         medianRoundTripMs: latency.medianRoundTripMs(socket.id),
       }),
     );
+    // After the acknowledgement, so the Participant learns their Answer locked before the reveal.
+    registry.closeIfAllAnswered(roomId);
+  });
+
+  socket.on("disconnect", () => {
+    for (const [roomId, participantId] of joinedParticipants) {
+      registry.disconnect(roomId, participantId, socket.id);
+    }
   });
 }
 

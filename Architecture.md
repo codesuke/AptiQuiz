@@ -40,12 +40,13 @@ The following functions are available:
 - The Game Server keeps a maximum of 50 Participants in each Room. Only the Host can start the Room, and only one time.
 - Start opens the first Round: one server `startsAt` and a deadline 30 seconds later. Each Participant receives `round:state` with the public Question in a stable option order of their own, with option ids that are opaque to them. The Host receives the authored order. Both browsers show a countdown from server timestamps.
 - A joined Participant answers the open Round with `round:answer`. The Game Server accepts the first valid Answer received at or before the deadline, by server receipt time. It scores the Answer with delay compensation from server-initiated `latency:ping` samples. The acknowledgement and later views do not show correctness before the reveal. The Lobby shows the scoring rule and the delay policy from the server values.
+- The Round closes once: at the server deadline, or earlier when every connected Participant has answered. Then each Participant receives the correct option in their own option ids, their result, and the Round scores of all Participants. The Host receives the same reveal with the authored ids.
 - The simulator opens 50 connections by default.
 - The database package generates a Prisma client.
 
 The following functions are not available:
 
-- The Round does not close or reveal, and the Host cannot advance.
+- The Host cannot advance after a reveal, and the Room does not finish.
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
@@ -182,7 +183,14 @@ The Socket.IO Room commands are:
 
 An accepted Answer stores its points: `500 + floor(500 × (1 − Effective Response Time / duration))` for a correct Answer and 0 for a wrong one. Effective Response Time is the elapsed server time minus `min(median RTT / 2, 100 ms)`, clamped to the duration and floored to a 100 ms bucket. The median is taken over the socket's last 5 `latency:ping` samples. The server sends a ping every 2 seconds after a join, and a ping without an acknowledgement within 2 seconds is not a sample. With no sample, compensation is 0. A client can delay its ping acknowledgements to inflate its median, so the 100 ms cap bounds the largest possible gain. The Game Engine owns these rules. Answers stay in memory; #7 persists Match results.
 
-`createGameServer` accepts an injectable `now` clock. Every game time uses it. Socket Ticket and Room registration expiry use the wall clock, because the web server signs them against real time.
+The registry tracks the live sockets of each Participant. It closes the open Round through the Game Engine `CLOSE_QUESTION` transition in these cases:
+
+- The deadline timer fires after `endsAt`. The timer is set when the Round opens and does not depend on any Answer.
+- An accepted Answer, or the disconnect of a Participant's last socket, leaves every connected Participant with an Answer. Early closure needs at least one connected Participant.
+
+The close happens only from `QUESTION_OPEN`, so a race between the timer and an Answer closes and reveals one time. The registry then publishes a revealed `round:state` to each receiver and `room:lobby` with `QUESTION_REVEAL`. After closure, a new Answer gets `round_not_open`, and a same-key replay returns the first result. The scores, Answers, and deadline do not change. Rejoin and host acknowledgements return the revealed view.
+
+`createGameServer` accepts an injectable `now` clock and an injectable scheduler for the deadline timer. Every game time uses the clock. Socket Ticket and Room registration expiry use the wall clock, because the web server signs them against real time.
 
 Each command is validated and gets a typed acknowledgement. A command without an acknowledgement callback is ignored. `room:lobby` sends the roster and the phase to the members of one Room only. The Lobby data does not contain `correctOptionId`. The Game Server writes Participants and the `RUNNING` status to PostgreSQL through `@aptiquiz/database`, and needs `DATABASE_URL`.
 
@@ -221,6 +229,7 @@ The package currently defines these interfaces:
 - `roomRegistrationSchema`, `createRoomRequestSchema`, and `lobbySnapshotSchema`
 - `roomHostSchema`, `roomJoinSchema`, `roomStartSchema`, and their response schemas
 - `publicQuestionSchema`, `openRoundSchema`, and `roundViewSchema`
+- `roundScoreSchema` and `revealedRoundSchema`
 - `roundRulesSchema`, `lockedAnswerSchema`, `roundAnswerSchema`, `answerErrorSchema`, `roundAnswerResponseSchema`, and `latencyPingSchema`
 - `displayNameSchema`
 - `timePingSchema`

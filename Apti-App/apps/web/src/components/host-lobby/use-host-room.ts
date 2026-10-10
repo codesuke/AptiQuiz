@@ -7,6 +7,7 @@ import {
   roomStartResponseSchema,
 } from "@aptiquiz/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { nextRound } from "@/components/round/round-view";
 import {
   createRoomSocket,
   parseLobbyUpdate,
@@ -64,7 +65,9 @@ export function useHostRoom(roomId: string) {
     });
     socket.on("round:state", (payload) => {
       const view = parseRoundUpdate(payload, roomId);
-      if (view) setRound(receiveRound(view, Date.now()));
+      if (view === null) return;
+      const received = receiveRound(view, Date.now());
+      setRound((current) => nextRound(current, received));
     });
     socket.on("connect_error", () => setConnection("offline"));
     socket.on("disconnect", () => setConnection("offline"));

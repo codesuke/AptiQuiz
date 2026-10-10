@@ -1,18 +1,22 @@
 "use client";
 
+import type { RevealedRound, RoundView } from "@aptiquiz/contracts";
 import type { ReactNode } from "react";
 import type { ReceivedRound } from "@/lib/server-clock";
+import { RoundScores } from "./round-scores";
+import { countdownLabel, revealedOptionLabels } from "./round-view";
 import { useCountdown } from "./use-countdown";
 
 interface RoundFrameProps {
-  readonly round: ReceivedRound;
-  readonly secondsLeft: number;
+  readonly view: RoundView;
+  /** Countdown while open, "Round closed" after the reveal. */
+  readonly status: string;
   readonly children: ReactNode;
 }
 
-/** The open Question's header, text, and server-timed countdown; the options go in `children`. */
-export function RoundFrame({ round, secondsLeft, children }: RoundFrameProps) {
-  const { question, questionIndex, questionCount } = round.view;
+/** The Question's header, text, and status line; the options go in `children`. */
+export function RoundFrame({ view, status, children }: RoundFrameProps) {
+  const { question, questionIndex, questionCount } = view;
 
   return (
     <section
@@ -23,9 +27,7 @@ export function RoundFrame({ round, secondsLeft, children }: RoundFrameProps) {
         <p>
           Question {questionIndex + 1} of {questionCount}
         </p>
-        <p className="font-semibold tabular-nums text-stone-900">
-          {secondsLeft === 0 ? "Time's up" : `${secondsLeft}s left`}
-        </p>
+        <p className="font-semibold tabular-nums text-stone-900">{status}</p>
       </div>
       <h2 className="mt-3 text-lg font-semibold" id="round-question">
         {question.text}
@@ -35,16 +37,50 @@ export function RoundFrame({ round, secondsLeft, children }: RoundFrameProps) {
   );
 }
 
-interface RoundQuestionProps {
+interface RevealedQuestionProps {
+  readonly view: RevealedRound;
+  /** Shown between the options and the scores, e.g. the Participant's own result. */
+  readonly children?: ReactNode;
+}
+
+/** A closed Round: options with the correct one and the receiver's pick marked, then scores. */
+export function RevealedQuestion({ view, children }: RevealedQuestionProps) {
+  return (
+    <RoundFrame status="Round closed" view={view}>
+      <ol className="mt-4 grid gap-2">
+        {view.question.options.map((option) => {
+          const labels = revealedOptionLabels(view, option.id);
+          const correct = option.id === view.correctOptionId;
+          return (
+            <li
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-3 ${
+                correct ? "border-emerald-600 bg-emerald-50" : "border-stone-200"
+              }`}
+              key={option.id}
+            >
+              <span>{option.text}</span>
+              {labels.length > 0 ? (
+                <span className="text-sm font-semibold text-stone-900">{labels.join(" · ")}</span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+      {children}
+      <RoundScores scores={view.scores} />
+    </RoundFrame>
+  );
+}
+
+interface OpenHostQuestionProps {
   readonly round: ReceivedRound;
 }
 
-/** The Host's read-only view: options in the authored order, no answer controls. */
-export function RoundQuestion({ round }: RoundQuestionProps) {
+function OpenHostQuestion({ round }: OpenHostQuestionProps) {
   const secondsLeft = useCountdown(round);
 
   return (
-    <RoundFrame round={round} secondsLeft={secondsLeft}>
+    <RoundFrame status={countdownLabel(secondsLeft)} view={round.view}>
       <ol className="mt-4 grid gap-2">
         {round.view.question.options.map((option) => (
           <li className="rounded-lg border border-stone-200 px-4 py-3" key={option.id}>
@@ -54,4 +90,19 @@ export function RoundQuestion({ round }: RoundQuestionProps) {
       </ol>
     </RoundFrame>
   );
+}
+
+interface RoundQuestionProps {
+  readonly round: ReceivedRound;
+}
+
+/** The Host's read-only view: options in the authored order, no answer controls. */
+export function RoundQuestion({ round }: RoundQuestionProps) {
+  const { view } = round;
+  switch (view.phase) {
+    case "QUESTION_OPEN":
+      return <OpenHostQuestion round={round} />;
+    case "QUESTION_REVEAL":
+      return <RevealedQuestion view={view} />;
+  }
 }

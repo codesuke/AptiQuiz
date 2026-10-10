@@ -17,6 +17,40 @@ describe("game engine", () => {
     expect(finished.state.phase).toBe("FINISHED");
   });
 
+  it("records when a Question closes and keeps its deadline", () => {
+    const opened = transitionGame(
+      createGameState("room-1", 2),
+      { type: "START", durationMs: 10_000 },
+      1_000,
+    );
+    const revealed = transitionGame(opened.state, { type: "CLOSE_QUESTION" }, 4_000);
+    const leaderboard = transitionGame(revealed.state, { type: "SHOW_LEADERBOARD" }, 4_100);
+    const next = transitionGame(leaderboard.state, { type: "ADVANCE", durationMs: 10_000 }, 5_000);
+
+    expect(opened.state.roundClosedAt).toBeNull();
+    expect(revealed.state).toMatchObject({
+      phase: "QUESTION_REVEAL",
+      roundStartsAt: 1_000,
+      roundEndsAt: 11_000,
+      roundClosedAt: 4_000,
+    });
+    expect(revealed.events).toEqual([{ type: "QUESTION_CLOSED", questionIndex: 0 }]);
+    expect(next.state).toMatchObject({ questionIndex: 1, roundClosedAt: null });
+  });
+
+  it("closes a Question only once", () => {
+    const opened = transitionGame(
+      createGameState("room-1", 1),
+      { type: "START", durationMs: 10_000 },
+      1_000,
+    );
+    const revealed = transitionGame(opened.state, { type: "CLOSE_QUESTION" }, 4_000);
+
+    expect(() => transitionGame(revealed.state, { type: "CLOSE_QUESTION" }, 5_000)).toThrow(
+      "CLOSE_QUESTION is not allowed while the game is QUESTION_REVEAL",
+    );
+  });
+
   it("rejects commands that violate the state machine", () => {
     const lobby = createGameState("room-1", 1);
 

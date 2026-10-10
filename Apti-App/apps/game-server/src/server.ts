@@ -12,10 +12,11 @@ import { safeAcknowledge } from "./acknowledgement.js";
 import type { GameServerConfig } from "./config.js";
 import { identifyConnection } from "./handshake.js";
 import { createLatencySampler } from "./latency-sampler.js";
-import { registerRoomHandlers } from "./room-handlers.js";
+import { publishRoundClosure, registerRoomHandlers } from "./room-handlers.js";
 import { handleRoomRegistration } from "./room-registration.js";
 import type { RoomStore } from "./room-store.js";
 import { createRoomRegistry, type RoomRegistry } from "./rooms.js";
+import { createTimerScheduler, type Schedule } from "./scheduler.js";
 
 export interface RunningGameServer {
   readonly httpServer: HttpServer;
@@ -36,17 +37,20 @@ interface RegistryDependencies {
   readonly store: RoomStore;
   readonly logger: Logger;
   readonly now: () => number;
+  /** Round deadline timers; defaults to real timers against `now`. */
+  readonly schedule?: Schedule | undefined;
 }
 
 /** A Room registry that applies the configured Round, delay, and scoring rules. */
 export function createConfiguredRegistry(
   config: GameServerConfig,
-  { store, logger, now }: RegistryDependencies,
+  { store, logger, now, schedule = createTimerScheduler(now) }: RegistryDependencies,
 ): RoomRegistry {
   return createRoomRegistry({
     store,
     logger,
     now,
+    schedule,
     rules: {
       roundDurationMs: config.roundDurationMs,
       maxDelayCompensationMs: config.maxDelayCompensationMs,
@@ -116,6 +120,10 @@ export function createGameServer(
     next();
   });
 
+  const stopPublishingClosures = registry.onRoundClosed((closure) =>
+    publishRoundClosure(io, closure),
+  );
+
   io.on("connection", (socket) => {
     const { identity } = socket.data;
     socket.data.connectionId = socket.id;
@@ -159,6 +167,8 @@ export function createGameServer(
       }),
     close: () =>
       new Promise((resolve) => {
+        stopPublishingClosures();
+        registry.dispose();
         io.close(() => resolve());
       }),
   };

@@ -10,7 +10,9 @@ import {
   type RoomError,
   type RoomQuestion,
   type RoomRegistration,
+  type RoundResult,
   type RoundRules,
+  type RoundScore,
   type RoundView,
 } from "@aptiquiz/contracts";
 import {
@@ -25,6 +27,7 @@ import {
 } from "@aptiquiz/game-engine";
 import type { Logger } from "pino";
 import type { RoomStore } from "./room-store.js";
+import type { CancelScheduled, Schedule } from "./scheduler.js";
 
 type RoomFailure = { readonly ok: false; readonly error: RoomError };
 
@@ -46,7 +49,7 @@ export type JoinResult =
     }
   | RoomFailure;
 
-/** Each receiver's view of a newly opened Round; Participants get their own option order. */
+/** Each receiver's view of a Round; Participants get their own option order and ids. */
 export interface RoundDelivery {
   readonly host: RoundView;
   readonly participants: readonly ParticipantRound[];
@@ -56,6 +59,14 @@ export interface ParticipantRound {
   readonly participantId: string;
   readonly round: RoundView;
 }
+
+/** What every member of a Room learns when its Round closes. */
+export interface RoundClosure {
+  readonly lobby: LobbySnapshot;
+  readonly delivery: RoundDelivery;
+}
+
+export type RoundClosedListener = (closure: RoundClosure) => void;
 
 /** `delivery` is null when a retried start repeats the first result without a transition. */
 export type StartResult =
@@ -120,6 +131,10 @@ interface LiveRoom {
   readonly answers: Map<string, RecordedAnswer>;
   /** Accepted Answers keyed by `answerReceipt`, so a retried key repeats its result. */
   readonly answerReceipts: Map<string, RecordedAnswer>;
+  /** Live sockets of each joined Participant, keyed by Participant id. */
+  readonly connections: Map<string, Set<string>>;
+  /** Cancels the open Round's deadline timer; null when no timer is pending. */
+  cancelDeadline: CancelScheduled | null;
 }
 
 /** The game state and Questions a Round view is built from. */
@@ -129,14 +144,18 @@ interface RoundSource {
   readonly game: GameState;
 }
 
+/** A Round that is open or revealed; `closedAt` is null while it is open. */
 interface ActiveRound {
   readonly roomId: string;
   readonly questionIndex: number;
   readonly questionCount: number;
   readonly startsAt: number;
   readonly endsAt: number;
+  readonly closedAt: number | null;
   readonly question: RoomQuestion;
 }
+
+const UNANSWERED_RESULT: RoundResult = { correct: false, points: 0 };
 
 type RoundReceiver =
   | { readonly kind: "host" }
@@ -149,6 +168,8 @@ export interface RoomRegistryDependencies {
   readonly logger: Logger;
   readonly rules: RoundRules;
   readonly now: () => number;
+  /** Runs Round deadlines against the same server clock as `now`. */
+  readonly schedule: Schedule;
 }
 
 export interface RoomRegistry {
@@ -159,6 +180,16 @@ export interface RoomRegistry {
   answer(submission: AnswerSubmission): AnswerResult;
   /** Scored Answers for one Question, for the reveal; never sent to clients before it. */
   answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[];
+  /** Records a live socket of a joined Participant. */
+  connect(roomId: string, participantId: string, connectionId: string): void;
+  /** Forgets a socket; the open Round may close if the Participant has no socket left. */
+  disconnect(roomId: string, participantId: string, connectionId: string): void;
+  /** Closes the open Round early once every connected Participant has an accepted Answer. */
+  closeIfAllAnswered(roomId: string): void;
+  /** Tells `listener` about each Round closure, whatever caused it; returns an unsubscribe. */
+  onRoundClosed(listener: RoundClosedListener): () => void;
+  /** Cancels every pending deadline timer. */
+  dispose(): void;
 }
 
 const ROOM_NOT_FOUND: RoomFailure = { ok: false, error: "room_not_found" };
@@ -179,7 +210,7 @@ const ALREADY_ANSWERED: AnswerFailure = { ok: false, error: "already_answered" }
 const INVALID_OPTION: AnswerFailure = { ok: false, error: "invalid_option" };
 
 export function createRoomRegistry(dependencies: RoomRegistryDependencies): RoomRegistry {
-  const { store, logger, rules, now } = dependencies;
+  const { store, logger, rules, now, schedule } = dependencies;
   const timing: TimingPolicy = {
     durationMs: rules.roundDurationMs,
     maxCompensationMs: rules.maxDelayCompensationMs,
@@ -187,6 +218,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
   };
   const rooms = new Map<string, LiveRoom>();
   const roomIdsByJoinCode = new Map<string, string>();
+  const closedListeners = new Set<RoundClosedListener>();
 
   function register(registration: RoomRegistration): RegistrationResult {
     if (rooms.has(registration.roomId)) {
@@ -207,6 +239,8 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       pendingJoins: new Map(),
       answers: new Map(),
       answerReceipts: new Map(),
+      connections: new Map(),
+      cancelDeadline: null,
     });
     roomIdsByJoinCode.set(registration.joinCode, registration.roomId);
     return { ok: true };
@@ -228,7 +262,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
 
   function currentRoundView(room: LiveRoom, receiver: RoundReceiver): RoundView | null {
     const round = findActiveRound(room);
-    return round === null ? null : viewRound(round, receiverView(room, round, receiver), now());
+    return round === null ? null : viewRound({ room, round }, receiver, now());
   }
 
   function join(request: ValidJoinRequest, identity: ConnectionIdentity): Promise<JoinResult> {
@@ -361,7 +395,103 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     room.game = started;
     const lobby = toLobby(room);
     room.start = { idempotencyKey, lobby };
+    scheduleDeadline(room, round.endsAt);
     return { ok: true, lobby, delivery: deliverRound(room, round, serverTime) };
+  }
+
+  /** The timer never depends on Answers; it only closes a Round that is still open. */
+  function scheduleDeadline(room: LiveRoom, atServerTime: number): void {
+    room.cancelDeadline = schedule(atServerTime, () => {
+      room.cancelDeadline = null;
+      closeAtDeadline(room);
+    });
+  }
+
+  function closeAtDeadline(room: LiveRoom): void {
+    const round = findOpenRound(room);
+
+    if (round === null) {
+      return;
+    }
+
+    // An Answer received at `endsAt` is still on time, so a timer that fires early or exactly
+    // at the deadline waits for the first late millisecond.
+    if (isAnswerOnTime(round, now())) {
+      scheduleDeadline(room, round.endsAt + 1);
+      return;
+    }
+
+    closeRound(room);
+  }
+
+  /** The phase check makes closure idempotent: racing timers and Answers close once. */
+  function closeRound(room: LiveRoom): void {
+    if (room.game.phase !== "QUESTION_OPEN") {
+      return;
+    }
+
+    const closedAt = now();
+    room.game = transitionGame(room.game, { type: "CLOSE_QUESTION" }, closedAt).state;
+    room.cancelDeadline?.();
+    room.cancelDeadline = null;
+    const round = findActiveRound(room);
+
+    if (round === null) {
+      throw new Error(`Closed Round of Room ${room.registration.roomId} has no Question`);
+    }
+
+    const closure: RoundClosure = {
+      lobby: toLobby(room),
+      delivery: deliverRound(room, round, closedAt),
+    };
+
+    for (const listener of closedListeners) {
+      listener(closure);
+    }
+  }
+
+  function closeIfAllAnswered(roomId: string): void {
+    const room = rooms.get(roomId);
+    const round = room === undefined ? null : findOpenRound(room);
+
+    if (room !== undefined && round !== null && everyConnectedParticipantAnswered(room, round)) {
+      closeRound(room);
+    }
+  }
+
+  function connect(roomId: string, participantId: string, connectionId: string): void {
+    const room = rooms.get(roomId);
+
+    if (room === undefined) {
+      return;
+    }
+
+    const sockets = room.connections.get(participantId) ?? new Set<string>();
+    sockets.add(connectionId);
+    room.connections.set(participantId, sockets);
+  }
+
+  function disconnect(roomId: string, participantId: string, connectionId: string): void {
+    const connections = rooms.get(roomId)?.connections;
+    const sockets = connections?.get(participantId);
+    const lostLastSocket = sockets?.delete(connectionId) === true && sockets.size === 0;
+
+    if (lostLastSocket) {
+      connections?.delete(participantId);
+      closeIfAllAnswered(roomId);
+    }
+  }
+
+  function onRoundClosed(listener: RoundClosedListener): () => void {
+    closedListeners.add(listener);
+    return () => closedListeners.delete(listener);
+  }
+
+  function dispose(): void {
+    for (const room of rooms.values()) {
+      room.cancelDeadline?.();
+      room.cancelDeadline = null;
+    }
   }
 
   function answer(submission: AnswerSubmission): AnswerResult {
@@ -392,7 +522,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     room: LiveRoom,
     submission: AnswerSubmission & { readonly participantId: string },
   ): AnswerResult {
-    const round = findActiveRound(room);
+    const round = findOpenRound(room);
 
     if (round === null) {
       return ROUND_NOT_OPEN;
@@ -458,7 +588,28 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     return answers.filter((recorded) => recorded.questionIndex === questionIndex);
   }
 
-  return { register, hostLobby, join, start, answer, answersFor };
+  return {
+    register,
+    hostLobby,
+    join,
+    start,
+    answer,
+    answersFor,
+    connect,
+    disconnect,
+    closeIfAllAnswered,
+    onRoundClosed,
+    dispose,
+  };
+}
+
+/** Nobody connected means nobody can still answer, so only the deadline closes the Round. */
+function everyConnectedParticipantAnswered(room: LiveRoom, round: ActiveRound): boolean {
+  const connected = [...room.connections.keys()];
+  return (
+    connected.length > 0 &&
+    connected.every((participantId) => recordedAnswerOf(room, round, participantId) !== undefined)
+  );
 }
 
 function hasParticipant(room: LiveRoom, participantId: string): boolean {
@@ -498,7 +649,7 @@ function lockedAnswerFor(
     return null;
   }
 
-  const recorded = room.answers.get(answerSlot(round.questionIndex, receiver.participantId));
+  const recorded = recordedAnswerOf(room, round, receiver.participantId);
   return recorded === undefined ? null : toLockedAnswer(recorded);
 }
 
@@ -516,41 +667,39 @@ function authoredOptionIdFor(
 }
 
 function deliverRound(room: LiveRoom, round: ActiveRound, serverTime: number): RoundDelivery {
+  const context: RoundContext = { room, round };
+
   return {
-    host: viewRound(round, receiverView(room, round, HOST_RECEIVER), serverTime),
+    host: viewRound(context, HOST_RECEIVER, serverTime),
     participants: [...room.participants.values()].map((participant) => ({
       participantId: participant.participantId,
-      round: viewRound(
-        round,
-        receiverView(room, round, participantReceiver(participant)),
-        serverTime,
-      ),
+      round: viewRound(context, participantReceiver(participant), serverTime),
     })),
   };
 }
 
-/** What one receiver sees of a Round: their option order and their own locked Answer. */
-interface ReceiverView {
-  readonly options: RoomQuestion["options"];
-  readonly answer: LockedAnswer | null;
-}
-
-function receiverView(room: LiveRoom, round: ActiveRound, receiver: RoundReceiver): ReceiverView {
-  return {
-    options: optionsFor(room, round, receiver),
-    answer: lockedAnswerFor(room, round, receiver),
-  };
+interface RoundContext {
+  readonly room: LiveRoom;
+  readonly round: ActiveRound;
 }
 
 function participantReceiver(participant: LobbyParticipant): RoundReceiver {
   return { kind: "participant", participantId: participant.participantId };
 }
 
+function findOpenRound(room: RoundSource): ActiveRound | null {
+  return room.game.phase === "QUESTION_OPEN" ? findActiveRound(room) : null;
+}
+
+function isRoundPhase(phase: GameState["phase"]): boolean {
+  return phase === "QUESTION_OPEN" || phase === "QUESTION_REVEAL";
+}
+
 function findActiveRound({ registration, game }: RoundSource): ActiveRound | null {
-  const { phase, questionIndex, roundStartsAt, roundEndsAt } = game;
+  const { phase, questionIndex, roundStartsAt, roundEndsAt, roundClosedAt } = game;
 
   if (
-    phase !== "QUESTION_OPEN" ||
+    !isRoundPhase(phase) ||
     questionIndex === null ||
     roundStartsAt === null ||
     roundEndsAt === null
@@ -570,6 +719,7 @@ function findActiveRound({ registration, game }: RoundSource): ActiveRound | nul
     questionCount: registration.questions.length,
     startsAt: roundStartsAt,
     endsAt: roundEndsAt,
+    closedAt: phase === "QUESTION_REVEAL" ? roundClosedAt : null,
     question,
   };
 }
@@ -615,22 +765,83 @@ function opaqueOptionId(seed: string, authoredOptionId: string): string {
     .slice(0, OPAQUE_OPTION_ID_LENGTH);
 }
 
-function viewRound(
-  round: ActiveRound,
-  { options, answer }: ReceiverView,
-  serverTime: number,
-): RoundView {
-  return {
-    phase: "QUESTION_OPEN",
+/** The open view never carries the correct option; only a closed Round reveals it. */
+function viewRound(context: RoundContext, receiver: RoundReceiver, serverTime: number): RoundView {
+  const { room, round } = context;
+  const shared = {
     roomId: round.roomId,
     questionIndex: round.questionIndex,
     questionCount: round.questionCount,
     startsAt: round.startsAt,
     endsAt: round.endsAt,
     serverTime,
-    question: toPublicQuestion(round.question, options),
-    answer,
+    question: toPublicQuestion(round.question, optionsFor(room, round, receiver)),
+    answer: lockedAnswerFor(room, round, receiver),
   };
+
+  if (round.closedAt === null) {
+    return { ...shared, phase: "QUESTION_OPEN" };
+  }
+
+  return {
+    ...shared,
+    phase: "QUESTION_REVEAL",
+    closedAt: round.closedAt,
+    correctOptionId: correctOptionIdFor(room, round, receiver),
+    result: resultFor(room, round, receiver),
+    scores: roundScores(room, round),
+  };
+}
+
+/** The correct option in the receiver's own id space; the Host sees the authored id. */
+function correctOptionIdFor(
+  room: RoundSource,
+  round: ActiveRound,
+  receiver: RoundReceiver,
+): string {
+  const { correctOptionId } = round.question;
+
+  switch (receiver.kind) {
+    case "host":
+      return correctOptionId;
+    case "participant":
+      return opaqueOptionId(
+        participantOptionSeed(room, round, receiver.participantId),
+        correctOptionId,
+      );
+  }
+}
+
+function resultFor(
+  room: LiveRoom,
+  round: ActiveRound,
+  receiver: RoundReceiver,
+): RoundResult | null {
+  return receiver.kind === "host"
+    ? null
+    : resultOf(recordedAnswerOf(room, round, receiver.participantId));
+}
+
+function recordedAnswerOf(
+  room: LiveRoom,
+  round: ActiveRound,
+  participantId: string,
+): RecordedAnswer | undefined {
+  return room.answers.get(answerSlot(round.questionIndex, participantId));
+}
+
+function resultOf(recorded: RecordedAnswer | undefined): RoundResult {
+  return recorded === undefined
+    ? UNANSWERED_RESULT
+    : { correct: recorded.correct, points: recorded.points };
+}
+
+/** Every joined Participant in join order; without an accepted Answer a Participant earns 0. */
+function roundScores(room: LiveRoom, round: ActiveRound): RoundScore[] {
+  return [...room.participants.values()].map(({ participantId, displayName }) => {
+    const recorded = recordedAnswerOf(room, round, participantId);
+    return { participantId, displayName, answered: recorded !== undefined, ...resultOf(recorded) };
+  });
 }
 
 /** Copies only public fields: the stored Question also holds the correct option. */

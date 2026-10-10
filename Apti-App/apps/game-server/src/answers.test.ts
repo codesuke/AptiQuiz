@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { LatencyPing, RoundView } from "@aptiquiz/contracts";
+import type { LatencyPing } from "@aptiquiz/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import type { GameServerConfig } from "./config.js";
 import {
@@ -18,13 +18,20 @@ import {
   startRoom,
   startServerWithRooms,
   stopTestServer,
-  type TestClock,
   type TestServer,
   type TestSocket,
 } from "./testing/room-harness.js";
+import {
+  advanceTo,
+  CORRECT_OPTION_TEXT,
+  joinPlayer,
+  openRound,
+  optionIdFor,
+  type PlayerOptions,
+  submit,
+  WRONG_OPTION_TEXT,
+} from "./testing/round-harness.js";
 
-const CORRECT_OPTION_TEXT = "7";
-const WRONG_OPTION_TEXT = "4";
 const LARGE_ROUND_TRIP_MS = 1_000;
 const SMALL_ROUND_TRIP_MS = 60;
 const FAST_SAMPLE_INTERVAL_MS = 20;
@@ -39,60 +46,8 @@ const PRE_REVEAL_FIELDS = [
 
 afterEach(stopTestServer);
 
-interface PlayerOptions {
-  /** The server clock moves by this much before each latency ping is acknowledged. */
-  readonly roundTripMs?: number;
-  readonly key?: string;
-  readonly user?: typeof otherUser;
-}
-
-interface Player {
-  readonly socket: TestSocket;
-  readonly key: string;
-}
-
-interface OpenedRound {
-  readonly host: TestSocket;
-  readonly rounds: readonly RoundView[];
-}
-
 function startAnswerServer(config: Partial<GameServerConfig> = {}): Promise<TestServer> {
   return startServerWithRooms({ config }, roundRoom);
-}
-
-/** Acknowledges every latency ping after moving the server clock, as a slow network would. */
-function acknowledgePingsAfter(socket: TestSocket, clock: TestClock, roundTripMs: number): void {
-  socket.on("latency:ping", (_payload, acknowledge) => {
-    clock.advance(roundTripMs);
-    acknowledge();
-  });
-}
-
-/** Joins the Round Room and waits for the first latency ping to be answered or to time out. */
-async function joinPlayer(
-  { port, clock }: TestServer,
-  displayName: string,
-  options: PlayerOptions = {},
-): Promise<Player> {
-  const socket = await connectAs(port, options.user);
-  const key = options.key ?? randomUUID();
-
-  if (options.roundTripMs !== undefined) {
-    acknowledgePingsAfter(socket, clock, options.roundTripMs);
-  }
-
-  await expect(join(socket, displayName, roundRoom.joinCode, key)).resolves.toMatchObject({
-    ok: true,
-  });
-  await settle();
-  return { socket, key };
-}
-
-async function openRound({ port }: TestServer, players: readonly Player[]): Promise<OpenedRound> {
-  const host = await hostRoom(port, roundRoom.roomId);
-  const rounds = Promise.all(players.map((player) => nextRound(player.socket)));
-  await startRoom(host, roundRoom.roomId);
-  return { host, rounds: await rounds };
 }
 
 async function openRoundFor(testServer: TestServer, options: PlayerOptions = {}) {
@@ -105,35 +60,6 @@ async function openRoundFor(testServer: TestServer, options: PlayerOptions = {})
   }
 
   return { player, host, round };
-}
-
-function optionIdFor(round: RoundView, text: string): string {
-  const option = round.question.options.find((candidate) => candidate.text === text);
-
-  if (option === undefined) {
-    throw new Error(`no option "${text}"`);
-  }
-
-  return option.id;
-}
-
-function submit(
-  socket: TestSocket,
-  round: RoundView,
-  optionId: string,
-  key = randomUUID(),
-  questionIndex = round.questionIndex,
-) {
-  return socket.emitWithAck("round:answer", {
-    roomId: round.roomId,
-    questionIndex,
-    optionId,
-    idempotencyKey: key,
-  });
-}
-
-function advanceTo(clock: TestClock, serverTime: number): void {
-  clock.advance(serverTime - clock.now());
 }
 
 function recordedAnswers({ registry }: TestServer) {
@@ -181,6 +107,8 @@ describe("round:answer", () => {
 
   it("refuses a second Answer with a new key without replacing the first", async () => {
     const testServer = await startAnswerServer();
+    // A Participant who never answers keeps the Round open after the first Answer.
+    await joinPlayer(testServer, "Meera");
     const { player, round } = await openRoundFor(testServer);
     const first = await submit(player.socket, round, optionIdFor(round, CORRECT_OPTION_TEXT));
     const recorded = recordedAnswers(testServer);
@@ -322,6 +250,8 @@ describe("round:answer", () => {
     const key = randomUUID();
     const asha = await joinPlayer(testServer, "Asha", { key });
     const ravi = await joinPlayer(testServer, "Ravi", { user: otherUser });
+    // A Participant who never answers keeps the Round open, so nothing here is a reveal.
+    await joinPlayer(testServer, "Meera");
     const host = await connectAs(testServer.port, hostUser);
     const received: unknown[] = [];
     recordEveryEvent([asha.socket, ravi.socket, host], received);
@@ -480,7 +410,7 @@ describe("latency:ping", () => {
     });
     await join(socket, "Asha", roundRoom.joinCode);
     await enoughSamples;
-    const { rounds } = await openRound(testServer, [{ socket, key: "" }]);
+    const { rounds } = await openRound(testServer, [{ socket }]);
     const [round] = rounds;
 
     if (round === undefined) {

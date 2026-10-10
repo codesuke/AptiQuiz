@@ -4,6 +4,7 @@ import type { LobbyParticipant, LobbySnapshot, RoomJoin } from "@aptiquiz/contra
 import { CircleCheck, Hourglass, Play, Radio } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { ParticipantRound } from "@/components/round/participant-round";
+import { nextRound } from "@/components/round/round-view";
 import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
 import {
   createRoomSocket,
@@ -116,7 +117,8 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
       setJoined((current) => {
         if (current === null) return current;
         const view = parseRoundUpdate(payload, current.lobby.roomId);
-        return view === null ? current : { ...current, round: receiveRound(view, receivedAt) };
+        if (view === null) return current;
+        return { ...current, round: nextRound(current.round, receiveRound(view, receivedAt)) };
       });
     });
 

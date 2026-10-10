@@ -62,7 +62,12 @@ export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }:
             ) : null}
           </div>
         </section>
-        {round ? <RoundQuestion round={round} /> : null}
+        {round ? (
+          <div className="space-y-4">
+            <RoundQuestion round={round} />
+            {/* Host Round controls (#36 adds "Next question" here once the Round is revealed). */}
+          </div>
+        ) : null}
         {lobby ? (
           <LobbyDetails lobby={lobby} />
         ) : (

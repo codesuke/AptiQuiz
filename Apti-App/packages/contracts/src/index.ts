@@ -197,7 +197,37 @@ export const openRoundSchema = roundBaseSchema.extend({
   answer: lockedAnswerSchema.nullable(),
 });
 
-export const roundViewSchema = z.discriminatedUnion("phase", [openRoundSchema]);
+/** Whether a Participant's Answer was correct and the points it earned in one Round. */
+export const roundResultSchema = z.object({
+  correct: z.boolean(),
+  points: z.number().int().nonnegative(),
+});
+
+/** One Participant's result for a closed Round. */
+export const roundScoreSchema = roundResultSchema.extend({
+  participantId: z.string().min(1),
+  displayName: displayNameSchema,
+  answered: z.boolean(),
+});
+
+/** Sent only after the Round closes: the correct option and every Participant's Round points. */
+export const revealedRoundSchema = roundBaseSchema.extend({
+  phase: z.literal("QUESTION_REVEAL"),
+  closedAt: timestampSchema,
+  /** In the receiver's own option id space. */
+  correctOptionId: z.string().min(1),
+  /** This Participant's accepted Answer, or null; always null for the Host. */
+  answer: lockedAnswerSchema.nullable(),
+  /** This Participant's own result, or null for the Host. */
+  result: roundResultSchema.nullable(),
+  /** Every joined Participant in join order; unanswered Participants have 0 points. */
+  scores: z.array(roundScoreSchema),
+});
+
+export const roundViewSchema = z.discriminatedUnion("phase", [
+  openRoundSchema,
+  revealedRoundSchema,
+]);
 
 export const roomErrorSchema = z.enum([
   "invalid_request",
@@ -286,6 +316,9 @@ export type LobbyParticipant = z.infer<typeof lobbyParticipantSchema>;
 export type LobbySnapshot = z.infer<typeof lobbySnapshotSchema>;
 export type PublicQuestion = z.infer<typeof publicQuestionSchema>;
 export type OpenRound = z.infer<typeof openRoundSchema>;
+export type RoundResult = z.infer<typeof roundResultSchema>;
+export type RoundScore = z.infer<typeof roundScoreSchema>;
+export type RevealedRound = z.infer<typeof revealedRoundSchema>;
 export type RoundView = z.infer<typeof roundViewSchema>;
 export type RoundRules = z.infer<typeof roundRulesSchema>;
 export type LockedAnswer = z.infer<typeof lockedAnswerSchema>;

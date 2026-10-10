@@ -13,6 +13,7 @@ import { io, type Socket, type Socket as UntypedSocket } from "socket.io-client"
 import { expect } from "vitest";
 import { type GameServerConfig, readGameServerConfig } from "../config.js";
 import type { RoomRegistry } from "../rooms.js";
+import type { Schedule } from "../scheduler.js";
 import { createConfiguredRegistry, createGameServer, type RunningGameServer } from "../server.js";
 import { createInMemoryRoomStore, type InMemoryRoomStore } from "./in-memory-room-store.js";
 
@@ -86,10 +87,19 @@ export interface TestClock {
   advance(milliseconds: number): void;
 }
 
+/** Holds scheduled callbacks until a test fires the ones the test clock has reached. */
+export interface TestScheduler {
+  readonly schedule: Schedule;
+  /** Runs every callback due at the current test time; callbacks they schedule wait. */
+  fireDue(): void;
+}
+
 export interface TestServer {
   readonly port: number;
   readonly store: InMemoryRoomStore;
   readonly clock: TestClock;
+  /** The Round deadline timers; nothing fires until the test calls `fireDue`. */
+  readonly deadlines: TestScheduler;
   /** The server's own registry, so tests can read what stays internal before the reveal. */
   readonly registry: RoomRegistry;
 }
@@ -105,6 +115,26 @@ function createTestClock(start: number): TestClock {
     now: () => current,
     advance: (milliseconds) => {
       current += milliseconds;
+    },
+  };
+}
+
+function createTestScheduler(clock: TestClock): TestScheduler {
+  const pending = new Set<{ readonly at: number; readonly callback: () => void }>();
+
+  return {
+    schedule: (at, callback) => {
+      const entry = { at, callback };
+      pending.add(entry);
+      return () => pending.delete(entry);
+    },
+    fireDue: () => {
+      const due = [...pending].filter((entry) => entry.at <= clock.now());
+
+      for (const entry of due) {
+        pending.delete(entry);
+        entry.callback();
+      }
     },
   };
 }
@@ -145,9 +175,15 @@ export async function startServer(options: TestServerOptions = {}): Promise<Test
   const config = testConfig(options.config);
   const store = createInMemoryRoomStore();
   const clock = createTestClock(ROUND_OPENED_AT);
-  const registry = createConfiguredRegistry(config, { store, logger, now: clock.now });
+  const deadlines = createTestScheduler(clock);
+  const registry = createConfiguredRegistry(config, {
+    store,
+    logger,
+    now: clock.now,
+    schedule: deadlines.schedule,
+  });
   server = createGameServer(config, { logger, roomStore: store, now: clock.now, registry });
-  return { port: await server.listen(), store, clock, registry };
+  return { port: await server.listen(), store, clock, deadlines, registry };
 }
 
 export function postRegistration(port: number, body: string): Promise<Response> {

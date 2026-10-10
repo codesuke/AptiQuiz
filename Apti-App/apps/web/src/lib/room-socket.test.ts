@@ -239,4 +239,23 @@ describe("parseRoundUpdate", () => {
     expect(parseRoundUpdate({ ...round, phase: "LOBBY" }, "room-1")).toBeNull();
     expect(parseRoundUpdate({ ...round, roomId: "room-2" }, "room-1")).toBeNull();
   });
+
+  it("accepts a revealed Round with the correct option, result, and scores", () => {
+    const revealed: RoundView = {
+      ...round,
+      phase: "QUESTION_REVEAL",
+      closedAt: 31_000,
+      correctOptionId: "opt-b",
+      answer: { questionIndex: 0, optionId: "opt-b", receivedAt: 4_000 },
+      result: { correct: true, points: 900 },
+      scores: [
+        { participantId: "p-1", displayName: "Asha", answered: true, correct: true, points: 900 },
+      ],
+    };
+
+    const parsed = parseRoundUpdate(revealed, "room-1");
+    expect(parsed?.phase).toBe("QUESTION_REVEAL");
+    expect(parsed).toEqual(revealed);
+    expect(parseRoundUpdate({ ...revealed, scores: undefined }, "room-1")).toBeNull();
+  });
 });

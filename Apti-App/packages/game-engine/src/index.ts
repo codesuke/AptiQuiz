@@ -27,6 +27,8 @@ export interface GameState {
   readonly questionIndex: number | null;
   readonly roundStartsAt: number | null;
   readonly roundEndsAt: number | null;
+  /** Server time the current Question closed, or null while it is open or none exists. */
+  readonly roundClosedAt: number | null;
 }
 
 export type GameCommand =
@@ -62,6 +64,7 @@ export function createGameState(roomId: string, questionCount: number): GameStat
     questionIndex: null,
     roundStartsAt: null,
     roundEndsAt: null,
+    roundClosedAt: null,
   };
 }
 
@@ -79,7 +82,7 @@ export function transitionGame(
     case "CLOSE_QUESTION":
       assertPhase(state, "QUESTION_OPEN", command.type);
       return {
-        state: { ...state, phase: "QUESTION_REVEAL" },
+        state: { ...state, phase: "QUESTION_REVEAL", roundClosedAt: serverTime },
         events: [{ type: "QUESTION_CLOSED", questionIndex: requireQuestionIndex(state) }],
       };
     case "SHOW_LEADERBOARD":
@@ -99,6 +102,7 @@ export function transitionGame(
             phase: "FINISHED",
             roundStartsAt: null,
             roundEndsAt: null,
+            roundClosedAt: null,
           },
           events: [{ type: "GAME_FINISHED" }],
         };
@@ -175,6 +179,7 @@ function openQuestion(
       questionIndex,
       roundStartsAt: serverTime,
       roundEndsAt: serverTime + durationMs,
+      roundClosedAt: null,
     },
     events: [{ type: "QUESTION_OPENED", questionIndex }],
   };
