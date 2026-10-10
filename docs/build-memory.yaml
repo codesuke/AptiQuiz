@@ -1,6 +1,77 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-57"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Automatic live Match flow and presentation"
+    status: "working_with_limitations"
+    summary: "After one Host start, the Game Server runs timed ready, Question, and reveal phases through durable final results. Host and Participant views show countdowns, an expanded results screen, motion, and optional sound cues."
+    areas:
+      - "game server"
+      - "live Room web UI"
+      - "results"
+      - "accessibility"
+    working:
+      - "The server owns 3-second Getting ready, existing 30-second Question with early closure, and 6-second reveal deadlines; the Host cannot advance manually."
+      - "Reconnects receive the same phase and deadline, and premature or late Answers are rejected."
+      - "Finalizing results retries a failed database commit every 2 seconds; FINISHED is broadcast only after one durable result per Participant is saved."
+      - "The final screen shows top three, full ordered Leaderboard, and Participant score, rank, accuracy, Average Effective Response Time, and Topic strengths."
+      - "Framer Motion marks live state changes with reduced-motion support, while interaction-gated Web Audio cues and a persistent mute control mark countdowns and key events."
+    limitations:
+      - "Browser-driven desktop, mobile, reduced-motion, and actual audio playback checks were unavailable because no browser runtime is installed."
+      - "A final full monorepo test run encountered Game Server failures while unrelated uncommitted event rate limiting changes were present; full monorepo checks passed earlier after #59 and #60, and the final web suite passed after #62."
+      - "Active in-memory Rooms do not recover after a Game Server process restart."
+    prd:
+      issue: 57
+      url: "https://github.com/codesuke/AptiQuiz/issues/57"
+    slices:
+      - issue: 58
+        title: "Getting ready before Question 1"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/58"
+      - issue: 59
+        title: "Run Questions automatically after each reveal"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/59"
+      - issue: 60
+        title: "Complete the Match and show final results automatically"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/60"
+      - issue: 61
+        title: "Bring motion to the live Room"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/61"
+      - issue: 62
+        title: "Add optional live Room sound cues"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/62"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "2a87f50"
+        - "c5f6e8f"
+        - "4f92b6f"
+        - "f1c15d2"
+        - "73f1b5d"
+        - "1301f23"
+      tests:
+        - "Full monorepo lint, typecheck, test, and build passed after #59 and #60, including PostgreSQL-backed Game Server tests."
+        - "Final web typecheck, 197 tests, build, and targeted Biome passed after #62."
+        - "Code review performed for each slice; findings resolved before close."
+    archive:
+      prd: "docs/Specs-Completed/57-automatic-live-match-flow-and-presentation/PRD.md"
+      slices:
+        - "docs/Specs-Completed/57-automatic-live-match-flow-and-presentation/slices/58-getting-ready-before-question-1.md"
+        - "docs/Specs-Completed/57-automatic-live-match-flow-and-presentation/slices/59-run-questions-automatically-after-each-reveal.md"
+        - "docs/Specs-Completed/57-automatic-live-match-flow-and-presentation/slices/60-complete-the-match-and-show-final-results-automatically.md"
+        - "docs/Specs-Completed/57-automatic-live-match-flow-and-presentation/slices/61-bring-motion-to-the-live-room.md"
+        - "docs/Specs-Completed/57-automatic-live-match-flow-and-presentation/slices/62-add-optional-live-room-sound-cues.md"
   - id: "2026-10-10-github-prd-11"
     changed_at: "2026-10-10"
     kind: "infrastructure"
