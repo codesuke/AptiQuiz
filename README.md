@@ -140,7 +140,7 @@ The process exits nonzero when any setup, connection, join, Lobby, scoring, secr
 
 ### 50-Participant proof
 
-One full Match with 50 virtual Participants was run against the deployed servers on **2026-10-10 at 14:52 UTC**. The simulator process exited 0 and its report showed no errors.
+One full Match with 50 virtual Participants was run against the deployed servers on **2026-10-10 at 14:56 UTC**. The simulator process exited 0 and its report showed no errors.
 
 Command (the Host session is a secret and is not recorded here):
 
@@ -156,24 +156,24 @@ pnpm simulate
 | --- | --- |
 | Runner | AMD Ryzen 7 5800H, 16 logical CPUs, 13 GiB RAM, WSL2 (Linux 6.18), Node.js 24.14; reached the servers over the public internet |
 | Game Server and web app | Dokploy deployment at `game.aptiquiz.codesuke.in` and `aptiquiz.codesuke.in`. The server hardware is not visible to the runner and is not recorded. |
-| Simulator code | commit `7298213` |
+| Simulator code | commit `12a9eaa` |
 | Question Set | Seeded starter set, 3 Questions |
 | Round timing | 30,000 ms Round; 100 ms delay-compensation cap; 100 ms score bucket |
 | Host | A throwaway account made for this run |
 
-Counts from the report: 50 sockets connected, 50 Participants joined, 50 distinct identities in the public Lobby; 3 Questions completed; 140 Answers accepted (30 of them wrong); 10 unanswered Participant-Rounds; 30 new-key duplicates rejected; 30 exact-key replays returned the first result; 10 late Answers rejected, all as `round_not_open` (the deadline timer had already closed the Round); 15 of 15 resumes restored identity, score, Answer state, option order, and deadline; Leaderboards were identical for all viewers after 3 of 3 Rounds; 50 saved results matched the revealed Round points; 2,056 pre-reveal payloads were scanned and none disclosed a correct option, correctness, explanation, or points. The run took about 32 s.
+Counts from the report: 50 sockets connected, 50 Participants joined, 50 distinct identities in the public Lobby; 3 Questions completed; 140 Answers accepted (30 of them wrong); 10 unanswered Participant-Rounds; 30 new-key duplicates rejected; 30 exact-key replays returned the first result; 10 late Answers rejected, all as `round_not_open` (the deadline timer had already closed the Round); 15 of 15 resumes restored identity, score, Answer state, option order, and deadline; Leaderboards were identical for all viewers after 3 of 3 Rounds; 50 saved results matched the revealed Round points; 2,269 pre-reveal payloads were scanned and none disclosed a correct option, correctness, explanation, or points. A Participant's Host command was refused as `not_room_host`. The run took about 33 s.
 
 Client-observed latency in milliseconds (the time from sending a command to its acknowledgement or event, measured in the simulator process, including the internet round trip):
 
 | Metric | Samples | p50 | p95 | max |
 | --- | ---: | ---: | ---: | ---: |
-| `timePingAck` | 50 | 34.8 | 55.9 | 57.5 |
-| `roomJoinAck` | 50 | 122.0 | 162.6 | 168.9 |
-| `roundAnswerAck` | 210 | 31.3 | 37.6 | 43.8 |
-| `roomResumeAck` | 15 | 29.4 | 34.5 | 34.5 |
-| `hostCommandToRoundState` | 153 | 38.2 | 44.1 | 51.6 |
-| `lastAnswerAckToReveal` | 102 | 41.9 | 67.4 | 76.9 |
-| `roomAdvanceAck` | 3 | 28.9 | 100.6 | 100.6 |
+| `timePingAck` | 50 | 35.6 | 56.5 | 86.7 |
+| `roomJoinAck` | 50 | 101.7 | 199.8 | 204.2 |
+| `roundAnswerAck` | 210 | 30.0 | 51.3 | 52.6 |
+| `roomResumeAck` | 15 | 25.4 | 35.5 | 35.5 |
+| `hostCommandToRoundState` | 153 | 35.0 | 42.5 | 42.9 |
+| `lastAnswerAckToReveal` | 102 | 42.9 | 51.9 | 322.5 |
+| `roomAdvanceAck` | 3 | 38.4 | 141.0 | 141.0 |
 
 This is one run of one Room. It shows that a 50-Participant Match completes correctly on the deployed Game Server from a single runner. It does not show capacity for many Rooms, other networks, or browsers. The simulator sets no latency pass threshold.
 
