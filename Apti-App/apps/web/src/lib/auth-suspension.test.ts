@@ -16,7 +16,15 @@ describe.runIf(hasDatabase)("suspended User", () => {
   it("cannot sign in and loses an existing session on the next request", async () => {
     if (!databaseUrl || !baseUrl)
       throw new Error("Database-backed auth test needs its environment");
-    const { auth } = await import("./auth");
+    const { auth, getSessionAccess } = await import("./auth");
+    const { createSocketTicketPost, readGameServerSecret } = await import(
+      "./socket-ticket-handler"
+    );
+    const issueSocketTicket = createSocketTicketPost({
+      getSessionAccess,
+      getSecret: readGameServerSecret,
+      now: Date.now,
+    });
     const database = createDatabase(databaseUrl);
     const email = `suspended-${randomUUID()}@example.test`;
     const password = `P@ssword-${randomUUID()}`;
@@ -35,6 +43,11 @@ describe.runIf(hasDatabase)("suspended User", () => {
     }
 
     try {
+      const guestTicket = await issueSocketTicket(
+        new Request(new URL("/api/socket-ticket", baseUrl), { method: "POST" }),
+      );
+      expect(guestTicket.status).toBe(401);
+
       const signup = await request("/sign-up/email", {
         name: "Suspension test",
         email,
@@ -53,6 +66,13 @@ describe.runIf(hasDatabase)("suspended User", () => {
 
       const suspendedSession = await request("/get-session", undefined, cookie);
       expect(await suspendedSession.json()).toBeNull();
+      const suspendedTicket = await issueSocketTicket(
+        new Request(new URL("/api/socket-ticket", baseUrl), {
+          method: "POST",
+          headers: { cookie },
+        }),
+      );
+      expect(suspendedTicket.status).toBe(403);
       const signIn = await request("/sign-in/email", { email, password });
       expect(signIn.status).toBe(403);
       expect((await signIn.json()).code).toBe("ACCOUNT_SUSPENDED");

@@ -21,6 +21,8 @@ The following functions are available:
 - The web application supports email and password sign-up, sign-in, and sign-out.
 - A verified User in `ADMIN_EMAILS` can open the placeholder `/admin` area.
 - A suspended User cannot create a session or use an existing session on the next request.
+- The web application issues short-lived Socket Tickets to signed-in Users.
+- The browser connects to the Game Server as a User or a Guest and shows the identity reported by `server:ready`.
 - The Game Server supplies `GET /health`.
 - The Game Server accepts Socket.IO connections.
 - The Game Server identifies each connection as a User or a Guest from its Socket Ticket.
@@ -37,7 +39,6 @@ The following functions are not available:
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
-- The web application does not issue Socket Tickets.
 - Google sign-in, email verification, and password reset are not available.
 - The application does not use Redis or Kafka.
 - The application is not deployed.
@@ -51,6 +52,7 @@ Browser
   v
 Apti-App/apps/web
   |-- GET /api/health
+  |-- POST /api/socket-ticket
   |-- Next.js user interface
   |
   | WebSocket
@@ -125,7 +127,9 @@ The foundation page shows the product direction. The Join and Host buttons do no
 
 The `/admin` placeholder reads the User's current verification and suspension state. It derives Admin access from the current `ADMIN_EMAILS` setting for each request. Guests are redirected to sign in; other Users see a not-allowed page.
 
-The `GameServerStatus` component makes a WebSocket connection to the Game Server. The component shows connection status and round-trip time.
+The `GameServerStatus` component requests a Socket Ticket before each Socket.IO connection attempt, including automatic reconnects. A 401 response connects as a Guest; another ticket request failure does not downgrade the connection to Guest. The component shows the identity from `server:ready`, connection status, and round-trip time.
+
+`POST /api/socket-ticket` reads the current Better Auth session and User row. It returns 401 with no session, 403 for a suspended User, or a 60-second signed ticket with the current role and email-verified status. It sets `Cache-Control: no-store`.
 
 The web application does not control game deadlines or scores.
 
@@ -258,13 +262,14 @@ The simulator does not simulate a complete Match. Do not use its result as proof
 
 The current WebSocket data flow is as follows:
 
-1. The browser connects to the Game Server. The handshake can contain a Socket Ticket.
-2. The Game Server identifies the connection as a User or a Guest, or refuses the connection.
-3. The Game Server sends `server:ready` with the identity.
-4. The browser sends `time:ping` with `clientSentAt`.
-5. The Game Server validates the payload.
-6. The Game Server sends an acknowledgment with `serverReceivedAt`.
-7. The browser calculates and shows the round-trip time.
+1. The browser requests a fresh ticket from `POST /api/socket-ticket` before each connection attempt.
+2. The web application checks the current session, suspension state, verified email, and Admin allow-list before it signs a ticket. With no session, the browser connects without a ticket as a Guest.
+3. The browser connects to the Game Server with the ticket in Socket.IO handshake `auth`, when one exists.
+4. The Game Server identifies the connection as a User or a Guest, or refuses the connection.
+5. The Game Server sends `server:ready` with the identity.
+6. The browser sends `time:ping` with `clientSentAt`.
+7. The Game Server validates the payload and acknowledges it with `serverReceivedAt`.
+8. The browser shows the returned identity and round-trip time.
 
 The Game Engine is not connected to the Socket.IO handlers at this time.
 
@@ -292,9 +297,10 @@ The following rules apply to new product code:
 - Do not send `DATABASE_URL` or server secrets to the browser.
 - A suspended User cannot create a new session. The web application checks the current User row before accepting an existing session on a page request, and Better Auth rejects suspended sessions on its HTTP endpoints.
 - Admin access requires a verified email in the current `ADMIN_EMAILS` allow-list. The role is not stored in the database.
+- Keep `GAME_SERVER_SECRET` and Socket Ticket signing in server-only modules. Issue a new ticket for each connection attempt and never cache the ticket response.
 - Use an explicit Cross-Origin Resource Sharing origin outside local development.
 
-ADR 0007 accepts Better Auth and short-lived Socket Tickets. The web application uses Better Auth for email and password sessions. The Game Server verifies Socket Tickets, but the web application does not issue them yet.
+ADR 0007 accepts Better Auth and short-lived Socket Tickets. The web application uses Better Auth for email and password sessions and issues Socket Tickets. The Game Server verifies those tickets.
 
 ## Environment Variables
 
@@ -308,7 +314,7 @@ ADR 0007 accepts Better Auth and short-lived Socket Tickets. The web application
 | `GAME_SERVER_ORIGIN` | Game Server | Implemented | Selects the allowed web origin. |
 | `LOG_LEVEL` | Game Server | Implemented | Selects the Pino log level. |
 | `DATABASE_URL` | Database tools | Implemented | Connects Prisma to PostgreSQL. |
-| `GAME_SERVER_SECRET` | Web and Game Server | Implemented in the Game Server | Verifies Socket Tickets. The web application will sign tickets with it. |
+| `GAME_SERVER_SECRET` | Web and Game Server | Implemented | Signs and verifies Socket Tickets. |
 | `BETTER_AUTH_SECRET` | Web | Implemented | Signs Better Auth data. |
 | `BETTER_AUTH_URL` | Web | Implemented | Selects the Better Auth URL. |
 | `GOOGLE_CLIENT_ID` | Web | Planned | Identifies the Google OAuth client. |
@@ -351,13 +357,15 @@ The accepted target has these parts:
 
 ## Failure Rules
 
-Health, time-ping, handshake, email/password authentication, and Admin access failure behavior exists at this time. The other rules are requirements for future product slices.
+Failure rules for health, time-ping, handshake, email/password authentication, Admin access, and Socket Tickets are implemented. The other rules are requirements for future product slices.
 
 - If a Socket Ticket is expired, the Game Server refuses the connection with `socket_ticket_expired`.
 - If a Socket Ticket is altered, malformed, or for another audience, the Game Server refuses the connection with `socket_ticket_invalid`.
 - If `GAME_SERVER_SECRET` is missing or shorter than 32 characters, the Game Server does not start.
 - If a `time:ping` payload is invalid, the Game Server returns `invalid_time_ping`.
 - If a User is suspended, Better Auth refuses a new session and rejects existing sessions on the next auth request. Server-rendered pages treat the session as inactive.
+- If no session exists, `POST /api/socket-ticket` returns 401 and the browser connects as a Guest. If the User is suspended, it returns 403 and the browser does not silently connect as a Guest.
+- If the ticket request fails for another reason, the browser sends an invalid handshake and shows the Game Server as offline.
 - If an authenticated User lacks Admin access, `/admin` shows "Not allowed". A Guest is redirected to sign in.
 - If an HTTP path is not available, the Game Server returns HTTP 404 and `not_found`.
 - If a future Answer is late, the Game Server must reject the Answer by server time.
@@ -408,5 +416,6 @@ pnpm simulate
 | The simulator creates 50 connections by default. | VERIFIED | `Apti-App/apps/simulator/src/index.ts` and `docs/build-memory.yaml` | Repeat the test after transport changes. | - |
 | A complete 50-Participant Match is not implemented. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` contains no Room or Answer events. | Implement and test the complete flow. | - |
 | The Game Server identifies Users and Guests from Socket Tickets. | VERIFIED | `Apti-App/apps/game-server/src/handshake.ts`, `server.test.ts`, and `Apti-App/packages/socket-ticket/src/index.test.ts` | Keep the handshake tests successful. | - |
-| Email and password sign-in is implemented; Socket Ticket issue, Dokploy deployment, Redis, and Kafka are not. | VERIFIED | `Apti-App/apps/web/src/lib/auth.ts`, application source, ADR 0007, and ADR 0008 | Change this claim only after implementation and verification. | - |
+| Email/password sign-in and Socket Ticket issue are implemented; Dokploy deployment, Redis, and Kafka are not. | VERIFIED | `Apti-App/apps/web/src/lib/auth.ts`, `app/api/socket-ticket/route.ts`, and `apps/game-server/src/handshake.ts` | Keep the web and Game Server ticket contracts synchronized. | - |
 | Admin access is derived from the verified email and current allow-list, and suspended Users lose access. | VERIFIED | `Apti-App/apps/web/src/lib/roles.ts`, `auth.ts`, `app/admin/page.tsx`, and their tests | Keep role and suspension checks at server request boundaries. | - |
+| A signed-in browser requests a new ticket for each connection and shows the User identity from `server:ready`; a Guest browser shows Guest. | VERIFIED | `Apti-App/apps/web/src/components/game-server-status.tsx`, `lib/socket-auth.ts`, route and auth tests, and browser verification | Repeat the restart test when connection handling changes. | - |

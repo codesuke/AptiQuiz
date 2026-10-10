@@ -82,18 +82,25 @@ export const auth = betterAuth({
   user: { additionalFields: { suspended: { defaultValue: false, input: false, type: "boolean" } } },
 });
 
-export async function getActiveSession(headers: Headers) {
+export async function getSessionAccess(headers: Headers) {
   const session = await auth.api.getSession({ headers });
-  if (!session) return null;
+  if (!session) return { kind: "guest" as const };
 
   const user = await database.user.findUnique({
     where: { id: session.user.id },
     select: { email: true, emailVerified: true, suspended: true },
   });
-  if (!user || user.suspended) return null;
+  if (!user) return { kind: "guest" as const };
+  if (user.suspended) return { kind: "suspended" as const };
 
-  return {
+  const activeSession = {
     ...session,
     user: { ...session.user, email: user.email, emailVerified: user.emailVerified },
   };
+  return { kind: "active" as const, user: activeSession.user, session: activeSession };
+}
+
+export async function getActiveSession(headers: Headers) {
+  const access = await getSessionAccess(headers);
+  return access.kind === "active" ? access.session : null;
 }

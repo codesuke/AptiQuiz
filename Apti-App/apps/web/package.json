@@ -12,6 +12,7 @@
   "dependencies": {
     "@aptiquiz/contracts": "workspace:*",
     "@aptiquiz/database": "workspace:*",
+    "@aptiquiz/socket-ticket": "workspace:*",
     "@better-auth/prisma-adapter": "1.7.7",
     "better-auth": "1.7.7",
     "class-variance-authority": "^0.7.1",
