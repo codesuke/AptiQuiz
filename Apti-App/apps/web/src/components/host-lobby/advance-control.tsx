@@ -17,22 +17,32 @@ export function AdvanceControl({ lobby, round, advance, online, onAdvance }: Adv
   if (!canAdvance(lobby, round)) return null;
 
   return (
-    <div>
-      <button
-        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#b84700] px-6 font-semibold text-white hover:bg-[#993a00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b84700] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-        disabled={!online || advance.pending}
-        onClick={onAdvance}
-        type="button"
-      >
-        {advance.pending ? advancePendingLabel(round) : advanceLabel(round)}
-      </button>
-      <div aria-live="assertive" className="mt-3 min-h-5">
-        {advance.error ? (
-          <p className="text-sm text-red-800" role="alert">
-            {describeRoomError(advance.error)}
-          </p>
-        ) : null}
+    <section className="flex flex-col gap-4 rounded-xl border border-[var(--aq-rule)] bg-[var(--aq-surface)] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div>
+        <h2 className="font-[family-name:var(--aq-font-display)] text-2xl tracking-[-0.04em] text-[var(--aq-ink)]">
+          Ready for what’s next?
+        </h2>
+        <p className="mt-1 text-sm text-[var(--aq-text-muted)]">
+          The results are visible. Continue when your players are ready.
+        </p>
       </div>
-    </div>
+      <div className="shrink-0">
+        <button
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[var(--aq-action-prominent)] px-6 font-semibold text-white hover:bg-[var(--aq-action-prominent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--aq-action)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          disabled={!online || advance.pending}
+          onClick={onAdvance}
+          type="button"
+        >
+          {advance.pending ? advancePendingLabel(round) : advanceLabel(round)}
+        </button>
+        <div aria-live="assertive" className="mt-3 min-h-5">
+          {advance.error ? (
+            <p className="text-sm text-red-800" role="alert">
+              {describeRoomError(advance.error)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }

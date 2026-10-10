@@ -227,8 +227,8 @@ The active roadmap and acceptance criteria live in [GitHub Issues](https://githu
 | [Domain glossary](CONTEXT.md) | Question Sets, Rooms, Rounds, and other shared terms |
 | [Architecture](Architecture.md) | System structure, implemented behavior, and accepted plans |
 | [Architecture decisions](docs/ADR/README.md) | Recorded technical trade-offs |
-| [Brand](Brand.md) · [Design system](DESIGN.md) | Logo usage, voice, palette, and interface direction |
-| [Design references](design-mocks/README.md) | Authentication prototype and generated asset provenance |
+| [Brand](Brand.md) · [Design system](DESIGN.md) | Logo usage, voice, and the home-page-led visual standard |
+| [Design references](design-mocks/README.md) | Canonical home page, other screen references, and asset provenance |
 | [Deployment guides](docs/guide/README.md) | Dokploy deployment, DNS records, and nameserver delegation |
 | [Build memory](docs/build-memory.yaml) | Verified changes, evidence, and known limitations |
 

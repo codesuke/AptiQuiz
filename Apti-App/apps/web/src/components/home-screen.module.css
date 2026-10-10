@@ -6,11 +6,11 @@
   color: #14352b;
 }
 .wrap {
-  width: min(100% - 80px, 1420px);
+  width: min(calc(100% - var(--aq-page-gutter) - var(--aq-page-gutter)), var(--aq-content-width));
   margin-inline: auto;
 }
 .orange {
-  color: #e65c00;
+  color: var(--aq-brand-orange);
 }
 .eyebrow {
   display: flex;
@@ -20,8 +20,7 @@
   color: #63766c;
   font:
     600 11px / 1.5 ui-monospace,
-    SFMono-Regular,
-    monospace;
+    var(--aq-font-label);
   letter-spacing: 0.19em;
   text-transform: uppercase;
 }
@@ -29,13 +28,13 @@
   display: block;
   width: 36px;
   height: 2px;
-  background: #e65c00;
+  background: var(--aq-brand-orange);
 }
 .hero {
   position: relative;
   min-height: min(800px, calc(100svh - 82px));
   overflow: hidden;
-  background: #f6f0e4;
+  background: var(--aq-hero-surface);
 }
 .heroImage {
   position: absolute;
@@ -62,7 +61,7 @@
 .questionCopy h2,
 .collegeCopy h2,
 .closing h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--aq-font-display);
   font-weight: 400;
   letter-spacing: -0.055em;
 }
@@ -75,7 +74,7 @@
 .heroLead {
   max-width: 635px;
   margin: 32px 0 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--aq-font-display);
   font-size: clamp(1.2rem, 1.5vw, 1.65rem);
   line-height: 1.44;
 }
@@ -93,23 +92,20 @@
   align-items: center;
   justify-content: center;
   gap: 20px;
-  border-radius: 999px;
+  border-radius: var(--aq-pill-radius);
   padding: 0 30px;
-  font:
-    500 20px Georgia,
-    "Times New Roman",
-    serif;
+  font: 500 20px var(--aq-font-display);
   text-decoration: none;
   transition:
     transform 0.2s ease,
     background 0.2s ease;
 }
 .primaryButton {
-  background: #c84f00;
+  background: var(--aq-action-prominent);
   color: #fff;
 }
 .primaryButton:hover {
-  background: #a63f00;
+  background: var(--aq-action-prominent-hover);
   transform: translateY(-2px);
 }
 .textLink,
@@ -120,10 +116,7 @@
   gap: 12px;
   border-bottom: 2px solid #d45b17;
   color: #15372d;
-  font:
-    500 19px Georgia,
-    "Times New Roman",
-    serif;
+  font: 500 19px var(--aq-font-display);
   text-decoration: none;
 }
 .heroNote {
@@ -132,14 +125,13 @@
   color: #6d7b73;
   font:
     600 10px / 1.65 ui-monospace,
-    SFMono-Regular,
-    monospace;
+    var(--aq-font-label);
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 .ways {
   padding: 105px 0 115px;
-  background: #fdfbf7;
+  background: var(--aq-canvas);
 }
 .sectionTitle {
   max-width: 1120px;
@@ -149,7 +141,7 @@
 }
 .sectionIntro {
   margin: 24px 0 0;
-  color: #4c6257;
+  color: var(--aq-text-muted);
   font-size: 20px;
   line-height: 1.55;
 }
@@ -165,7 +157,7 @@
   min-height: 465px;
   flex-direction: column;
   padding: 35px 25px 34px;
-  border-left: 1px solid #d7dacf;
+  border-left: 1px solid var(--aq-rule);
 }
 .wayNumber {
   color: #e8a47b;
@@ -214,8 +206,8 @@
 }
 .wayFeatured {
   border: 0;
-  background: #15372d;
-  color: #fdfbf7;
+  background: var(--aq-ink);
+  color: var(--aq-canvas);
   padding-inline: 42px;
 }
 .wayFeatured .wayNumber,
@@ -230,8 +222,8 @@
   display: grid;
   grid-template-columns: 52% 48%;
   min-height: 610px;
-  background: #102e26;
-  color: #fdfbf7;
+  background: var(--aq-ink-deep);
+  color: var(--aq-canvas);
 }
 .questionVisual,
 .collegeImage {
@@ -262,7 +254,7 @@
 .collegeCopy > p:not(.eyebrow) {
   max-width: 570px;
   margin: 28px 0 0;
-  color: #d7e4da;
+  color: var(--aq-text-on-dark);
   font-size: 20px;
   line-height: 1.6;
 }
@@ -283,7 +275,7 @@
 }
 .process {
   padding: 114px 0 125px;
-  background: #fdfbf7;
+  background: var(--aq-canvas);
 }
 .process .eyebrow {
   justify-content: center;
@@ -341,7 +333,7 @@
   display: grid;
   grid-template-columns: 53% 47%;
   min-height: 600px;
-  background: #f5f3eb;
+  background: var(--aq-surface);
 }
 .collegeCopy {
   display: flex;
@@ -354,7 +346,7 @@
   color: #40584b;
 }
 .collegeLink {
-  color: #b84700;
+  color: var(--aq-action);
 }
 .closing {
   padding: 104px 0 105px;
@@ -373,7 +365,7 @@
   margin-top: 45px;
 }
 .lightButton {
-  background: #fdfbf7;
+  background: var(--aq-canvas);
   color: #15372d;
 }
 .lightButton:hover {
@@ -384,8 +376,8 @@
   border-color: #15372d;
 }
 .footer {
-  background: #123b2e;
-  color: #fdfbf7;
+  background: var(--aq-ink-footer);
+  color: var(--aq-canvas);
   padding: 62px 0;
 }
 .footer .wrap {
@@ -399,7 +391,7 @@
   align-items: center;
   min-width: 176px;
   padding: 8px 12px;
-  background: #fdfbf7;
+  background: var(--aq-canvas);
 }
 .footerLogo img {
   display: block;
@@ -457,7 +449,7 @@
 }
 @media (max-width: 760px) {
   .wrap {
-    width: min(100% - 40px, 600px);
+    width: min(calc(100% - var(--aq-page-gutter) - var(--aq-page-gutter)), 600px);
   }
   .hero,
   .heroInner {
@@ -520,7 +512,7 @@
   .way {
     min-height: 0;
     border-left: 0;
-    border-top: 1px solid #d7dacf;
+    border-top: 1px solid var(--aq-rule);
     padding: 28px 20px 35px;
   }
   .wayNumber {

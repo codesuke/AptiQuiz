@@ -56,6 +56,8 @@ Rules for Node.js 22+, TypeScript 5.9, Next.js 16, React 19, Socket.IO 4, Prisma
 ## Styling and Components
 
 - Tailwind CSS 4 provides utility styling.
+- `DESIGN.md` is the visual source of truth for new and refreshed web screens. Use the shipped home page desktop and mobile captures as the reference for typography, spacing, layout rhythm, colors, imagery, and action hierarchy.
+- Reuse the `--aq-*` tokens in `Apti-App/apps/web/src/app/globals.css` instead of introducing a second page palette or type system. Adapt section density to the task while keeping the same visual language.
 - shadcn/ui primitives, when generated, live under `Apti-App/apps/web/src/components/ui` and may be edited as owned source.
 - Shared product components remain in `Apti-App/apps/web` until a second application consumes them.
 - Preserve keyboard access, visible focus, readable contrast, reduced-motion preferences, and mobile layouts.
