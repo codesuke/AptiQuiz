@@ -24,6 +24,7 @@ The following functions are available:
 - The web application supports password reset. A User requests a one-time reset link at `/forgot-password` and sets a new password at `/reset-password`.
 - A verified User in `ADMIN_EMAILS` can open the placeholder `/admin` area.
 - A suspended User cannot create a session or use an existing session on the next request.
+- A signed-in User searches the approved Colleges at `/college` and sets one Home College. The account menu shows it.
 - The web application issues short-lived Socket Tickets to signed-in Users.
 - The browser connects to the Game Server as a User or a Guest and shows the identity reported by `server:ready`.
 - The Game Server supplies `GET /health`.
@@ -134,6 +135,8 @@ After email sign-up, Better Auth sends a verification email. The link expires af
 `/forgot-password` requests a reset link. The response is the same for a known and an unknown email. The link works one time and expires after 60 minutes. A successful reset ends all sessions of the User and sets the email-verified status to true. Better Auth limits the resend and reset requests to 3 for each client in 5 minutes.
 
 The web application sends auth email through Gmail SMTP when `GMAIL_USER` and `GMAIL_APP_PASSWORD` are set. Without them, development and test write the email to the server log, and other environments refuse to send.
+
+`GET /api/colleges?q=` searches the approved Colleges. `PUT /api/home-college` sets the signed-in User's one Home College. Both return 401 with no session and 403 for a suspended User. The seed (`pnpm --filter @aptiquiz/database db:seed`) loads the approved Colleges and is safe to run again. A Guest has no Home College and sees no College picker. No Pending College state exists in the MVP.
 
 The `/admin` placeholder reads the User's current verification and suspension state. It derives Admin access from the current `ADMIN_EMAILS` setting for each request. Guests are redirected to sign in; other Users see a not-allowed page.
 

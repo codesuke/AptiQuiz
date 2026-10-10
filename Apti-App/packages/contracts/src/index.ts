@@ -10,6 +10,8 @@ export const roomCodeSchema = z
 
 export const displayNameSchema = z.string().trim().min(2).max(32);
 
+export const chooseHomeCollegeSchema = z.object({ collegeId: z.string().min(1) });
+
 export const timePingSchema = z.object({
   clientSentAt: timestampSchema,
 });

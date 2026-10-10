@@ -5,7 +5,9 @@ import { AccountMenu } from "@/components/auth/account-menu";
 import { EmailVerificationNotice } from "@/components/auth/verification-resend";
 import { GameServerStatus } from "@/components/game-server-status";
 import { getActiveSession } from "@/lib/auth";
+import { database } from "@/lib/database";
 import { needsEmailVerification } from "@/lib/email-verification";
+import { getHomeCollege } from "@/lib/home-college";
 
 const foundations = [
   {
@@ -29,6 +31,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const session = await getActiveSession(await headers());
+  const homeCollege = session ? await getHomeCollege(database, session.user.id) : null;
   return (
     <main className="min-h-screen overflow-hidden bg-[#efece5] text-stone-900">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(230,92,0,0.15),transparent_34%),radial-gradient(circle_at_80%_20%,rgba(255,179,128,0.24),transparent_30%)]" />
@@ -49,7 +52,10 @@ export default async function HomePage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <GameServerStatus />
-            <AccountMenu name={session?.user.name ?? null} />
+            <AccountMenu
+              collegeName={homeCollege?.name ?? null}
+              name={session?.user.name ?? null}
+            />
           </div>
         </header>
         {needsEmailVerification(session) ? (

@@ -1,5 +1,4 @@
 import "server-only";
-import { createDatabase, type PrismaClient } from "@aptiquiz/database";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -8,12 +7,13 @@ import {
   buildPasswordResetLink,
   buildVerificationEmail,
 } from "./auth-emails";
+import { database } from "./database";
 import { VERIFICATION_LINK_LIFETIME_SECONDS } from "./email-verification";
 import { readSocialProviders } from "./google-sign-in";
 import { createGmailMailSender, type MailSender } from "./mail-sender";
 import { PASSWORD_RESET_LINK_LIFETIME_SECONDS } from "./password-reset";
 
-function readRequiredUrl(name: "BETTER_AUTH_URL" | "DATABASE_URL") {
+function readRequiredUrl(name: "BETTER_AUTH_URL") {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required for authentication`);
 
@@ -34,11 +34,6 @@ function readRequiredSecret() {
 
   return value;
 }
-
-const globalForDatabase = globalThis as typeof globalThis & { aptiquizDatabase?: PrismaClient };
-const database =
-  globalForDatabase.aptiquizDatabase ?? createDatabase(readRequiredUrl("DATABASE_URL"));
-if (process.env.NODE_ENV !== "production") globalForDatabase.aptiquizDatabase = database;
 
 let mailSender: MailSender | undefined;
 // Created on first send so a build or route without mail never needs Gmail credentials.
