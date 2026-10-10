@@ -30,12 +30,20 @@ export function JoinCodeForm() {
 
   return (
     <form
-      className="w-full max-w-[40.5rem] rounded-xl bg-[var(--aq-ink)] p-7 text-white shadow-[0_28px_60px_-32px_rgba(18,42,34,0.6)] sm:p-12 lg:min-h-[41rem] lg:p-16"
+      className="relative w-full max-w-[40.5rem] overflow-hidden rounded-[1.25rem] border border-white/10 bg-[var(--aq-ink)] p-7 text-white shadow-[0_32px_80px_-36px_rgba(18,42,34,0.72)] sm:p-12 lg:min-h-[41rem] lg:p-16"
       noValidate
       onSubmit={handleSubmit}
     >
-      <p className="mb-10 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-[var(--aq-text-on-dark)]">
-        Join a live quiz
+      <div
+        aria-hidden="true"
+        className="absolute -right-20 -top-20 size-52 rounded-full border border-white/10"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -right-8 -top-8 size-24 rounded-full bg-[#e65c00]/20 blur-2xl"
+      />
+      <p className="relative mb-10 flex items-center gap-3 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-[var(--aq-text-on-dark)]">
+        <span className="h-px w-8 bg-[#ff9b5b]" /> Join a live quiz
       </p>
       <label
         className="block font-[family-name:var(--aq-font-display)] text-4xl text-white"
@@ -46,21 +54,29 @@ export function JoinCodeForm() {
       <p className="mt-2 text-sm leading-6 text-[var(--aq-text-on-dark)]">
         Six letters or numbers, shown on the Host's screen.
       </p>
-      <input
-        aria-describedby={errorId}
-        aria-invalid={error !== null}
-        autoCapitalize="characters"
-        autoComplete="off"
-        autoCorrect="off"
-        className={`${textInputClass} mt-5 min-h-20 border-white/20 font-mono text-2xl uppercase tracking-[0.3em] sm:text-3xl`}
-        id={inputId}
-        inputMode="text"
-        maxLength={JOIN_CODE_LENGTH}
-        onChange={(event) => setCode(event.target.value.toUpperCase())}
-        placeholder="AB3CD9"
-        spellCheck={false}
-        value={code}
-      />
+      <div className="relative mt-5">
+        <input
+          aria-describedby={errorId}
+          aria-invalid={error !== null}
+          autoCapitalize="characters"
+          autoComplete="off"
+          autoCorrect="off"
+          className={`${textInputClass} min-h-20 border-white/20 bg-white/95 font-mono text-2xl uppercase tracking-[0.3em] shadow-inner sm:text-3xl`}
+          id={inputId}
+          inputMode="text"
+          maxLength={JOIN_CODE_LENGTH}
+          onChange={(event) => setCode(event.target.value.toUpperCase())}
+          placeholder="AB3CD9"
+          spellCheck={false}
+          value={code}
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute right-5 top-1/2 hidden -translate-y-1/2 font-mono text-xs tracking-[0.18em] text-[#627169] sm:block"
+        >
+          6 CHARACTERS
+        </span>
+      </div>
       <p
         aria-live="polite"
         className="mt-2 min-h-6 text-sm font-medium text-[#ffbd91]"
@@ -68,7 +84,10 @@ export function JoinCodeForm() {
       >
         {error}
       </p>
-      <button className={`${primaryButtonClass} mt-5 min-h-18 w-full text-lg`} type="submit">
+      <button
+        className={`${primaryButtonClass} mt-5 min-h-18 w-full rounded-full text-lg shadow-[0_14px_30px_-16px_rgba(0,0,0,0.75)]`}
+        type="submit"
+      >
         Find Room
         <ArrowRight aria-hidden="true" className="size-4" />
       </button>

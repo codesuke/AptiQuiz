@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { JoinMotion } from "./join-motion";
 
 interface JoinShellProps {
   readonly eyebrow: string;
@@ -24,13 +25,25 @@ export function JoinShell({
   headingAside,
 }: JoinShellProps) {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[var(--aq-canvas)] px-5 pb-16 text-[var(--aq-ink)] sm:px-10">
+    <main className="relative min-h-screen max-w-full overflow-x-hidden bg-[var(--aq-canvas)] px-5 pb-16 text-[var(--aq-ink)] sm:px-10">
+      <JoinMotion />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-40 top-24 size-[32rem] rounded-full bg-[#f0dfc5] opacity-45 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[-17rem] top-[22rem] size-[34rem] rounded-full bg-[#d7e4da] opacity-65 blur-3xl"
+      />
       <div
         aria-hidden="true"
         className="absolute inset-x-0 top-[4.75rem] h-px bg-[var(--aq-rule)]"
       />
 
-      <header className="relative mx-auto flex min-h-[4.75rem] max-w-[1510px] items-center justify-between gap-4">
+      <header
+        className="relative mx-auto flex min-h-[4.75rem] max-w-[1510px] items-center justify-between gap-4"
+        data-join-nav
+      >
         <Link
           aria-label="AptiQuiz home"
           className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
@@ -56,7 +69,7 @@ export function JoinShell({
       <div
         className={`relative mx-auto max-w-[1510px] ${joined ? "pt-5 sm:pt-6" : "pt-10 sm:pt-14"} ${split ? "grid gap-7 lg:min-h-[calc(100vh-4.75rem)] lg:grid-cols-[minmax(0,1fr)_minmax(34rem,0.92fr)] lg:items-start lg:gap-14 lg:pt-20" : ""}`}
       >
-        <div className={split ? "relative lg:min-h-[43rem] lg:pt-5" : ""}>
+        <div className={split ? "relative lg:min-h-[43rem] lg:pt-5" : ""} data-join-copy>
           <div className={headingAside ? "flex flex-wrap items-center justify-between gap-5" : ""}>
             <div>
               <p
@@ -70,7 +83,7 @@ export function JoinShell({
                 {eyebrow}
               </p>
               <h1
-                className={`${joined ? "text-[clamp(3rem,4.5vw,4.5rem)]" : "mt-5"} text-balance font-[family-name:var(--aq-font-display)] font-normal leading-[0.98] tracking-[-0.055em] text-[var(--aq-ink)] ${split ? "max-w-[42rem] text-[clamp(4.2rem,8.6vw,9rem)]" : joined ? "" : "text-[clamp(3.2rem,5vw,5.5rem)]"}`}
+                className={`${joined ? "text-[clamp(3rem,4.5vw,4.5rem)]" : "mt-5"} text-balance font-[family-name:var(--aq-font-display)] font-normal leading-[0.98] tracking-[-0.055em] text-[var(--aq-ink)] ${split ? "max-w-6xl text-[clamp(4rem,7vw,7.25rem)]" : joined ? "" : "text-[clamp(3.2rem,5vw,5.5rem)]"}`}
               >
                 {title}
                 <span className="text-[#e65c00]">.</span>
@@ -88,6 +101,7 @@ export function JoinShell({
               alt=""
               aria-hidden="true"
               className="pointer-events-none absolute -bottom-6 -left-10 hidden h-auto w-[125%] max-w-none translate-y-14 opacity-55 grayscale lg:block"
+              data-join-artwork
               height={724}
               src="/images/college-campus-engraving.png"
               width={2172}
@@ -102,6 +116,7 @@ export function JoinShell({
                 ? "mt-6"
                 : "mt-8 sm:mt-10"
           }
+          data-join-panel
         >
           {children}
         </div>

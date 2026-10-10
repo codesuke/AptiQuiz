@@ -396,11 +396,16 @@ function DisplayNameForm({
   return (
     <form
       aria-busy={busy}
-      className="max-w-xl rounded-xl bg-[var(--aq-ink)] p-6 text-white shadow-[0_28px_60px_-32px_rgba(18,42,34,0.6)] sm:p-9"
+      className="relative max-w-xl overflow-hidden rounded-[1.25rem] border border-white/10 bg-[var(--aq-ink)] p-6 text-white shadow-[0_32px_80px_-36px_rgba(18,42,34,0.72)] sm:p-9"
       noValidate
       onSubmit={handleSubmit}
     >
-      <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--aq-text-on-dark)]">
+      <div
+        aria-hidden="true"
+        className="absolute -right-12 -top-12 size-36 rounded-full border border-white/10"
+      />
+      <p className="relative flex items-center gap-3 font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--aq-text-on-dark)]">
+        <span className="h-px w-7 bg-[#ff9b5b]" />
         Room <span className="text-[#ffbd91]">{joinCode}</span>
       </p>
       <label
@@ -416,7 +421,7 @@ function DisplayNameForm({
         aria-describedby={`${hintId} ${errorId}`}
         aria-invalid={shownError !== null}
         autoComplete="nickname"
-        className={`${textInputClass} mt-3`}
+        className={`${textInputClass} mt-3 bg-white/95`}
         disabled={busy}
         id={inputId}
         maxLength={DISPLAY_NAME_INPUT_LIMIT}
@@ -431,7 +436,7 @@ function DisplayNameForm({
         {shownError}
       </p>
       <button
-        className={`${primaryButtonClass} mt-3 min-h-14 w-full`}
+        className={`${primaryButtonClass} mt-3 min-h-14 w-full rounded-full shadow-[0_14px_30px_-16px_rgba(0,0,0,0.75)]`}
         disabled={busy || !isConnected}
         type="submit"
       >
