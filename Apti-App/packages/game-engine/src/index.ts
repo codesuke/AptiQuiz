@@ -1,3 +1,15 @@
+export {
+  type AnswerTiming,
+  calculateScore,
+  effectiveResponseTime,
+  isAnswerOnTime,
+  medianRoundTrip,
+  type RoundWindow,
+  type ScoredAnswer,
+  scoreAnswer,
+  type TimingPolicy,
+} from "./scoring.js";
+
 export const gamePhases = [
   "LOBBY",
   "QUESTION_OPEN",
@@ -97,12 +109,6 @@ export function transitionGame(
   }
 }
 
-export function calculateScore(effectiveElapsedMs: number, durationMs: number): number {
-  assertDuration(durationMs);
-  const elapsedRatio = clamp(effectiveElapsedMs / durationMs, 0, 1);
-  return 500 + Math.floor(500 * (1 - elapsedRatio));
-}
-
 /**
  * Deterministic shuffle: the same seed always gives the same order, so a Participant keeps
  * one option order for a Round across reconnects without the server storing it.
@@ -198,8 +204,4 @@ function requireQuestionIndex(state: GameState): number {
   }
 
   return state.questionIndex;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(Math.max(value, minimum), maximum);
 }

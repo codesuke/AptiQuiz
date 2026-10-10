@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { participantCountLabel, questionCountLabel, SCORING_RULE } from "./lobby-copy";
+import { participantCountLabel, questionCountLabel, scoringRuleText } from "./lobby-copy";
 
 describe("Lobby copy", () => {
-  it("states the agreed scoring rule", () => {
-    expect(SCORING_RULE).toBe(
-      "Correct answers earn 500–1000 points — faster answers earn more. Wrong or unanswered Questions earn 0.",
+  it("states the scoring and timing rules from the Game Server's values", () => {
+    expect(
+      scoringRuleText({ roundDurationMs: 30_000, maxDelayCompensationMs: 100, scoreBucketMs: 100 }),
+    ).toBe(
+      "Each Question lasts 30 s. A correct Answer earns 500–1000 points: faster earns more. A wrong or missing Answer earns 0. The Game Server times every Answer; it subtracts up to 100 ms of measured network delay and rounds response time down to 100 ms steps. An Answer that arrives after the deadline does not count.",
     );
+  });
+
+  it("follows changed rule values", () => {
+    const text = scoringRuleText({
+      roundDurationMs: 12_500,
+      maxDelayCompensationMs: 0,
+      scoreBucketMs: 250,
+    });
+    expect(text).toContain("Each Question lasts 12.5 s.");
+    expect(text).toContain("it does not adjust for network delay");
+    expect(text).toContain("250 ms steps");
   });
 
   it("shows the roster count against the 50-player limit", () => {

@@ -2,199 +2,55 @@ import { randomUUID } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { Writable } from "node:stream";
 import {
-  type ClientToServerEvents,
   type LobbySnapshot,
   MAX_ROOM_PARTICIPANTS,
   ROOM_REGISTRATION_PATH,
-  type RoomRegistration,
   type RoundView,
-  type ServerToClientEvents,
   type SocketTicketSubject,
 } from "@aptiquiz/contracts";
-import {
-  issueRoomRegistration,
-  issueSocketTicket,
-  ROOM_REGISTRATION_LIFETIME_MS,
-} from "@aptiquiz/socket-ticket";
+import { issueSocketTicket, ROOM_REGISTRATION_LIFETIME_MS } from "@aptiquiz/socket-ticket";
 import pino from "pino";
-import { io, type Socket, type Socket as UntypedSocket } from "socket.io-client";
 import { afterEach, describe, expect, it } from "vitest";
-import { createGameServer, type RunningGameServer } from "./server.js";
-import { createInMemoryRoomStore, type InMemoryRoomStore } from "./testing/in-memory-room-store.js";
+import {
+  connectAs,
+  emitWithoutAck,
+  findFieldPaths,
+  gameServerSecret,
+  hostRoom,
+  hostUser,
+  join,
+  nextRound,
+  otherUser,
+  postRegistration,
+  ROUND_OPENED_AT,
+  recordEveryEvent,
+  registerRoom,
+  roomA,
+  roomB,
+  roundRoom,
+  settle,
+  sixOptionQuestion,
+  startRoom,
+  startServer,
+  startWithRooms,
+  stopTestServer,
+  TEST_ROUND_DURATION_MS,
+  type TestSocket,
+} from "./testing/room-harness.js";
 
-const gameServerSecret = "test-secret-with-at-least-32-characters";
-const SILENCE_WINDOW_MS = 150;
 const OVERSIZED_BODY_BYTES = 3 * 1024 * 1024;
-const TEST_ROUND_DURATION_MS = 5_000;
-const ROUND_OPENED_AT = 1_800_000_000_000;
 const CLOCK_ADVANCE_MS = 1_234;
 const PRE_REVEAL_FIELDS = ["correctOptionId", "explanation"] as const;
 
-const hostUser: SocketTicketSubject = {
-  userId: "host_user",
-  role: "user",
-  homeCollegeId: "college_room",
-  emailVerified: true,
-};
-const otherUser: SocketTicketSubject = {
-  userId: "other_user",
-  role: "user",
-  homeCollegeId: "college_other",
-  emailVerified: false,
-};
 const userWithoutCollege: SocketTicketSubject = {
   ...otherUser,
   userId: "no_college_user",
   homeCollegeId: null,
 };
-
-const roomA: RoomRegistration = {
-  roomId: "room_a",
-  joinCode: "ABC234",
-  hostUserId: hostUser.userId,
-  college: { id: "college_room", name: "Room College" },
-  questionSetTitle: "Aptitude Basics",
-  questions: [
-    {
-      text: "2 + 2?",
-      options: [
-        { id: "a", text: "3" },
-        { id: "b", text: "4" },
-      ],
-      correctOptionId: "b",
-      topic: "Arithmetic",
-      difficulty: "EASY",
-    },
-  ],
-};
-const roomB: RoomRegistration = { ...roomA, roomId: "room_b", joinCode: "XYZ789" };
-const sixOptionQuestion = {
-  text: "Which number is prime?",
-  options: [
-    { id: "opt_1", text: "4" },
-    { id: "opt_2", text: "6" },
-    { id: "opt_3", text: "7" },
-    { id: "opt_4", text: "8" },
-    { id: "opt_5", text: "9" },
-    { id: "opt_6", text: "10" },
-  ],
-  correctOptionId: "opt_3",
-  topic: "Numbers",
-  difficulty: "MEDIUM",
-  media: { kind: "none" },
-} as const satisfies RoomRegistration["questions"][number];
-const roundRoom: RoomRegistration = {
-  ...roomA,
-  roomId: "room_round",
-  joinCode: "RND234",
-  questions: [sixOptionQuestion, ...roomA.questions],
-};
 const sixOptionIds: readonly string[] = sixOptionQuestion.options.map((option) => option.id);
 const sixOptionTexts = sixOptionQuestion.options.map((option) => option.text);
 
-type TestSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
-
-interface TestServer {
-  readonly port: number;
-  readonly store: InMemoryRoomStore;
-  readonly clock: TestClock;
-}
-
-interface TestClock {
-  readonly now: () => number;
-  advance(milliseconds: number): void;
-}
-
-function createTestClock(start: number): TestClock {
-  let current = start;
-  return {
-    now: () => current,
-    advance: (milliseconds) => {
-      current += milliseconds;
-    },
-  };
-}
-
-let server: RunningGameServer | undefined;
-const openSockets: TestSocket[] = [];
-
-afterEach(async () => {
-  for (const socket of openSockets.splice(0)) {
-    socket.disconnect();
-  }
-  await server?.close();
-  server = undefined;
-});
-
-async function startServer(logger = pino({ level: "silent" })): Promise<TestServer> {
-  const roomStore = createInMemoryRoomStore();
-  const clock = createTestClock(ROUND_OPENED_AT);
-  server = createGameServer(
-    {
-      port: 0,
-      webOrigin: "http://localhost:3000",
-      logLevel: "silent",
-      gameServerSecret,
-      databaseUrl: "postgresql://unused",
-      roundDurationMs: TEST_ROUND_DURATION_MS,
-    },
-    { logger, roomStore, now: clock.now },
-  );
-  return { port: await server.listen(), store: roomStore, clock };
-}
-
-function postRegistration(port: number, body: string): Promise<Response> {
-  return fetch(`http://127.0.0.1:${port}${ROOM_REGISTRATION_PATH}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body,
-  });
-}
-
-async function registerRoom(
-  port: number,
-  registration: RoomRegistration,
-  secret = gameServerSecret,
-  issuedAt = Date.now(),
-): Promise<Response> {
-  const token = await issueRoomRegistration(registration, secret, issuedAt);
-  return postRegistration(port, JSON.stringify({ registration: token }));
-}
-
-async function startWithRooms(...registrations: RoomRegistration[]): Promise<TestServer> {
-  const testServer = await startServer();
-  for (const registration of registrations) {
-    expect((await registerRoom(testServer.port, registration)).status).toBe(200);
-  }
-  return testServer;
-}
-
-async function connectAs(port: number, user?: SocketTicketSubject): Promise<TestSocket> {
-  const ticket =
-    user === undefined ? undefined : await issueSocketTicket(user, gameServerSecret, Date.now());
-  const socket: TestSocket = io(`http://127.0.0.1:${port}`, {
-    auth: ticket === undefined ? {} : { ticket },
-    forceNew: true,
-    reconnection: false,
-    transports: ["websocket"],
-  });
-  openSockets.push(socket);
-
-  await new Promise<void>((resolve, reject) => {
-    socket.once("server:ready", () => resolve());
-    socket.once("connect_error", reject);
-  });
-  return socket;
-}
-
-function join(
-  socket: TestSocket,
-  displayName: string,
-  joinCode = roomA.joinCode,
-  key = randomUUID(),
-) {
-  return socket.emitWithAck("room:join", { joinCode, displayName, idempotencyKey: key });
-}
+afterEach(stopTestServer);
 
 function nextLobby(socket: TestSocket, matches: (lobby: LobbySnapshot) => boolean) {
   return new Promise<LobbySnapshot>((resolve) => {
@@ -208,36 +64,10 @@ function nextLobby(socket: TestSocket, matches: (lobby: LobbySnapshot) => boolea
   });
 }
 
-function nextRound(socket: TestSocket): Promise<RoundView> {
-  return new Promise((resolve) => socket.once("round:state", resolve));
-}
-
 function collectRounds(socket: TestSocket): RoundView[] {
   const received: RoundView[] = [];
   socket.on("round:state", (round) => received.push(round));
   return received;
-}
-
-/** Records every server event the sockets receive into one list, for leak checks. */
-function recordEveryEvent(sockets: readonly TestSocket[], received: unknown[]): void {
-  for (const socket of sockets) {
-    socket.onAny((_event, ...payload) => received.push(payload));
-  }
-}
-
-function findFieldPaths(value: unknown, fields: readonly string[], path = "$"): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((item, index) => findFieldPaths(item, fields, `${path}[${index}]`));
-  }
-
-  if (typeof value !== "object" || value === null) {
-    return [];
-  }
-
-  return Object.entries(value).flatMap(([key, child]) => [
-    ...(fields.includes(key) ? [`${path}.${key}`] : []),
-    ...findFieldPaths(child, fields, `${path}.${key}`),
-  ]);
 }
 
 function optionIds(round: RoundView): string[] {
@@ -248,25 +78,10 @@ function optionTexts(round: RoundView): string[] {
   return round.question.options.map((option) => option.text);
 }
 
-function startRoom(host: TestSocket, roomId = roomA.roomId, key = randomUUID()) {
-  return host.emitWithAck("room:start", { roomId, idempotencyKey: key });
-}
-
-async function hostRoom(port: number, roomId: string): Promise<TestSocket> {
-  const host = await connectAs(port, hostUser);
-  await expect(host.emitWithAck("room:host", { roomId })).resolves.toMatchObject({ ok: true });
-  return host;
-}
-
 function collectLobbies(socket: TestSocket): LobbySnapshot[] {
   const received: LobbySnapshot[] = [];
   socket.on("room:lobby", (lobby) => received.push(lobby));
   return received;
-}
-
-/** Emits like a client that forgot the acknowledgement callback. */
-function emitWithoutAck(socket: TestSocket, event: string, payload: unknown): void {
-  (socket as unknown as UntypedSocket).emit(event, payload);
 }
 
 function captureLogs(): { readonly logger: pino.Logger; readonly lines: string[] } {
@@ -298,10 +113,6 @@ function postOversizedHeaders(port: number): Promise<number> {
     outgoing.on("error", reject);
     outgoing.write("{");
   });
-}
-
-function settle(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, SILENCE_WINDOW_MS));
 }
 
 async function hostLobby(port: number): Promise<TestSocket> {
@@ -406,6 +217,11 @@ describe("room:host", () => {
         questionSetTitle: roomA.questionSetTitle,
         questionCount: 1,
         participants: [],
+        rules: {
+          roundDurationMs: TEST_ROUND_DURATION_MS,
+          maxDelayCompensationMs: 100,
+          scoreBucketMs: 100,
+        },
       },
       round: null,
     });
@@ -586,7 +402,7 @@ describe("room:join", () => {
 
   it("logs the Room when a participant write fails", async () => {
     const { logger, lines } = captureLogs();
-    const { port, store } = await startServer(logger);
+    const { port, store } = await startServer({ logger });
     expect((await registerRoom(port, roomA)).status).toBe(200);
     store.failNextParticipant();
 
@@ -951,6 +767,11 @@ describe("events without an acknowledgement", () => {
     ["room:start", { bad: true }],
     ["time:ping", { clientSentAt: 1 }],
     ["time:ping", { bad: true }],
+    [
+      "round:answer",
+      { roomId: roomA.roomId, questionIndex: 0, optionId: "b", idempotencyKey: randomUUID() },
+    ],
+    ["round:answer", { bad: true }],
   ])("keeps serving after %s without a callback", async (event, payload) => {
     const { port } = await startWithRooms(roomA);
     const host = await connectAs(port, hostUser);

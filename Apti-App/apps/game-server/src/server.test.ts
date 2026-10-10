@@ -3,6 +3,7 @@ import { issueSocketTicket, SOCKET_TICKET_LIFETIME_MS } from "@aptiquiz/socket-t
 import pino from "pino";
 import { io, type Socket } from "socket.io-client";
 import { afterEach, describe, expect, it } from "vitest";
+import { readGameServerConfig } from "./config.js";
 import { createGameServer, type RunningGameServer } from "./server.js";
 import { createInMemoryRoomStore } from "./testing/in-memory-room-store.js";
 
@@ -35,12 +36,9 @@ afterEach(async () => {
 async function startServer(now?: () => number): Promise<number> {
   server = createGameServer(
     {
+      ...readGameServerConfig({ GAME_SERVER_SECRET: gameServerSecret, DATABASE_URL: "unused" }),
       port: 0,
-      webOrigin: "http://localhost:3000",
       logLevel: "silent",
-      gameServerSecret,
-      databaseUrl: "postgresql://unused",
-      roundDurationMs: 30_000,
     },
     { logger: pino({ level: "silent" }), roomStore: createInMemoryRoomStore(), now },
   );

@@ -17,6 +17,21 @@ describe("game server config", () => {
     expect(readGameServerConfig(validEnvironment).roundDurationMs).toBe(30_000);
   });
 
+  it("compensates at most 100 ms of delay and scores in 100 ms buckets", () => {
+    expect(readGameServerConfig(validEnvironment)).toMatchObject({
+      maxDelayCompensationMs: 100,
+      scoreBucketMs: 100,
+    });
+  });
+
+  it("samples latency every 2 seconds over the last 5 acknowledged pings", () => {
+    expect(readGameServerConfig(validEnvironment).latencySampling).toEqual({
+      intervalMs: 2_000,
+      windowSize: 5,
+      timeoutMs: 2_000,
+    });
+  });
+
   it("refuses to start without GAME_SERVER_SECRET", () => {
     expect(() => readGameServerConfig({ DATABASE_URL: databaseUrl })).toThrow("GAME_SERVER_SECRET");
   });

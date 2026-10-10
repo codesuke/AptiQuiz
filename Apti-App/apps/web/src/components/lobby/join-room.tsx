@@ -3,7 +3,7 @@
 import type { LobbyParticipant, LobbySnapshot, RoomJoin } from "@aptiquiz/contracts";
 import { CircleCheck, Hourglass, Play, Radio } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
-import { RoundQuestion } from "@/components/round/round-question";
+import { ParticipantRound } from "@/components/round/participant-round";
 import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
 import {
   createRoomSocket,
@@ -13,6 +13,7 @@ import {
   parseRoundUpdate,
   type RoomSocket,
   type SendRoomJoin,
+  type SendRoundAnswer,
 } from "@/lib/room-socket";
 import { type ReceivedRound, receiveRound } from "@/lib/server-clock";
 import { fieldErrorClass, primaryButtonClass, textInputClass } from "./form-styles";
@@ -74,6 +75,7 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
   const rejoin = useCallback(async (socket: RoomSocket, attempt: RoomJoin) => {
     const result = await emitRoomJoin(sendJoinVia(socket), attempt);
     setRestoring(false);
+    setConnection("online");
 
     if (result.ok) {
       joinedAttemptRef.current = attempt;
@@ -93,11 +95,12 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      setConnection("online");
       // A reconnect or a page refresh is a new socket on the server: the same key returns the
-      // same Participant and puts this socket back into the Room's Lobby channel.
+      // same Participant and puts this socket back into the Room's channels. Until that rejoin
+      // is acknowledged the socket is not a Participant, so an Answer sent now would be refused.
       const attempt = joinedAttemptRef.current ?? readStoredJoin(tabJoinStorage, joinCode);
-      if (attempt !== null) void rejoin(socket, attempt);
+      if (attempt === null) setConnection("online");
+      else void rejoin(socket, attempt);
     });
     socket.on("disconnect", () => setConnection("offline"));
     socket.on("connect_error", () => setConnection("offline"));
@@ -123,6 +126,11 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
     };
   }, [joinCode, rejoin]);
 
+  // A missing socket sends nothing, so the acknowledgement timeout reports no_response.
+  const sendAnswer = useCallback<SendRoundAnswer>((payload, acknowledge) => {
+    socketRef.current?.emit("round:answer", payload, acknowledge);
+  }, []);
+
   const handleJoined = useCallback((attempt: RoomJoin, room: JoinedRoom) => {
     joinedAttemptRef.current = attempt;
     setJoined(room);
@@ -142,7 +150,9 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
     );
   }
 
-  return <JoinedLobby connection={connection} error={error} joined={joined} />;
+  return (
+    <JoinedLobby connection={connection} error={error} joined={joined} sendAnswer={sendAnswer} />
+  );
 }
 
 interface DisplayNameFormProps {
@@ -292,9 +302,10 @@ interface JoinedLobbyProps {
   readonly connection: ConnectionStatus;
   readonly error: string | null;
   readonly joined: JoinedRoom;
+  readonly sendAnswer: SendRoundAnswer;
 }
 
-function JoinedLobby({ connection, error, joined }: JoinedLobbyProps) {
+function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps) {
   const { participant, lobby, round } = joined;
   const hasStarted = lobby.phase !== "LOBBY";
 
@@ -335,7 +346,7 @@ function JoinedLobby({ connection, error, joined }: JoinedLobbyProps) {
           )}
         </div>
       ) : (
-        <RoundQuestion round={round} />
+        <ParticipantRound online={connection === "online"} round={round} sendAnswer={sendAnswer} />
       )}
 
       {error === null ? null : (

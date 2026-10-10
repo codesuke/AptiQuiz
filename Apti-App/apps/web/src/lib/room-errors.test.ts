@@ -1,6 +1,8 @@
-import { roomErrorSchema } from "@aptiquiz/contracts";
+import { answerErrorSchema, roomErrorSchema } from "@aptiquiz/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  answerFailureMessage,
+  isTransientAnswerFailure,
   isTransientJoinFailure,
   joinFailureMessage,
   parseDisplayNameInput,
@@ -34,6 +36,36 @@ describe("isTransientJoinFailure", () => {
     expect(isTransientJoinFailure("no_response")).toBe(true);
     expect(isTransientJoinFailure("room_full")).toBe(false);
     expect(isTransientJoinFailure("invalid_display_name")).toBe(false);
+  });
+});
+
+describe("answerFailureMessage", () => {
+  it("explains every Answer refusal and client-side failure in plain language", () => {
+    for (const error of [...answerErrorSchema.options, "answer_failed", "no_response"] as const) {
+      expect(answerFailureMessage(error)).toMatch(/\w+.*\./);
+    }
+  });
+
+  it("never hints whether an Answer was correct", () => {
+    for (const error of answerErrorSchema.options) {
+      expect(answerFailureMessage(error)).not.toMatch(/correct|wrong/i);
+    }
+  });
+
+  it("says a late Answer does not count", () => {
+    expect(answerFailureMessage("answer_too_late")).toBe(
+      "Time was up before your Answer arrived, so it does not count.",
+    );
+  });
+});
+
+describe("isTransientAnswerFailure", () => {
+  it("allows a retry when the acknowledgement was lost or the rejoin had not finished", () => {
+    expect(isTransientAnswerFailure("not_participant")).toBe(true);
+    expect(isTransientAnswerFailure("no_response")).toBe(true);
+    expect(isTransientAnswerFailure("answer_failed")).toBe(true);
+    expect(isTransientAnswerFailure("answer_too_late")).toBe(false);
+    expect(isTransientAnswerFailure("already_answered")).toBe(false);
   });
 });
 

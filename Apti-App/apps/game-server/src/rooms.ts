@@ -1,19 +1,26 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  type AnswerError,
   type ConnectionIdentity,
   type LobbyParticipant,
   type LobbySnapshot,
+  type LockedAnswer,
   MAX_ROOM_PARTICIPANTS,
   type PublicQuestion,
   type RoomError,
   type RoomQuestion,
   type RoomRegistration,
+  type RoundRules,
   type RoundView,
 } from "@aptiquiz/contracts";
 import {
   createGameState,
+  effectiveResponseTime,
   type GameState,
+  isAnswerOnTime,
   orderOptions,
+  scoreAnswer,
+  type TimingPolicy,
   transitionGame,
 } from "@aptiquiz/game-engine";
 import type { Logger } from "pino";
@@ -55,6 +62,37 @@ export type StartResult =
   | { readonly ok: true; readonly lobby: LobbySnapshot; readonly delivery: RoundDelivery | null }
   | RoomFailure;
 
+/** An Answer whose payload passed the public contract schema, stamped at server receipt. */
+export interface AnswerSubmission {
+  readonly roomId: string;
+  /** The Participant this socket joined the Room as, or null when it never joined it. */
+  readonly participantId: string | null;
+  readonly questionIndex: number;
+  /** The option id in this Participant's opaque id space. */
+  readonly optionId: string;
+  readonly idempotencyKey: string;
+  readonly receivedAt: number;
+  /** Median of the answering socket's latency samples, or null without a sample. */
+  readonly medianRoundTripMs: number | null;
+}
+
+export type AnswerResult =
+  | { readonly ok: true; readonly answer: LockedAnswer }
+  | { readonly ok: false; readonly error: AnswerError };
+
+/** A scored Answer. Correctness and points stay on the server until the reveal. */
+export interface RecordedAnswer {
+  readonly participantId: string;
+  readonly questionIndex: number;
+  readonly authoredOptionId: string;
+  /** The option id the Participant saw and sent. */
+  readonly optionId: string;
+  readonly receivedAt: number;
+  readonly effectiveResponseMs: number;
+  readonly correct: boolean;
+  readonly points: number;
+}
+
 /** A join whose code and display name already passed the public contract schemas. */
 export interface ValidJoinRequest {
   readonly joinCode: string;
@@ -69,6 +107,7 @@ interface StartRecord {
 
 interface LiveRoom {
   readonly registration: RoomRegistration;
+  readonly rules: RoundRules;
   /** Random per Room so clients cannot predict another Participant's option order. */
   readonly optionSalt: string;
   game: GameState;
@@ -77,6 +116,10 @@ interface LiveRoom {
   readonly participants: Map<string, LobbyParticipant>;
   /** Reserved slots whose persistence is still in flight, keyed by identity. */
   readonly pendingJoins: Map<string, Promise<JoinResult>>;
+  /** Accepted Answers keyed by `answerSlot`: one per Participant and Question. */
+  readonly answers: Map<string, RecordedAnswer>;
+  /** Accepted Answers keyed by `answerReceipt`, so a retried key repeats its result. */
+  readonly answerReceipts: Map<string, RecordedAnswer>;
 }
 
 /** The game state and Questions a Round view is built from. */
@@ -104,7 +147,7 @@ const HOST_RECEIVER: RoundReceiver = { kind: "host" };
 export interface RoomRegistryDependencies {
   readonly store: RoomStore;
   readonly logger: Logger;
-  readonly roundDurationMs: number;
+  readonly rules: RoundRules;
   readonly now: () => number;
 }
 
@@ -113,6 +156,9 @@ export interface RoomRegistry {
   hostLobby(roomId: string, identity: ConnectionIdentity): HostResult;
   join(request: ValidJoinRequest, identity: ConnectionIdentity): Promise<JoinResult>;
   start(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): StartResult;
+  answer(submission: AnswerSubmission): AnswerResult;
+  /** Scored Answers for one Question, for the reveal; never sent to clients before it. */
+  answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[];
 }
 
 const ROOM_NOT_FOUND: RoomFailure = { ok: false, error: "room_not_found" };
@@ -122,8 +168,23 @@ const ROOM_FULL: RoomFailure = { ok: false, error: "room_full" };
 const JOIN_FAILED: RoomFailure = { ok: false, error: "join_failed" };
 const START_FAILED: RoomFailure = { ok: false, error: "start_failed" };
 
+type AnswerFailure = Extract<AnswerResult, { ok: false }>;
+
+const ANSWER_ROOM_NOT_FOUND: AnswerFailure = { ok: false, error: "room_not_found" };
+const NOT_PARTICIPANT: AnswerFailure = { ok: false, error: "not_participant" };
+const ROUND_NOT_OPEN: AnswerFailure = { ok: false, error: "round_not_open" };
+const WRONG_ROUND: AnswerFailure = { ok: false, error: "wrong_round" };
+const ANSWER_TOO_LATE: AnswerFailure = { ok: false, error: "answer_too_late" };
+const ALREADY_ANSWERED: AnswerFailure = { ok: false, error: "already_answered" };
+const INVALID_OPTION: AnswerFailure = { ok: false, error: "invalid_option" };
+
 export function createRoomRegistry(dependencies: RoomRegistryDependencies): RoomRegistry {
-  const { store, logger, roundDurationMs, now } = dependencies;
+  const { store, logger, rules, now } = dependencies;
+  const timing: TimingPolicy = {
+    durationMs: rules.roundDurationMs,
+    maxCompensationMs: rules.maxDelayCompensationMs,
+    bucketMs: rules.scoreBucketMs,
+  };
   const rooms = new Map<string, LiveRoom>();
   const roomIdsByJoinCode = new Map<string, string>();
 
@@ -138,11 +199,14 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
 
     rooms.set(registration.roomId, {
       registration,
+      rules,
       optionSalt: randomUUID(),
       game: createGameState(registration.roomId, registration.questions.length),
       start: null,
       participants: new Map(),
       pendingJoins: new Map(),
+      answers: new Map(),
+      answerReceipts: new Map(),
     });
     roomIdsByJoinCode.set(registration.joinCode, registration.roomId);
     return { ok: true };
@@ -164,7 +228,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
 
   function currentRoundView(room: LiveRoom, receiver: RoundReceiver): RoundView | null {
     const round = findActiveRound(room);
-    return round === null ? null : viewRound(round, optionsFor(room, round, receiver), now());
+    return round === null ? null : viewRound(round, receiverView(room, round, receiver), now());
   }
 
   function join(request: ValidJoinRequest, identity: ConnectionIdentity): Promise<JoinResult> {
@@ -281,7 +345,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     try {
       started = transitionGame(
         room.game,
-        { type: "START", durationMs: roundDurationMs },
+        { type: "START", durationMs: rules.roundDurationMs },
         serverTime,
       ).state;
     } catch {
@@ -300,20 +364,181 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     return { ok: true, lobby, delivery: deliverRound(room, round, serverTime) };
   }
 
-  return { register, hostLobby, join, start };
+  function answer(submission: AnswerSubmission): AnswerResult {
+    const room = rooms.get(submission.roomId);
+
+    if (room === undefined) {
+      return ANSWER_ROOM_NOT_FOUND;
+    }
+
+    const { participantId } = submission;
+
+    if (participantId === null || !hasParticipant(room, participantId)) {
+      return NOT_PARTICIPANT;
+    }
+
+    const receipt = room.answerReceipts.get(
+      answerReceipt(participantId, submission.questionIndex, submission.idempotencyKey),
+    );
+
+    if (receipt !== undefined) {
+      return accepted(receipt);
+    }
+
+    return answerOpenRound(room, { ...submission, participantId });
+  }
+
+  function answerOpenRound(
+    room: LiveRoom,
+    submission: AnswerSubmission & { readonly participantId: string },
+  ): AnswerResult {
+    const round = findActiveRound(room);
+
+    if (round === null) {
+      return ROUND_NOT_OPEN;
+    }
+
+    if (submission.questionIndex !== round.questionIndex) {
+      return WRONG_ROUND;
+    }
+
+    // Server receipt time alone decides lateness; delay compensation only affects scoring.
+    if (!isAnswerOnTime(round, submission.receivedAt)) {
+      return ANSWER_TOO_LATE;
+    }
+
+    const slot = answerSlot(round.questionIndex, submission.participantId);
+
+    if (room.answers.has(slot)) {
+      return ALREADY_ANSWERED;
+    }
+
+    const authoredOptionId = authoredOptionIdFor(room, round, submission);
+
+    if (authoredOptionId === null) {
+      return INVALID_OPTION;
+    }
+
+    const recorded = scoreSubmission(round, submission, authoredOptionId);
+    room.answers.set(slot, recorded);
+    room.answerReceipts.set(
+      answerReceipt(submission.participantId, submission.questionIndex, submission.idempotencyKey),
+      recorded,
+    );
+    return accepted(recorded);
+  }
+
+  function scoreSubmission(
+    round: ActiveRound,
+    submission: AnswerSubmission & { readonly participantId: string },
+    authoredOptionId: string,
+  ): RecordedAnswer {
+    const effectiveResponseMs = effectiveResponseTime(timing, {
+      startsAt: round.startsAt,
+      receivedAt: submission.receivedAt,
+      medianRttMs: submission.medianRoundTripMs,
+    });
+    const correct = authoredOptionId === round.question.correctOptionId;
+
+    return {
+      participantId: submission.participantId,
+      questionIndex: round.questionIndex,
+      authoredOptionId,
+      optionId: submission.optionId,
+      receivedAt: submission.receivedAt,
+      effectiveResponseMs,
+      correct,
+      points: scoreAnswer(timing, { correct, effectiveResponseMs }),
+    };
+  }
+
+  function answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[] {
+    const room = rooms.get(roomId);
+    const answers = room === undefined ? [] : [...room.answers.values()];
+    return answers.filter((recorded) => recorded.questionIndex === questionIndex);
+  }
+
+  return { register, hostLobby, join, start, answer, answersFor };
+}
+
+function hasParticipant(room: LiveRoom, participantId: string): boolean {
+  return [...room.participants.values()].some(
+    (participant) => participant.participantId === participantId,
+  );
+}
+
+function answerSlot(questionIndex: number, participantId: string): string {
+  return `${questionIndex}:${participantId}`;
+}
+
+/** Scoped to the Question, so a key reused for a later Question cannot replay an earlier Answer. */
+function answerReceipt(
+  participantId: string,
+  questionIndex: number,
+  idempotencyKey: string,
+): string {
+  return `${participantId}:${questionIndex}:${idempotencyKey}`;
+}
+
+/** Acknowledgements carry only what the Participant chose and when the server received it. */
+function accepted(recorded: RecordedAnswer): AnswerResult {
+  return { ok: true, answer: toLockedAnswer(recorded) };
+}
+
+function toLockedAnswer({ questionIndex, optionId, receivedAt }: RecordedAnswer): LockedAnswer {
+  return { questionIndex, optionId, receivedAt };
+}
+
+function lockedAnswerFor(
+  room: LiveRoom,
+  round: ActiveRound,
+  receiver: RoundReceiver,
+): LockedAnswer | null {
+  if (receiver.kind === "host") {
+    return null;
+  }
+
+  const recorded = room.answers.get(answerSlot(round.questionIndex, receiver.participantId));
+  return recorded === undefined ? null : toLockedAnswer(recorded);
+}
+
+/** Maps an option id from the Participant's own id space back to the authored option. */
+function authoredOptionIdFor(
+  room: RoundSource,
+  round: ActiveRound,
+  submission: { readonly participantId: string; readonly optionId: string },
+): string | null {
+  const seed = participantOptionSeed(room, round, submission.participantId);
+  const option = round.question.options.find(
+    ({ id }) => opaqueOptionId(seed, id) === submission.optionId,
+  );
+  return option?.id ?? null;
 }
 
 function deliverRound(room: LiveRoom, round: ActiveRound, serverTime: number): RoundDelivery {
   return {
-    host: viewRound(round, optionsFor(room, round, HOST_RECEIVER), serverTime),
+    host: viewRound(round, receiverView(room, round, HOST_RECEIVER), serverTime),
     participants: [...room.participants.values()].map((participant) => ({
       participantId: participant.participantId,
       round: viewRound(
         round,
-        optionsFor(room, round, participantReceiver(participant)),
+        receiverView(room, round, participantReceiver(participant)),
         serverTime,
       ),
     })),
+  };
+}
+
+/** What one receiver sees of a Round: their option order and their own locked Answer. */
+interface ReceiverView {
+  readonly options: RoomQuestion["options"];
+  readonly answer: LockedAnswer | null;
+}
+
+function receiverView(room: LiveRoom, round: ActiveRound, receiver: RoundReceiver): ReceiverView {
+  return {
+    options: optionsFor(room, round, receiver),
+    answer: lockedAnswerFor(room, round, receiver),
   };
 }
 
@@ -364,13 +589,21 @@ function optionsFor(
     case "host":
       return options;
     case "participant": {
-      const seed = `${room.optionSalt}:${round.questionIndex}:${receiver.participantId}`;
+      const seed = participantOptionSeed(room, round, receiver.participantId);
       return orderOptions(options, seed).map(({ id, text }) => ({
         id: opaqueOptionId(seed, id),
         text,
       }));
     }
   }
+}
+
+function participantOptionSeed(
+  room: RoundSource,
+  round: ActiveRound,
+  participantId: string,
+): string {
+  return `${room.optionSalt}:${round.questionIndex}:${participantId}`;
 }
 
 const OPAQUE_OPTION_ID_LENGTH = 16;
@@ -384,7 +617,7 @@ function opaqueOptionId(seed: string, authoredOptionId: string): string {
 
 function viewRound(
   round: ActiveRound,
-  options: RoomQuestion["options"],
+  { options, answer }: ReceiverView,
   serverTime: number,
 ): RoundView {
   return {
@@ -396,6 +629,7 @@ function viewRound(
     endsAt: round.endsAt,
     serverTime,
     question: toPublicQuestion(round.question, options),
+    answer,
   };
 }
 
@@ -449,5 +683,6 @@ function toLobby(room: LiveRoom): LobbySnapshot {
     questionSetTitle: registration.questionSetTitle,
     questionCount: registration.questions.length,
     participants: [...room.participants.values()],
+    rules: room.rules,
   };
 }

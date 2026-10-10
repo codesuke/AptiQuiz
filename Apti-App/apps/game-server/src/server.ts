@@ -11,10 +11,11 @@ import { Server as SocketServer } from "socket.io";
 import { safeAcknowledge } from "./acknowledgement.js";
 import type { GameServerConfig } from "./config.js";
 import { identifyConnection } from "./handshake.js";
+import { createLatencySampler } from "./latency-sampler.js";
 import { registerRoomHandlers } from "./room-handlers.js";
 import { handleRoomRegistration } from "./room-registration.js";
 import type { RoomStore } from "./room-store.js";
-import { createRoomRegistry } from "./rooms.js";
+import { createRoomRegistry, type RoomRegistry } from "./rooms.js";
 
 export interface RunningGameServer {
   readonly httpServer: HttpServer;
@@ -27,6 +28,31 @@ export interface GameServerDependencies {
   readonly roomStore: RoomStore;
   /** Server clock for every game time; tests replace it to control Round timing. */
   readonly now?: (() => number) | undefined;
+  /** Live Room state; tests pass their own to read scores that stay internal before the reveal. */
+  readonly registry?: RoomRegistry | undefined;
+}
+
+interface RegistryDependencies {
+  readonly store: RoomStore;
+  readonly logger: Logger;
+  readonly now: () => number;
+}
+
+/** A Room registry that applies the configured Round, delay, and scoring rules. */
+export function createConfiguredRegistry(
+  config: GameServerConfig,
+  { store, logger, now }: RegistryDependencies,
+): RoomRegistry {
+  return createRoomRegistry({
+    store,
+    logger,
+    now,
+    rules: {
+      roundDurationMs: config.roundDurationMs,
+      maxDelayCompensationMs: config.maxDelayCompensationMs,
+      scoreBucketMs: config.scoreBucketMs,
+    },
+  });
 }
 
 export function createGameServer(
@@ -34,12 +60,9 @@ export function createGameServer(
   dependencies: GameServerDependencies,
 ): RunningGameServer {
   const { logger, roomStore, now = Date.now } = dependencies;
-  const registry = createRoomRegistry({
-    store: roomStore,
-    logger,
-    roundDurationMs: config.roundDurationMs,
-    now,
-  });
+  const registry =
+    dependencies.registry ?? createConfiguredRegistry(config, { store: roomStore, logger, now });
+  const latency = createLatencySampler(config.latencySampling, now);
   const httpServer = createServer((request, response) => {
     if (request.method === "POST" && request.url === ROOM_REGISTRATION_PATH) {
       handleRoomRegistration(request, response, {
@@ -115,7 +138,7 @@ export function createGameServer(
       });
     });
 
-    registerRoomHandlers(socket, { io, registry, store: roomStore, logger });
+    registerRoomHandlers(socket, { io, registry, store: roomStore, logger, latency, now });
 
     socket.on("disconnect", (reason) => {
       logger.info({ connectionId: socket.id, reason }, "player transport disconnected");

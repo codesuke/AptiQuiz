@@ -143,6 +143,15 @@ export const lobbyParticipantSchema = z.object({
 
 export const MAX_ROOM_PARTICIPANTS = 50;
 
+/** Game Server timing values, shown to everyone before play. */
+export const roundRulesSchema = z.object({
+  roundDurationMs: z.number().int().positive(),
+  /** Most one-way network delay subtracted from an Answer's elapsed time, for scoring only. */
+  maxDelayCompensationMs: z.number().int().nonnegative(),
+  /** Effective Response Times are floored to this step before scoring. */
+  scoreBucketMs: z.number().int().positive(),
+});
+
 export const lobbySnapshotSchema = z.object({
   roomId: roomIdSchema,
   joinCode: roomCodeSchema,
@@ -151,6 +160,7 @@ export const lobbySnapshotSchema = z.object({
   questionSetTitle: z.string().min(1),
   questionCount: z.number().int().positive(),
   participants: z.array(lobbyParticipantSchema).max(MAX_ROOM_PARTICIPANTS),
+  rules: roundRulesSchema,
 });
 
 /** A Question as Participants see it before the reveal: no correct option, no explanation. */
@@ -174,7 +184,18 @@ const roundBaseSchema = z.object({
   question: publicQuestionSchema,
 });
 
-export const openRoundSchema = roundBaseSchema.extend({ phase: z.literal("QUESTION_OPEN") });
+/** The receiver's accepted Answer; it never says whether the Answer is correct before the reveal. */
+export const lockedAnswerSchema = z.object({
+  questionIndex: z.number().int().nonnegative(),
+  optionId: z.string().min(1),
+  receivedAt: timestampSchema,
+});
+
+export const openRoundSchema = roundBaseSchema.extend({
+  phase: z.literal("QUESTION_OPEN"),
+  /** This Participant's accepted Answer, or null; always null for the Host. */
+  answer: lockedAnswerSchema.nullable(),
+});
 
 export const roundViewSchema = z.discriminatedUnion("phase", [openRoundSchema]);
 
@@ -229,6 +250,32 @@ export const roomStartResponseSchema = z.discriminatedUnion("ok", [
   roomFailureSchema,
 ]);
 
+export const roundAnswerSchema = z.object({
+  roomId: roomIdSchema,
+  questionIndex: z.number().int().nonnegative(),
+  optionId: z.string().min(1).max(64),
+  idempotencyKey: idempotencyKeySchema,
+});
+
+export const answerErrorSchema = z.enum([
+  "invalid_request",
+  "room_not_found",
+  "not_participant",
+  "round_not_open",
+  "wrong_round",
+  "invalid_option",
+  "already_answered",
+  "answer_too_late",
+]);
+
+export const roundAnswerResponseSchema = z.discriminatedUnion("ok", [
+  z.object({ ok: z.literal(true), answer: lockedAnswerSchema }),
+  z.object({ ok: z.literal(false), error: answerErrorSchema }),
+]);
+
+/** Server-initiated round-trip sample; the browser acknowledges at once. */
+export const latencyPingSchema = z.object({ serverSentAt: timestampSchema });
+
 export type RoomQuestion = z.infer<typeof roomQuestionSchema>;
 export type RoomRegistration = z.infer<typeof roomRegistrationSchema>;
 export type RoomRegistrationResponse = z.infer<typeof roomRegistrationResponseSchema>;
@@ -240,6 +287,12 @@ export type LobbySnapshot = z.infer<typeof lobbySnapshotSchema>;
 export type PublicQuestion = z.infer<typeof publicQuestionSchema>;
 export type OpenRound = z.infer<typeof openRoundSchema>;
 export type RoundView = z.infer<typeof roundViewSchema>;
+export type RoundRules = z.infer<typeof roundRulesSchema>;
+export type LockedAnswer = z.infer<typeof lockedAnswerSchema>;
+export type RoundAnswer = z.infer<typeof roundAnswerSchema>;
+export type AnswerError = z.infer<typeof answerErrorSchema>;
+export type RoundAnswerResponse = z.infer<typeof roundAnswerResponseSchema>;
+export type LatencyPing = z.infer<typeof latencyPingSchema>;
 export type RoomError = z.infer<typeof roomErrorSchema>;
 export type RoomHost = z.infer<typeof roomHostSchema>;
 export type RoomJoin = z.infer<typeof roomJoinSchema>;
@@ -263,6 +316,10 @@ export interface ClientToServerEvents {
   "room:host": (payload: RoomHost, acknowledge: (response: RoomHostResponse) => void) => void;
   "room:join": (payload: RoomJoin, acknowledge: (response: RoomJoinResponse) => void) => void;
   "room:start": (payload: RoomStart, acknowledge: (response: RoomStartResponse) => void) => void;
+  "round:answer": (
+    payload: RoundAnswer,
+    acknowledge: (response: RoundAnswerResponse) => void,
+  ) => void;
 }
 
 export interface ServerToClientEvents {
@@ -270,6 +327,7 @@ export interface ServerToClientEvents {
   "room:lobby": (payload: LobbySnapshot) => void;
   /** Sent separately to each Participant (own option order) and to the Host. */
   "round:state": (payload: RoundView) => void;
+  "latency:ping": (payload: LatencyPing, acknowledge: () => void) => void;
 }
 
 export type InterServerEvents = Record<never, never>;

@@ -1,7 +1,7 @@
 import type { LobbyParticipant, LobbySnapshot } from "@aptiquiz/contracts";
 import { Building2, Gauge, Hash, ListChecks, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { participantCountLabel, questionCountLabel, SCORING_RULE } from "./lobby-copy";
+import { participantCountLabel, questionCountLabel, scoringRuleText } from "./lobby-copy";
 
 interface LobbyDetailsProps {
   readonly lobby: LobbySnapshot;
@@ -42,7 +42,7 @@ export function LobbyDetails({ lobby }: LobbyDetailsProps) {
         <Gauge aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[#b84700]" />
         <p>
           <span className="font-semibold text-[#172823]">Scoring. </span>
-          {SCORING_RULE}
+          {scoringRuleText(lobby.rules)}
         </p>
       </div>
 

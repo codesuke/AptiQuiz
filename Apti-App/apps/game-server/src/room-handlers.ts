@@ -1,29 +1,19 @@
 import {
-  type ClientToServerEvents,
   displayNameSchema,
-  type InterServerEvents,
   type LobbySnapshot,
   type RoomError,
   roomCodeSchema,
   roomHostSchema,
   roomJoinSchema,
   roomStartSchema,
-  type ServerToClientEvents,
-  type SocketData,
+  roundAnswerSchema,
 } from "@aptiquiz/contracts";
 import type { Logger } from "pino";
-import type { Server, Socket } from "socket.io";
 import { safeAcknowledge } from "./acknowledgement.js";
+import type { GameSocket, GameSocketServer } from "./game-socket.js";
+import type { LatencySampler } from "./latency-sampler.js";
 import type { RoomStore } from "./room-store.js";
 import type { RoomRegistry, RoundDelivery, ValidJoinRequest } from "./rooms.js";
-
-type GameSocketServer = Server<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->;
-type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 
 type JoinValidation =
   | { readonly ok: true; readonly request: ValidJoinRequest }
@@ -34,6 +24,8 @@ interface RoomHandlerDependencies {
   readonly registry: RoomRegistry;
   readonly store: RoomStore;
   readonly logger: Logger;
+  readonly latency: LatencySampler;
+  readonly now: () => number;
 }
 
 const INVALID_REQUEST = { ok: false, error: "invalid_request" } as const;
@@ -57,7 +49,9 @@ function hostChannels(roomId: string): string[] {
 }
 
 export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandlerDependencies) {
-  const { io, registry, store, logger } = dependencies;
+  const { io, registry, store, logger, latency, now } = dependencies;
+  /** The Participant this socket joined as, by Room; it authorizes this socket's Answers. */
+  const joinedParticipants = new Map<string, string>();
   const publishLobby = (lobby: LobbySnapshot) =>
     io.to(lobbyChannel(lobby.roomId)).emit("room:lobby", lobby);
   const publishRound = (roomId: string, delivery: RoundDelivery) => {
@@ -107,7 +101,9 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
       lobbyChannel(lobby.roomId),
       participantChannel(lobby.roomId, participant.participantId),
     ]);
+    joinedParticipants.set(lobby.roomId, participant.participantId);
     acknowledge({ ok: true, participant, lobby, round });
+    latency.track(socket);
 
     if (result.rosterChanged) {
       publishLobby(result.lobby);
@@ -139,6 +135,26 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
       publishRound(roomId, result.delivery);
       await persistRoomStart(store, roomId, logger);
     }
+  });
+
+  socket.on("round:answer", (payload, callback) => {
+    const receivedAt = now();
+    const acknowledge = safeAcknowledge(callback);
+    const parsed = roundAnswerSchema.safeParse(payload);
+
+    if (!parsed.success) {
+      acknowledge(INVALID_REQUEST);
+      return;
+    }
+
+    acknowledge(
+      registry.answer({
+        ...parsed.data,
+        participantId: joinedParticipants.get(parsed.data.roomId) ?? null,
+        receivedAt,
+        medianRoundTripMs: latency.medianRoundTripMs(socket.id),
+      }),
+    );
   });
 }
 

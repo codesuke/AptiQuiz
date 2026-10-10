@@ -169,6 +169,18 @@ AptiQuiz/
 
 Read [Architecture.md](Architecture.md) for implemented interfaces, failure behavior, and deployment plans. Redis remains deferred until measurements justify multiple Game Server processes; Kafka is also deferred.
 
+## Scoring and timing
+
+The Game Server is the only clock that decides an Answer. Players see these rules in the Lobby before the match starts.
+
+- **Round length.** Each Question stays open for 30 s from its server start time.
+- **Points.** A correct Answer earns `500 + floor(500 × (1 − Effective Response Time / duration))`, so 500 to 1000 points; faster earns more. A wrong or missing Answer earns 0. Only the first accepted Answer counts.
+- **Network delay.** The Game Server pings each connection and keeps a rolling median of the measured round-trip times. For scoring, it subtracts `min(median RTT / 2, 100 ms)` from the elapsed time, or 0 when there is no valid sample yet.
+- **Buckets.** The Effective Response Time is rounded down to 100 ms steps before the formula, so tiny timing differences do not change the score.
+- **Deadline.** There is no grace period. An Answer that the server receives after the deadline is rejected; delay compensation only affects the score of an on-time Answer and never makes a late Answer valid.
+
+The values are configured in [`Apti-App/apps/game-server/src/config.ts`](Apti-App/apps/game-server/src/config.ts) and sent to the browser with the Lobby, so the shown rules always match the server.
+
 ## Tech stack
 
 <div align="center">

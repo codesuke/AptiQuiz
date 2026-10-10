@@ -39,12 +39,13 @@ The following functions are available:
 - A Guest or a User joins at `/join` or `/join/[code]` with a display name. The Lobby roster updates live for each member of that Room.
 - The Game Server keeps a maximum of 50 Participants in each Room. Only the Host can start the Room, and only one time.
 - Start opens the first Round: one server `startsAt` and a deadline 30 seconds later. Each Participant receives `round:state` with the public Question in a stable option order of their own, with option ids that are opaque to them. The Host receives the authored order. Both browsers show a countdown from server timestamps.
+- A joined Participant answers the open Round with `round:answer`. The Game Server accepts the first valid Answer received at or before the deadline, by server receipt time. It scores the Answer with delay compensation from server-initiated `latency:ping` samples. The acknowledgement and later views do not show correctness before the reveal. The Lobby shows the scoring rule and the delay policy from the server values.
 - The simulator opens 50 connections by default.
 - The database package generates a Prisma client.
 
 The following functions are not available:
 
-- A Participant cannot submit an Answer. The Round does not close, and the Host cannot advance.
+- The Round does not close or reveal, and the Host cannot advance.
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
@@ -171,6 +172,16 @@ The Socket.IO Room commands are:
 
 `round:state` sends a Round view to one receiver. Each Participant has the channel `participant:<roomId>:<participantId>` and receives their own option order. The order is seeded by a random salt for each Room, the Question index, and the Participant id. Option ids are hashed from the same seed. The Host channel `host:<roomId>` receives the authored order. The `room:host` and `room:join` acknowledgements include the current Round view, or `null` in the Lobby, so a reconnecting browser recovers the Round. The Game Server builds the public Question field by field. It never copies a stored Question, because the stored Question holds `correctOptionId`.
 
+`round:answer` accepts an Answer only from a socket that joined the Room as a Participant. The Host is not a Participant. The handler stamps the server receipt time before it validates the payload. The registry then applies these rules in order:
+
+1. A replayed idempotency key returns the original accepted result.
+2. The Room must be in `QUESTION_OPEN`, and the Answer must name the current Question index.
+3. The receipt time must be at or before `endsAt`. There is no grace period, and delay compensation never makes a late Answer valid.
+4. A Participant's second Answer is refused as `already_answered`.
+5. The option id must be one of this Participant's opaque ids for the Round.
+
+An accepted Answer stores its points: `500 + floor(500 × (1 − Effective Response Time / duration))` for a correct Answer and 0 for a wrong one. Effective Response Time is the elapsed server time minus `min(median RTT / 2, 100 ms)`, clamped to the duration and floored to a 100 ms bucket. The median is taken over the socket's last 5 `latency:ping` samples. The server sends a ping every 2 seconds after a join, and a ping without an acknowledgement within 2 seconds is not a sample. With no sample, compensation is 0. A client can delay its ping acknowledgements to inflate its median, so the 100 ms cap bounds the largest possible gain. The Game Engine owns these rules. Answers stay in memory; #7 persists Match results.
+
 `createGameServer` accepts an injectable `now` clock. Every game time uses it. Socket Ticket and Room registration expiry use the wall clock, because the web server signs them against real time.
 
 Each command is validated and gets a typed acknowledgement. A command without an acknowledgement callback is ignored. `room:lobby` sends the roster and the phase to the members of one Room only. The Lobby data does not contain `correctOptionId`. The Game Server writes Participants and the `RUNNING` status to PostgreSQL through `@aptiquiz/database`, and needs `DATABASE_URL`.
@@ -192,6 +203,9 @@ The Game Server uses these default values:
 |---|---:|---|
 | HTTP and WebSocket port | `3001` | `src/config.ts` |
 | Round duration | `30000` ms | `src/config.ts` |
+| Delay compensation cap | `100` ms | `src/config.ts` |
+| Score bucket | `100` ms | `src/config.ts` |
+| Latency sample interval, timeout, window | `2000` ms, `2000` ms, 5 samples | `src/config.ts` |
 | Allowed web origin | `http://localhost:3000` | `src/config.ts` |
 | Log level | `info` | `src/config.ts` |
 
@@ -207,6 +221,7 @@ The package currently defines these interfaces:
 - `roomRegistrationSchema`, `createRoomRequestSchema`, and `lobbySnapshotSchema`
 - `roomHostSchema`, `roomJoinSchema`, `roomStartSchema`, and their response schemas
 - `publicQuestionSchema`, `openRoundSchema`, and `roundViewSchema`
+- `roundRulesSchema`, `lockedAnswerSchema`, `roundAnswerSchema`, `answerErrorSchema`, `roundAnswerResponseSchema`, and `latencyPingSchema`
 - `displayNameSchema`
 - `timePingSchema`
 - `timePingResponseSchema`
@@ -231,6 +246,10 @@ createGameState(roomId, questionCount): GameState
 transitionGame(state, command, serverTime): TransitionResult
 calculateScore(effectiveElapsedMs, durationMs): number
 orderOptions(options, seed): options
+isAnswerOnTime(round, receivedAt): boolean
+medianRoundTrip(samples): number | null
+effectiveResponseTime(policy, startsAt, receivedAt, medianRttMs): number
+scoreAnswer(policy, answer): number
 ```
 
 `orderOptions` is a seeded shuffle. The same seed always gives the same order, and the input is not changed.
@@ -413,8 +432,8 @@ Failure rules for health, time-ping, handshake, email/password authentication, A
 - If the ticket request fails for another reason, the browser sends an invalid handshake and shows the Game Server as offline.
 - If an authenticated User lacks Admin access, `/admin` shows "Not allowed". A Guest is redirected to sign in.
 - If an HTTP path is not available, the Game Server returns HTTP 404 and `not_found`.
-- If a future Answer is late, the Game Server must reject the Answer by server time.
-- If a future Answer is a duplicate, the Game Server must not add the score two times.
+- If an Answer is received after `endsAt`, the Game Server refuses it with `answer_too_late`.
+- If an Answer is a duplicate, the Game Server refuses it with `already_answered`. A retry with the same key returns the first result, and the score is never added two times.
 - If a future socket disconnects, the application must restore the Participant from a full Room snapshot.
 - If PostgreSQL is not available during a future Round, the in-memory Round must continue.
 - If the Game Server restarts before Redis exists, active in-memory Rooms are lost.

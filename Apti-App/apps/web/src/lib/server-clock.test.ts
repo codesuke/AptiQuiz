@@ -19,6 +19,7 @@ const round: RoundView = {
     topic: "Arithmetic",
     difficulty: "EASY",
   },
+  answer: null,
 };
 
 describe("clockOffsetMs", () => {
