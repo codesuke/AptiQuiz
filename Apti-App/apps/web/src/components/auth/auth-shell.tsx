@@ -37,7 +37,7 @@ export function AuthShell({
         <p className="text-right text-xs text-[#4b5563] sm:text-sm">
           <span className="hidden sm:inline">{alternatePrompt} </span>
           <Link
-            className="inline-flex min-h-11 items-center rounded-md px-1 text-[#e65c00] underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
+            className="inline-flex min-h-11 items-center rounded-md px-1 text-[#b84700] underline underline-offset-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
             href={alternateHref}
           >
             {alternateAction}

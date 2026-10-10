@@ -3,7 +3,7 @@ import "server-only";
 type GoogleEnvironment = Record<string, string | undefined>;
 
 const accountNotLinkedMessage =
-  "This email already has a password account. Sign in with your password and verify your email, then Google sign-in will open the same account.";
+  "This email already has a password account that is not verified. Use “Forgot password?” to reset the password, which also verifies the email. Then Google sign-in opens the same account.";
 const suspendedMessage = "This account is suspended.";
 const genericGoogleErrorMessage = "We could not sign you in with Google. Try again.";
 

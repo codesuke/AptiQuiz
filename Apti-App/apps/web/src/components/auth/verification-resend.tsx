@@ -1,17 +1,17 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { type ResendOutcome, resendOutcome, VERIFY_EMAIL_PAGE } from "@/lib/email-verification";
+import { postAuthJson } from "@/lib/auth-request";
+import { VERIFY_EMAIL_PAGE } from "@/lib/email-verification";
+import { type RequestOutcome, readRequestOutcome } from "@/lib/request-outcome";
+import { authInputClassName, authLabelClassName, authPrimaryButtonClassName } from "./form-styles";
 
-type ResendStatus = "idle" | "sending" | ResendOutcome;
+type ResendStatus = "idle" | "sending" | RequestOutcome;
 
 const failureMessages: Partial<Record<ResendStatus, string>> = {
-  rate_limited: "Too many requests. Wait a few minutes, then try again.",
+  "rate-limited": "Too many requests. Wait a few minutes, then try again.",
   failed: "We could not send the email. Try again in a moment.",
 };
-
-const actionButtonClassName =
-  "rounded-full bg-[#b84700] px-5 font-medium text-white transition hover:bg-[#993a00] disabled:cursor-wait disabled:opacity-70 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]";
 
 function useVerificationResend() {
   const [status, setStatus] = useState<ResendStatus>("idle");
@@ -19,13 +19,11 @@ function useVerificationResend() {
   async function resend(email: string) {
     setStatus("sending");
     try {
-      // Better Auth validates this mounted public endpoint at runtime.
-      const response = await fetch("/api/auth/send-verification-email", {
-        body: JSON.stringify({ callbackURL: VERIFY_EMAIL_PAGE, email }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
+      const response = await postAuthJson("/send-verification-email", {
+        callbackURL: VERIFY_EMAIL_PAGE,
+        email,
       });
-      setStatus(resendOutcome(response.status));
+      setStatus(readRequestOutcome(response.status));
     } catch {
       setStatus("failed");
     }
@@ -42,6 +40,10 @@ function ResendFeedback({ status, sentMessage }: { status: ResendStatus; sentMes
       {message}
     </p>
   );
+}
+
+function resendButtonLabel(status: ResendStatus) {
+  return status === "sending" ? "Sending…" : "Resend verification email";
 }
 
 export function EmailVerificationNotice({ email }: Readonly<{ email: string }>) {
@@ -62,12 +64,12 @@ export function EmailVerificationNotice({ email }: Readonly<{ email: string }>) 
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <button
-          className={`min-h-11 ${actionButtonClassName}`}
+          className={`${authPrimaryButtonClassName} sm:w-auto`}
           disabled={status === "sending"}
           onClick={() => resend(email)}
           type="button"
         >
-          {status === "sending" ? "Sending…" : "Resend verification email"}
+          {resendButtonLabel(status)}
         </button>
         <ResendFeedback sentMessage="Sent. Check your inbox for a new link." status={status} />
       </div>
@@ -86,24 +88,22 @@ export function ResendVerificationForm({ defaultEmail }: Readonly<{ defaultEmail
 
   return (
     <form className="mt-8" onSubmit={submit}>
-      <label className="mb-2 block text-sm font-medium" htmlFor="email">
-        Email
-      </label>
-      <input
-        autoComplete="email"
-        className="min-h-[52px] w-full rounded-lg border border-[#e5e7eb] bg-transparent px-4 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]"
-        defaultValue={defaultEmail}
-        id="email"
-        name="email"
-        required
-        type="email"
-      />
-      <button
-        className={`mt-6 min-h-[52px] w-full ${actionButtonClassName}`}
-        disabled={status === "sending"}
-        type="submit"
-      >
-        {status === "sending" ? "Sending…" : "Resend verification email"}
+      <div className="mb-6">
+        <label className={authLabelClassName} htmlFor="email">
+          Email
+        </label>
+        <input
+          autoComplete="email"
+          className={authInputClassName}
+          defaultValue={defaultEmail}
+          id="email"
+          name="email"
+          required
+          type="email"
+        />
+      </div>
+      <button className={authPrimaryButtonClassName} disabled={status === "sending"} type="submit">
+        {resendButtonLabel(status)}
       </button>
       <div className="mt-4">
         <ResendFeedback

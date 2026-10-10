@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import { postAuthJson } from "@/lib/auth-request";
 import {
   EXPIRED_RESET_LINK_PATH,
   PASSWORD_RESET_SUCCESS_PATH,
@@ -41,12 +42,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
     setIsSubmitting(true);
     try {
-      // Better Auth validates this mounted public endpoint at runtime.
-      const response = await fetch("/api/auth/reset-password", {
-        body: JSON.stringify({ newPassword, token }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
+      const response = await postAuthJson("/reset-password", { newPassword, token });
       const outcome = readResetPasswordOutcome(response.status, await readJson(response));
       if (outcome === "updated") router.replace(PASSWORD_RESET_SUCCESS_PATH);
       else if (outcome === "expired") router.replace(EXPIRED_RESET_LINK_PATH);

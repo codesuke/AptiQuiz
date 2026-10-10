@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
-import { readResetRequestOutcome } from "@/lib/password-reset";
+import { postAuthJson } from "@/lib/auth-request";
+import { readRequestOutcome } from "@/lib/request-outcome";
 import { accountRecoveryShell } from "./account-recovery-shell";
 import { AuthShell } from "./auth-shell";
 import { AuthStateIcon } from "./auth-state-icon";
@@ -51,13 +52,8 @@ function ResetRequestForm({ onSent }: { onSent: (email: string) => void }) {
     const email = String(new FormData(event.currentTarget).get("email") ?? "").trim();
 
     try {
-      // Better Auth validates this mounted public endpoint at runtime.
-      const response = await fetch("/api/auth/request-password-reset", {
-        body: JSON.stringify({ email }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
-      });
-      const outcome = readResetRequestOutcome(response.status);
+      const response = await postAuthJson("/request-password-reset", { email });
+      const outcome = readRequestOutcome(response.status);
       if (outcome === "sent") onSent(email);
       else setError(failureMessages[outcome]);
     } catch {

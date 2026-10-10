@@ -3,14 +3,15 @@ import { createDatabase, type PrismaClient } from "@aptiquiz/database";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { buildVerificationEmail, VERIFICATION_LINK_LIFETIME_SECONDS } from "./email-verification";
-import { readSocialProviders } from "./google-sign-in";
-import { createGmailMailSender, type MailSender } from "./mail-sender";
 import {
   buildPasswordResetEmail,
   buildPasswordResetLink,
-  PASSWORD_RESET_LINK_LIFETIME_SECONDS,
-} from "./password-reset";
+  buildVerificationEmail,
+} from "./auth-emails";
+import { VERIFICATION_LINK_LIFETIME_SECONDS } from "./email-verification";
+import { readSocialProviders } from "./google-sign-in";
+import { createGmailMailSender, type MailSender } from "./mail-sender";
+import { PASSWORD_RESET_LINK_LIFETIME_SECONDS } from "./password-reset";
 
 function readRequiredUrl(name: "BETTER_AUTH_URL" | "DATABASE_URL") {
   const value = process.env[name];
@@ -59,6 +60,12 @@ async function sendPasswordResetEmail({ user, token }: { user: { email: string }
     .catch((error: unknown) => console.error("Password reset email failed", error));
 }
 
+// Following the mailed reset link proves the User controls the inbox, so the email counts as
+// verified. This gives the real owner of a pre-registered email a way to claim it.
+async function markEmailVerifiedAfterReset({ user }: { user: { id: string } }) {
+  await database.user.update({ where: { id: user.id }, data: { emailVerified: true } });
+}
+
 export const auth = betterAuth({
   baseURL: readRequiredUrl("BETTER_AUTH_URL"),
   database: prismaAdapter(database, { provider: "postgresql" }),
@@ -66,6 +73,7 @@ export const auth = betterAuth({
     enabled: true,
     maxPasswordLength: 128,
     minPasswordLength: 8,
+    onPasswordReset: markEmailVerifiedAfterReset,
     resetPasswordTokenExpiresIn: PASSWORD_RESET_LINK_LIFETIME_SECONDS,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: sendPasswordResetEmail,
@@ -92,6 +100,7 @@ export const auth = betterAuth({
   socialProviders: readSocialProviders(),
   // Google sign-in links to an existing User with the same email. Better Auth still requires the
   // existing User's email to be verified first, so an unverified pre-registration cannot capture it.
+  // A password reset verifies the email, which opens the link for the real inbox owner.
   account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
   databaseHooks: {
     session: {

@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
-import { authInputClassName, authTextLinkClassName } from "./form-styles";
+import { postAuthJson } from "@/lib/auth-request";
+import {
+  authInputClassName,
+  authLabelClassName,
+  authPrimaryButtonClassName,
+  authStatusClassName,
+  authTextLinkClassName,
+} from "./form-styles";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -29,15 +36,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
     };
 
     try {
-      // Better Auth validates this mounted public endpoint at runtime.
-      const response = await fetch(
-        `/api/auth/${mode === "sign-in" ? "sign-in" : "sign-up"}/email`,
-        {
-          body: JSON.stringify(body),
-          headers: { "content-type": "application/json" },
-          method: "POST",
-        },
-      );
+      const response = await postAuthJson(`/${mode}/email`, body);
 
       if (!response.ok) {
         setError(genericError);
@@ -59,7 +58,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
     <form className="mt-8" onSubmit={submit}>
       {isSignUp ? (
         <div className="mb-6">
-          <label className="mb-2 block text-sm font-medium" htmlFor="name">
+          <label className={authLabelClassName} htmlFor="name">
             Display name
           </label>
           <input
@@ -73,7 +72,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
         </div>
       ) : null}
       <div className="mb-6">
-        <label className="mb-2 block text-sm font-medium" htmlFor="email">
+        <label className={authLabelClassName} htmlFor="email">
           Email
         </label>
         <input
@@ -86,7 +85,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
         />
       </div>
       <div>
-        <label className="mb-2 block text-sm font-medium" htmlFor="password">
+        <label className={authLabelClassName} htmlFor="password">
           Password
         </label>
         <input
@@ -108,13 +107,13 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
         </div>
       )}
       <button
-        className="mt-6 min-h-[52px] w-full rounded-full bg-[#e65c00] px-5 font-medium text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
+        className={`${authPrimaryButtonClassName} mt-6`}
         disabled={isSubmitting}
         type="submit"
       >
         {buttonLabel}
       </button>
-      <p aria-live="polite" className="mt-4 min-h-6 text-sm text-red-700" role="status">
+      <p aria-live="polite" className={authStatusClassName} role="status">
         {error}
       </p>
     </form>

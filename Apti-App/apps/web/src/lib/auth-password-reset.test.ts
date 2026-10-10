@@ -63,7 +63,7 @@ describe.runIf(hasDatabase)("password reset", () => {
     vi.restoreAllMocks();
   });
 
-  it("mails a one-time link that replaces the password and ends other sessions", async () => {
+  it("mails a one-time link that replaces the password, verifies the email, and ends other sessions", async () => {
     if (!databaseUrl) throw new Error("Database-backed auth test needs DATABASE_URL");
     const request = await createClient();
     const database = createDatabase(databaseUrl);
@@ -77,6 +77,10 @@ describe.runIf(hasDatabase)("password reset", () => {
       });
       expect(signUp.status).toBe(200);
       const otherSession = sessionCookieFrom(signUp);
+      const readEmailVerified = async () =>
+        (await database.user.findUnique({ where: { email }, select: { emailVerified: true } }))
+          ?.emailVerified;
+      expect(await readEmailVerified()).toBe(false);
 
       const known = await request("/request-password-reset", { body: { email } });
       const unknown = await request("/request-password-reset", {
@@ -106,6 +110,8 @@ describe.runIf(hasDatabase)("password reset", () => {
 
       const reset = await request("/reset-password", { body: { token, newPassword } });
       expect(reset.status).toBe(200);
+      // The reset link reached the inbox, so the reset also proves the User owns the email.
+      expect(await readEmailVerified()).toBe(true);
 
       expect(await (await request("/get-session", { cookie: otherSession })).json()).toBeNull();
       const oldSignIn = await request("/sign-in/email", { body: { email, password: oldPassword } });

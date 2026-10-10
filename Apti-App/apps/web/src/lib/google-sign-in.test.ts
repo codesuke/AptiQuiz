@@ -32,8 +32,10 @@ describe("isGoogleSignInAvailable", () => {
 });
 
 describe("describeGoogleSignInError", () => {
-  it("explains that an unverified password account must be verified before Google can open it", () => {
-    expect(describeGoogleSignInError("account_not_linked")).toMatch(/verify/i);
+  it("points the owner of an unverified password account to a password reset", () => {
+    const message = describeGoogleSignInError("account_not_linked");
+    expect(message).toMatch(/Forgot password\?/);
+    expect(message).toMatch(/verif/i);
   });
 
   it("tells a suspended User that the account is suspended", () => {

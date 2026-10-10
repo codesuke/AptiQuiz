@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { postAuthJson } from "@/lib/auth-request";
 
 interface GoogleSignInButtonProps {
   /** The auth page that shows a failed Google sign-in. */
@@ -19,16 +20,11 @@ export function GoogleSignInButton({ errorPath, initialError }: GoogleSignInButt
     setIsRedirecting(true);
 
     try {
-      // Better Auth validates this mounted public endpoint at runtime.
-      const response = await fetch("/api/auth/sign-in/social", {
-        body: JSON.stringify({
-          callbackURL: "/",
-          disableRedirect: true,
-          errorCallbackURL: errorPath,
-          provider: "google",
-        }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
+      const response = await postAuthJson("/sign-in/social", {
+        callbackURL: "/",
+        disableRedirect: true,
+        errorCallbackURL: errorPath,
+        provider: "google",
       });
       const result: unknown = response.ok ? await response.json() : null;
       const url =
