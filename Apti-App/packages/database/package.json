@@ -13,6 +13,7 @@
     "build": "pnpm db:generate && tsc -p tsconfig.build.json",
     "db:generate": "prisma generate --config prisma7.config.ts",
     "db:migrate": "prisma migrate dev --config prisma7.config.ts",
+    "db:seed": "pnpm build && node --env-file-if-exists=../../.env dist/seed.js",
     "db:studio": "prisma studio --config prisma7.config.ts",
     "typecheck": "pnpm db:generate && tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"

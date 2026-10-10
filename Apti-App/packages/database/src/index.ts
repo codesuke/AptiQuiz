@@ -10,4 +10,5 @@ export function createDatabase(connectionString: string): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
+export { APPROVED_COLLEGES, collegeIdFor, normalizeCollegeName, seedColleges } from "./colleges.js";
 export type { PrismaClient } from "./generated/prisma/client.js";
