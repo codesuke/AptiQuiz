@@ -41,15 +41,17 @@ The following functions are available:
 - Start opens the first Round: one server `startsAt` and a deadline 30 seconds later. Each Participant receives `round:state` with the public Question in a stable option order of their own, with option ids that are opaque to them. The Host receives the authored order. Both browsers show a countdown from server timestamps.
 - A joined Participant answers the open Round with `round:answer`. The Game Server accepts the first valid Answer received at or before the deadline, by server receipt time. It scores the Answer with delay compensation from server-initiated `latency:ping` samples. The acknowledgement and later views do not show correctness before the reveal. The Lobby shows the scoring rule and the delay policy from the server values.
 - The Round closes once: at the server deadline, or earlier when every connected Participant has answered. Then each Participant receives the correct option in their own option ids, their result, and the Round scores of all Participants. The Host receives the same reveal with the authored ids.
-- After a reveal, only the Host advances. Each next Question opens with a new server deadline. After the last Question, the Room moves to `FINISHED`, the browsers show "Match finished.", and the Game Server saves one `MatchResult` for each joined Participant and writes the `FINISHED` status and completion time to PostgreSQL in one transaction. The Room moves to `FINISHED` only after that commit. If the commit fails, the advance returns `advance_failed` and the Host can send it again. A complete Match was played in two headless browsers on 2026-10-10.
+- After a reveal, the Game Server advances by itself. Each next Question opens with a new server deadline. After the last Question, the Game Server saves one `MatchResult` for each joined Participant and writes the `FINISHED` status and completion time to PostgreSQL in one transaction. The Room moves to `FINISHED` only after that commit. If the commit fails, the server retries every 2 seconds. A complete Match was played in two headless browsers on 2026-10-10.
 - A Participant who refreshes or reconnects resumes the same Participant with a Resume Token. They get the Room phase, the roster, the current Round in their own option order with their locked Answer, the server deadline, and their score from revealed Rounds. A resume adds no Participant and broadcasts no join. Guest and signed-in refreshes in the Lobby and during an open Round were checked in headless browsers on 2026-10-10.
 - The simulator creates a starter Room through the web application as a signed-in Host, joins 50 virtual Guests into its Lobby by default, checks that the public Lobby holds that many distinct Participants, and plays every starter Question.
 - The database package generates a Prisma client.
 
+- After Start, the Game Server runs the Match without Host input: a 3-second ready phase before each Question, and a 6-second reveal with the Leaderboard and rank movement. After the last Question it saves the results, then shows the final results (accuracy, average response time, and topic strengths) to every browser. `room:advance` returns `advance_disabled`.
+- `/league` shows the top 10 players and top 10 Colleges of the current weekly League Period.
+- The Game Server limits each socket to a burst of 30 events, refilled at 10 events per second, and disconnects a socket that exceeds it.
+
 The following functions are not available:
 
-- The application does not calculate a live Leaderboard.
-- The application does not show the final results to the browsers. The saved `MatchResult` rows are not yet read by any screen.
 - The application does not use Redis or Kafka.
 
 ## System Diagram
@@ -168,7 +170,7 @@ The Socket.IO Room commands are:
 
 - `room:host`: only the Host User subscribes to the Lobby.
 - `room:join`: a Guest or a User joins a Room in the Lobby. A User is one Participant in each Room. A Guest is identified by the join idempotency key. The server reserves the slot before the database write, so a Room never has more than 50 Participants. A join that ends after the start is refused.
-- `room:advance`: only the Host advances, and only from `QUESTION_REVEAL`. The Game Engine `ADVANCE` transition opens the next Question through the same path as start, or moves the Room to `FINISHED` after the last Question. A replayed key returns its first result. A new key while a Round is open gets `round_not_revealed`, so no command can skip a Question or open two Rounds. A finished Room refuses with `room_finished`.
+- `room:advance`: refused with `advance_disabled`. A reveal timer applies the Game Engine `ADVANCE` transition, which opens the next Question through the same path as start or moves the Room to `FINISHED` after the last Question. No client command can skip a Question or open two Rounds.
 - `room:resume`: a Participant reclaims their place on a new connection with `{joinCode, resumeToken}`. The registry finds the token hash in that Room only. A token of a signed-in User's Participant works only on a connection authenticated as that User. A malformed, unknown, or other-Room token gets `invalid_resume_token` and no Participant data. A success subscribes the socket like a join and returns the Lobby, the current Round view for that Participant, and `score`. The score uses the same totals as the Leaderboard and counts revealed Rounds only. A resume adds no Participant, uses no roster place, broadcasts nothing, and does not touch the database. A repeated resume returns the same result.
 - `room:start`: only the Host starts the Room. The Game Engine `START` transition leaves `LOBBY` and opens Question 0 for the configured Round duration. A retry with the same key returns the first result and never opens another Round or moves the deadline.
 
@@ -220,6 +222,7 @@ The Game Server uses these default values:
 | Reconnect grace for early closure | `5000` ms | `src/config.ts` |
 | Score bucket | `100` ms | `src/config.ts` |
 | Latency sample interval, timeout, window | `2000` ms, `2000` ms, 5 samples | `src/config.ts` |
+| Socket event burst, refill | 30 events, 10 events per second | `src/config.ts` |
 | Allowed web origin | `http://localhost:3000` | `src/config.ts` |
 | Log level | `info` | `src/config.ts` |
 

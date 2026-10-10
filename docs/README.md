@@ -6,8 +6,12 @@ Start with the [project README](../README.md), [contributor guide](../CONTRIBUTI
 
 This folder stores durable project knowledge: completed delivery records, architecture decisions, templates, build memory, and agent configuration. Planned and active PRDs and slices live only in GitHub Issues.
 
+**New here? Read the [AptiQuiz Handbook](handbook/README.md).** It explains the product, the scoring, network delay, reconnection, cheating resistance, the 50-player test, the system design, and each technology in simple words.
+
 ## Folders
 
+- `handbook/`: the plain-language guide to AptiQuiz, written in ASD-STE100 Simplified Technical English.
+- `guide/`: deployment guides for Dokploy and DNS.
 - `QnA/`: legacy or explicitly requested decision-session records. `/grilling` does not write here by default.
 - `sessions/`: `wayfinder` session logs.
 - `questionnaire/`: `to-questionnaire` output.

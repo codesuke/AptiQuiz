@@ -9,10 +9,11 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-E65C00" alt="License: MIT"></a>
     <a href="Apti-App/package.json"><img src="https://img.shields.io/badge/Node.js-22.18%2B-339933" alt="Node.js 22.18 or newer"></a>
     <a href="Apti-App/package.json"><img src="https://img.shields.io/badge/pnpm-11-F69220" alt="pnpm 11"></a>
-    <a href="#project-status"><img src="https://img.shields.io/badge/status-early_development-6B7280" alt="Status: early development"></a>
+    <a href="#project-status"><img src="https://img.shields.io/badge/status-playable_MVP-2E7D32" alt="Status: playable MVP"></a>
   </p>
 
   <p>
+    <a href="docs/handbook/README.md">Handbook</a> ·
     <a href="#quick-start">Quick start</a> ·
     <a href="Architecture.md">Architecture</a> ·
     <a href="https://github.com/codesuke/AptiQuiz/issues">Roadmap &amp; issues</a> ·
@@ -33,28 +34,33 @@
 
 ## About
 
-AptiQuiz turns solitary placement practice into a live competition. The intended experience brings students into a shared Room to answer synchronized aptitude Questions, build accuracy under pressure, and follow their progress on a Leaderboard.
+AptiQuiz turns solitary placement practice into a live competition. Up to 50 students join a shared Room with a short code, see the same aptitude Question at the same moment, answer against a server-controlled clock, and watch the Leaderboard move after every Round.
 
-Hosts will create reusable Question Sets and share a Join Code. Participants will compete from phones or laptops, with the Game Server controlling deadlines, answer acceptance, and scoring. Completed results will contribute to College Leagues.
+Hosts write reusable Question Sets (text, options, correct answer, topic, difficulty, and an optional image or data table) and share a Join Code or QR code. Players join from a phone or laptop with just a display name. The Game Server is the referee: it opens and closes every Round, accepts or rejects every Answer, and calculates every score. Signed-in players' results feed a weekly College League.
 
-Built for **hackathon problem statement 3 — AptiQuiz**. See [the official brief and build specification](PS.md) for the full product scope.
+**Try it:** [aptiquiz.codesuke.in](https://aptiquiz.codesuke.in). Built for **hackathon problem statement 3 — AptiQuiz**; see [the official brief and build specification](PS.md).
 
 ## Project status
 
-**The application is under active development.** Accounts are implemented and the web app and Game Server are deployed on Dokploy. Both public HTTPS health endpoints responded on 2026-10-10. A complete multiplayer match runs, and one 50-Participant Match passed on the deployed servers (see [50-Participant proof](#50-participant-proof)); consult [build memory](docs/build-memory.yaml) for verified feature delivery. The home page links to Question Set authoring and hosting setup, and labels Room creation and joining as upcoming.
+**Playable MVP, deployed.** A complete multiplayer Match runs end to end on the [deployed servers](#deployment), and one 50-Participant Match passed there on 2026-10-10 (see [50-Participant proof](#50-participant-proof)). [Build memory](docs/build-memory.yaml) records verified delivery history.
 
-| Area | Current state |
+How each requirement of the brief is met:
+
+| Brief requirement | How AptiQuiz meets it |
 | --- | --- |
-| Web application | Next.js home page, AptiQuiz branding, health endpoint, and connection details |
-| Realtime server | Long-running Socket.IO server with health checks and validated time-ping acknowledgements |
-| Game Engine | Tested initial phase transitions and provisional scoring rules |
-| Shared contracts | Zod validation and TypeScript types for current interfaces |
-| Database | PostgreSQL/Prisma schema and generated client; product persistence still planned |
-| Match simulator | Plays a full 50-Participant Match through the public Socket.IO interface, locally and on the deployed servers |
-| Gameplay | Question Set authoring, Room joining, live Rounds, reveal, Leaderboard, and saved results implemented |
-| Accounts & leagues | Core account flows implemented; reconnection, completed results, and College League still planned |
+| 1. Question authoring | `/question-sets`: create, edit, and reorder Questions with 2–6 options, a correct answer, a topic (Quantitative, Logical, Verbal, and Data Interpretation are suggested), Easy/Medium/Hard difficulty, and an optional image URL or data table. Sets are reused: each Room snapshots its set, so later edits never change a running Match. Five starter sets are seeded. |
+| 2. Rooms | `/host` creates a Room with a six-character Join Code (no look-alike characters such as `0/O` or `1/I`), a join link, a QR code, and Copy/Share buttons. Players join at `/join` with a display name, no account needed. The Lobby roster updates live; only the Host can start. |
+| 3. Live play | Every Participant receives the Question with the same server `startsAt` and deadline and sees a countdown derived from server time. A Round closes at the 30 s deadline or as soon as every connected player has answered; the correct answer and the Round's scores are then revealed. |
+| 4. Speed and accuracy scoring | Correct = 500–1000 points, faster scores more; wrong or no answer = 0 (no negative marking, see [Scoring](#scoring-and-timing)). Players see the exact rule, with the server's own values, in the Lobby before the Match starts. |
+| 5. Live leaderboard and results | After each Question: ranks, totals, and ▲/▼ movement (who climbed, who dropped). At the end: a podium plus each player's accuracy, average response time, and topic-by-topic correct/total. |
+| 6. College league | Each Room belongs to the Host's Home College. `/league` shows the top 10 players and top 10 Colleges for the current week. |
+| Server is the referee | Server receipt time decides every Answer; browser clocks are display-only. Scores are computed only in the pure Game Engine on the server. |
+| Fair under network delay | Server-measured, capped latency compensation plus 100 ms score buckets. [Plain-words explanation](#network-delay-in-plain-words). |
+| Reconnection | A refresh or dropped connection resumes the same Participant, score, locked Answer, option order, and deadline, without notifying anyone else. See [Reconnection](#reconnection). |
+| Cheating resistance | Per-player option shuffle with opaque option ids, no correct answer before the reveal, late and duplicate Answers rejected, and more. See [Cheating resistance](#cheating-resistance). |
+| Works with 50 players | `pnpm simulate` plays a full Match with 50 virtual players, and it passed on the deployed servers. See [50-Participant proof](#50-participant-proof). |
 
-The simulator proves one complete Room of 50 Participants, not capacity for many Rooms. Results are environment-specific; see [build memory](docs/build-memory.yaml) for verification history and limitations.
+Beyond the brief: reduced-motion support, screen-reader live regions, and text labels that never rely on colour alone. `pnpm simulate:bots` fills your own Room with bots for practice or a projector demo.
 
 ## Quick start
 
@@ -77,6 +83,7 @@ All workspace commands run from **`Apti-App/`**. Installation generates the Pris
 
 ```bash
 pnpm db:migrate
+pnpm --filter @aptiquiz/database db:seed   # approved Colleges and starter Question Sets; safe to re-run
 pnpm dev
 ```
 
@@ -135,7 +142,7 @@ The simulator needs a signed-in Host with a Home College. Pass that Host's sessi
 | `SIMULATED_PLAYERS` | `50` | Participants to join, 1 to 50. A larger value fails before any connection. |
 | `SIMULATOR_ROOM_ID`, `SIMULATOR_HOST_TICKET` | none | Alternative to the cookie: a fresh starter Room and a Host ticket made beforehand. Set both. A ticket lives 60 seconds. |
 
-The report is JSON. `connectedSockets` counts open sockets and `joinedParticipants` counts accepted joins; `lobbyParticipants` is read back from the public Lobby. `latencyMs` metrics are client-observed acknowledgement round trips in milliseconds (`timePingAck`, `roomJoinAck`, `roomHostAck`) with sample counts, p50, p95, and max. The `match` block counts accepted Answers, deliberate new-key duplicates rejected, exact-key replays, late Answers rejected (by error code), Questions completed, payloads scanned for pre-reveal disclosure, and the Game Server timing constants. A late Answer sent at the deadline is rejected as `answer_too_late` or, when the deadline timer has already closed the Round, as `round_not_open`; both count as rejected. `hostCommandToRoundState` is the time from a Host start or advance command until each viewer receives the open Round. `lastAnswerAckToReveal` is the time from the last Answer acknowledgement to the reveal, for early-closed Rounds. A full run lasts about one Round duration, because the first Round stays open for the late Answer check.
+The report is JSON. `connectedSockets` counts open sockets and `joinedParticipants` counts accepted joins; `lobbyParticipants` is read back from the public Lobby. `latencyMs` metrics are client-observed acknowledgement round trips in milliseconds (`timePingAck`, `roomJoinAck`, `roomHostAck`) with sample counts, p50, p95, and max. The `match` block counts accepted Answers, deliberate new-key duplicates rejected, exact-key replays, late Answers rejected (by error code), Questions completed, payloads scanned for pre-reveal disclosure, and the Game Server timing constants. A late Answer sent at the deadline is rejected as `answer_too_late` or, when the deadline timer has already closed the Round, as `round_not_open`; both count as rejected. `hostCommandToRoundState` is the time from the Host start command until each viewer receives the first open Round; later Questions open automatically after each reveal, so they have no command to time. `lastAnswerAckToReveal` is the time from the last Answer acknowledgement to the reveal, for early-closed Rounds. A full run lasts about one Round duration, because the first Round stays open for the late Answer check.
 
 The process exits nonzero when any setup, connection, join, Lobby, scoring, secrecy, or timeout check fails; `errors` names each broken check. During the second Question a subset of Participants disconnects and resumes with a Resume Token; `resumes` counts attempts and successes (same identity, score, Answer state, option order, and deadline). `leaderboardsConverged` counts Rounds whose ordered Leaderboard matched across the Host and every Participant and equalled the revealed Round points. `finalResultsVerified` counts saved results that match those totals. Resume Tokens are scrubbed from all output.
 
@@ -175,6 +182,8 @@ Client-observed latency in milliseconds (the time from sending a command to its 
 | `hostCommandToRoundState` | 153 | 35.0 | 42.5 | 42.9 |
 | `lastAnswerAckToReveal` | 102 | 42.9 | 51.9 | 322.5 |
 | `roomAdvanceAck` | 3 | 38.4 | 141.0 | 141.0 |
+
+This run predates automatic advance: the Host still sent `room:advance` after each reveal, which `roomAdvanceAck` measures. The simulator now waits for the server to open each next Question by itself, and checks the Host-only rule by sending `room:start` from a Participant.
 
 This is one run of one Room. It shows that a 50-Participant Match completes correctly on the deployed Game Server from a single runner. It does not show capacity for many Rooms, other networks, or browsers. The simulator sets no latency pass threshold.
 
@@ -224,7 +233,7 @@ AptiQuiz runs on Dokploy as two applications built from `Apti-App/Dockerfile` (s
 - **TLS and WebSocket:** Traefik in Dokploy terminates TLS and proxies WebSocket connections.
 - **CORS:** the Game Server allows only `GAME_SERVER_ORIGIN`, set to `https://aptiquiz.codesuke.in` in production.
 - **Migrations:** the `web` container runs `prisma migrate deploy` before it starts. The `game-server` container never migrates.
-- **Seed:** run `pnpm db:seed` from `Apti-App/` against the production `DATABASE_URL` to load the approved Colleges and the starter Question Set. It is safe to run again.
+- **Seed:** run `pnpm --filter @aptiquiz/database db:seed` from `Apti-App/` against the production `DATABASE_URL` to load the approved Colleges and the starter Question Set. It is safe to run again.
 - **Configuration names:** values come from Dokploy environment settings and are never committed. See `Apti-App/.env.example` for `DATABASE_URL`, `GAME_SERVER_SECRET`, `GAME_SERVER_ORIGIN`, `NEXT_PUBLIC_GAME_SERVER_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS`, `GMAIL_USER`, and `GMAIL_APP_PASSWORD`.
 - **Production auth:** `BETTER_AUTH_URL` is the production web URL, and the Google OAuth client lists `https://aptiquiz.codesuke.in/api/auth/callback/google`. Verification and reset emails link to the production domain.
 - **Redis:** provisioned but unused in the one-process MVP.
@@ -243,11 +252,13 @@ flowchart LR
     Browser <-->|WebSocket| Server[Socket.IO Game Server]
     Web -.-> Contracts[Shared contracts]
     Server -.-> Contracts
-    Server -. planned gameplay .-> Engine[Pure Game Engine]
-    Web -. planned persistence .-> Database[(PostgreSQL / Prisma)]
+    Server --> Engine[Pure Game Engine]
+    Web -->|signed Room registration| Server
+    Web --> Database[(PostgreSQL / Prisma)]
+    Server -->|participants, results| Database
 ```
 
-Solid arrows show current browser interfaces. Dashed arrows show shared dependencies or planned integration, as labeled. The Game Engine and database schema exist; complete gameplay and persistence flows remain to be wired.
+Solid arrows show runtime calls; dashed arrows show shared contract dependencies. The web app owns accounts, authoring, Room creation, and the League; it signs a short-lived registration to hand each new Room to the Game Server. The Game Server owns every live Room in memory, calls the pure Game Engine for every phase change and score, and writes Participants and final results to PostgreSQL.
 
 ```text
 AptiQuiz/
@@ -255,10 +266,11 @@ AptiQuiz/
 │   ├── apps/
 │   │   ├── web/              # Next.js interface and public brand assets
 │   │   ├── game-server/      # Authoritative Socket.IO runtime
-│   │   └── simulator/        # Repeatable connection verification
+│   │   └── simulator/        # 50-player Match simulator and practice bots
 │   └── packages/
 │       ├── contracts/        # Runtime schemas and transport types
 │       ├── game-engine/      # Pure phase transitions and scoring
+│       ├── socket-ticket/    # Signed, short-lived connection tickets
 │       ├── database/         # Prisma schema and PostgreSQL adapter
 │       └── typescript-config/
 ├── design-mocks/             # UI references, prototypes, and logo provenance
@@ -272,13 +284,67 @@ Read [Architecture.md](Architecture.md) for implemented interfaces, failure beha
 
 The Game Server is the only clock that decides an Answer. Players see these rules in the Lobby before the match starts.
 
-- **Round length.** Each Question stays open for 30 s from its server start time.
-- **Points.** A correct Answer earns `500 + floor(500 × (1 − Effective Response Time / duration))`, so 500 to 1000 points; faster earns more. A wrong or missing Answer earns 0. Only the first accepted Answer counts.
-- **Network delay.** The Game Server pings each connection and keeps a rolling median of the measured round-trip times. For scoring, it subtracts `min(median RTT / 2, 100 ms)` from the elapsed time, or 0 when there is no valid sample yet.
-- **Buckets.** The Effective Response Time is rounded down to 100 ms steps before the formula, so tiny timing differences do not change the score.
-- **Deadline.** There is no grace period. An Answer that the server receives after the deadline is rejected; delay compensation only affects the score of an on-time Answer and never makes a late Answer valid.
+### The life of a Match
 
-The values are configured in [`Apti-App/apps/game-server/src/config.ts`](Apti-App/apps/game-server/src/config.ts) and sent to the browser with the Lobby, so the shown rules always match the server.
+```text
+LOBBY ──Host presses Start──► READY (3 s) ──► QUESTION_OPEN (30 s, or until all answer)
+                                  ▲                       │
+                                  │                       ▼
+                          next Question ◄──── QUESTION_REVEAL (6 s: answer, points, Leaderboard)
+                                                          │ after the last Question
+                                                          ▼
+                                        FINISHED (results saved, final results on every screen)
+```
+
+After the Host presses Start, the server runs the whole Match by itself. A 3-second "Get ready" leads into each Question, so nobody's timer starts while they are still reading the previous reveal. The reveal shows the correct answer, each player's own result and points, and the Leaderboard with movement for 6 seconds. Then the next Question begins. After the last Question the server saves every player's result in one database transaction and only then shows the final results.
+
+### Points
+
+- **Correct answer:** `500 + floor(500 × (1 − Effective Response Time ÷ 30 000 ms))`. That is 1000 for an instant answer, about 750 at 15 s, and 500 at the deadline. A correct answer always beats any wrong one, and speed decides between correct ones.
+- **Wrong or no answer:** 0 points. We chose no negative marking on purpose: aptitude tests reward attempting, and a penalty would push nervous students to skip instead of practising under time pressure. Speed already separates the strongest players.
+- **One Answer per Question.** Only the first accepted Answer counts. Answers cannot be changed.
+- **Ranking:** total points (higher first). A tie is broken by the total time taken on correct answers (faster first), then by who joined first, so every player has a distinct rank.
+- **Movement:** after each Question, ▲n / ▼n shows how many places each player climbed or dropped since the previous Question.
+- **Final results:** accuracy is correct answers ÷ Questions in the Match. Average speed is the mean Effective Response Time over the Questions the player answered. Topic strengths are correct/total for each topic of the set.
+
+### Network delay in plain words
+
+Two students press their answer at the same moment, one on campus Wi-Fi and one on a slow mobile connection. The slow connection's answer reaches the server later, so judged naively the slow student looks slower. AptiQuiz evens this out in three steps:
+
+1. **The server measures each connection itself.** Every 2 seconds it pings each player and times the reply; the browser never reports its own timing, so it cannot lie about it. It keeps the middle value (the median) of the last 5 replies, so one bad spike doesn't count.
+2. **It gives back half of that round trip, up to a limit.** Half the round trip is roughly the time the answer spent travelling, so that much is subtracted from the measured time. The credit is capped at 100 ms, the same cap for every player, so a student who deliberately slows their connection can gain at most 0.1 s. That is worth at most about 2 points.
+3. **It rounds to 100 ms buckets.** Answers within the same tenth of a second score identically, so tiny network differences never change the result.
+
+The deadline itself is never adjusted. An answer that reaches the server after the deadline is rejected, even if the player's screen still showed time left. Compensation only changes the score of an answer that arrived on time.
+
+All the values live in [`Apti-App/apps/game-server/src/config.ts`](Apti-App/apps/game-server/src/config.ts) and are sent to the browser with the Lobby, so the shown rules always match the server. The simulator report prints them too.
+
+### Reconnection
+
+When a player joins, the server returns a secret **Resume Token**, an HMAC signature of the Room and Participant; the server stores only a hash of it. The browser keeps the token for that tab. After a refresh or a dropped connection, the browser presents the token before showing itself online and gets everything back: the same identity and score, the current Question in the same option order, the answer it already locked, and the real server deadline. A resume adds no new player, broadcasts nothing to the others, and never moves the timer. A display name is not an identity, so typing someone's name cannot claim their score.
+
+While a player is briefly disconnected, the Round still waits up to 5 seconds for them before closing early, so one refresh doesn't end the Question for everyone.
+
+### Cheating resistance
+
+| A student tries… | What happens |
+| --- | --- |
+| Reading the correct answer from network traffic | It is never sent before the reveal. Each player gets their own shuffled option order, and option ids are hashed per player, so ids can't be compared with a friend. |
+| Telling a friend "it's option B" | Positions differ for every player and every Question. |
+| Answering after the timer, or changing their device clock | Server receipt time decides. Late answers are rejected as `answer_too_late` or `round_not_open`, and device time is never used. |
+| Answering twice, or replaying a request | The first answer is final (`already_answered`). Replaying the same request returns the first result and never adds points twice. |
+| Faking a slow connection for extra time | Delay credit is capped at 100 ms and measured by the server. |
+| Taking over someone's place by using their name | Only the secret Resume Token restores a player. A signed-in player's token works only for that same account. |
+| Starting the Match or acting as Host | Host commands are checked against the Room's Host account (`not_room_host`). |
+| Flooding the server with events | Each connection gets a budget of 30 events at once, refilled at 10 per second. A flooding connection is disconnected and logged. |
+| Filling the room with fake players | At most 50 Participants per Room, reserved before any database write. One connection cannot burst past the event budget. |
+| Inflating the league | Only signed-in players with a verified email count, and scores are written only by the server. |
+
+This baseline stops casual cheating. It does not claim to stop everything: for example, a student can still look answers up on a second device.
+
+### College League
+
+Each Room belongs to its Host's Home College. When a Match ends, each signed-in, email-verified player's score counts for them and for their Home College (or the Room's College if they have none). `/league` ranks the top 10 players and top 10 Colleges by total points for the current week (Monday 00:00 UTC to the next Monday). Guests can play but do not appear in the League.
 
 ## Tech stack
 
@@ -309,19 +375,20 @@ The values are configured in [`Apti-App/apps/game-server/src/config.ts`](Apti-Ap
 
 Better Auth integration and the Dokploy deployment are present (see [Deployment](#deployment) for what was checked). Exact dependency versions are recorded in [the workspace](Apti-App/package.json) and [lockfile](Apti-App/pnpm-lock.yaml).
 
-## Roadmap
+## Known limitations
 
-The active roadmap and acceptance criteria live in [GitHub Issues](https://github.com/codesuke/AptiQuiz/issues).
+- **Live Rooms live in memory.** If the Game Server restarts, running Matches are lost; completed results are already saved. Redis storage is the planned fix ([ADR 0008](docs/ADR/0008-dokploy-deployment-redis-deferred.md)).
+- **One Game Server process.** The 50-player proof covers one Room. Many simultaneous Rooms and other networks have not been load-tested.
+- **One League Period.** The League shows the current week only; seasons and past weeks are not browsable.
+- **Not built yet:** team battles, daily challenges and streaks, power-ups, adaptive difficulty, faculty export, and a dedicated spectator screen. The Host screen already shows the Question and Leaderboard and works on a projector.
 
-1. Build minimal College selection and Question Set authoring, including optional image and table content.
-2. Complete the Room, live Round, Guest entry, and Participant reconnection flows.
-3. Show Leaderboard movement and final results, then aggregate one weekly College League.
-4. Verify a complete 50-Participant match against the existing deployment and document the evidence.
+The roadmap lives in [GitHub Issues](https://github.com/codesuke/AptiQuiz/issues).
 
 ## Documentation
 
 | Resource | Contents |
 | --- | --- |
+| [**Handbook**](docs/handbook/README.md) | **Start here.** Plain-language guide: how to play, scoring, network delay, reconnection, cheating resistance, the 50-player test, system design, and every technology used |
 | [Product brief](PS.md) | Official problem statement and product scope |
 | [Domain glossary](CONTEXT.md) | Question Sets, Rooms, Rounds, and other shared terms |
 | [Architecture](Architecture.md) | System structure, implemented behavior, and accepted plans |
