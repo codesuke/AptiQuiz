@@ -8,6 +8,7 @@ import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 import { HOST_PATH, requireHostCollege } from "@/lib/host-college";
 import { CreateRoomForm, type HostableQuestionSet } from "./create-room-form";
+import { HostMotion } from "./host-motion";
 
 export const dynamic = "force-dynamic";
 
@@ -45,14 +46,26 @@ export default async function HostPage({
   }));
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#fdfbf7] text-[#132922]">
+    <main className="relative min-h-screen max-w-full overflow-x-hidden bg-[#fdfbf7] text-[#132922]">
+      <HostMotion />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-44 top-20 size-[34rem] rounded-full bg-[#f0dfc5] opacity-45 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[-16rem] top-[20rem] size-[35rem] rounded-full bg-[#d7e4da] opacity-55 blur-3xl"
+      />
       <div aria-hidden="true" className="absolute inset-x-0 top-[4.75rem] h-px bg-[#e5e2dc]" />
       <div
         aria-hidden="true"
         className="absolute right-0 top-[4.75rem] hidden h-[45rem] w-[min(37vw,39rem)] bg-[linear-gradient(to_right,transparent_0,transparent_23px,#e8e5dc_24px),linear-gradient(to_bottom,transparent_0,transparent_23px,#e8e5dc_24px)] bg-[size:24px_24px] opacity-60 lg:block"
       />
 
-      <header className="relative mx-auto flex min-h-[4.75rem] max-w-[1720px] items-center justify-between gap-4 px-5 sm:px-8 xl:px-12">
+      <header
+        className="relative mx-auto flex min-h-[4.75rem] max-w-[1720px] items-center justify-between gap-4 px-5 sm:px-8 xl:px-12"
+        data-host-nav
+      >
         <div className="flex min-w-0 items-center gap-4 sm:gap-7">
           <Link
             aria-label="AptiQuiz home"
@@ -92,12 +105,15 @@ export default async function HostPage({
       </header>
 
       <section className="relative mx-auto grid max-w-[1720px] items-start gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:min-h-[calc(100vh-4.75rem)] lg:grid-cols-[minmax(0,0.95fr)_minmax(35rem,1.05fr)] lg:gap-12 lg:px-12 lg:py-5">
-        <div className="relative max-w-2xl pb-10 pt-3 lg:min-h-[42rem] lg:pb-20 lg:pt-14">
+        <div
+          className="relative max-w-2xl pb-10 pt-3 lg:min-h-[42rem] lg:pb-20 lg:pt-14"
+          data-host-copy
+        >
           <p className="relative z-10 flex items-center gap-3 font-mono text-xs font-semibold uppercase tracking-[0.24em] text-[#627169]">
             <span aria-hidden="true" className="h-px w-9 bg-[#e65c00]" />
             Host a Room
           </p>
-          <h1 className="relative z-10 mt-7 text-balance font-[family-name:var(--aq-font-display)] text-[clamp(3.8rem,6vw,7.1rem)] font-normal leading-[0.98] tracking-[-0.06em] text-[#122a22]">
+          <h1 className="relative z-10 mt-7 max-w-6xl text-balance font-[family-name:var(--aq-font-display)] text-[clamp(4rem,7vw,7.25rem)] font-normal leading-[0.98] tracking-[-0.06em] text-[#122a22]">
             Host your
             <br />
             next Room<span className="text-[#e65c00]">.</span>
@@ -114,6 +130,7 @@ export default async function HostPage({
           <Image
             alt=""
             className="pointer-events-none absolute -bottom-6 -left-10 hidden h-auto w-[calc(100%+240px)] max-w-none opacity-40 grayscale lg:block"
+            data-host-artwork
             height={724}
             src="/images/college-campus-engraving.png"
             width={2172}
@@ -125,11 +142,16 @@ export default async function HostPage({
 
         <section
           aria-labelledby="room-setup-title"
-          className="relative overflow-hidden rounded-xl bg-[#15372d] px-5 py-7 text-[#fdfbf7] shadow-[0_28px_60px_-32px_rgba(18,42,34,0.72)] sm:px-8 sm:py-7"
+          className="relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#15372d] px-5 py-7 text-[#fdfbf7] shadow-[0_32px_80px_-36px_rgba(18,42,34,0.76)] sm:px-8 sm:py-8"
+          data-host-panel
         >
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,179,128,0.12),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_45%)]"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -right-20 -top-20 size-56 rounded-full border border-white/10"
           />
           <div className="relative">
             <div className="flex items-center justify-between gap-4 font-mono text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#d0ddd5]">

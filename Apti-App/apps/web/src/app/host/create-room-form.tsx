@@ -50,18 +50,18 @@ export function CreateRoomForm({
   }
 
   return (
-    <form className="mt-4" onSubmit={createRoom}>
+    <form className="mt-5 border-t border-white/20 pt-5" onSubmit={createRoom}>
       <fieldset>
         <legend className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#d0ddd5]">
           Choose a Question Set
         </legend>
-        <ul className="mt-3 space-y-1.5">
+        <ul className="mt-4 space-y-2">
           {questionSets.map((set) => {
             const empty = set.questionCount === 0;
             return (
               <li key={set.id}>
                 <label
-                  className={`flex min-h-[3.8rem] cursor-pointer items-center gap-4 rounded-xl border bg-white/[0.07] px-5 py-2 transition-colors has-[:checked]:border-[#ffb380] has-[:checked]:bg-white/[0.12] has-[:checked]:ring-2 has-[:checked]:ring-[#ffb380]/30 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#ffb380] ${empty ? "cursor-not-allowed border-white/10 opacity-50" : "border-white/15 hover:border-[#ffb380]/70"}`}
+                  className={`flex min-h-[4.25rem] cursor-pointer items-center gap-4 rounded-xl border bg-white/[0.07] px-5 py-3 transition-[background-color,border-color,transform] duration-300 has-[:checked]:border-[#ffb380] has-[:checked]:bg-white/[0.12] has-[:checked]:ring-2 has-[:checked]:ring-[#ffb380]/30 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#ffb380] ${empty ? "cursor-not-allowed border-white/10 opacity-50" : "border-white/15 hover:-translate-y-0.5 hover:border-[#ffb380]/70"}`}
                 >
                   <input
                     checked={questionSetId === set.id}
@@ -97,7 +97,7 @@ export function CreateRoomForm({
         ) : null}
       </div>
       <button
-        className="mt-2 inline-flex min-h-13 w-full items-center justify-center rounded-xl bg-[#ec6b12] px-6 font-semibold text-white transition-colors hover:bg-[#b84700] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffb380] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 inline-flex min-h-14 w-full items-center justify-center rounded-full bg-[#ec6b12] px-6 font-semibold text-white shadow-[0_14px_30px_-16px_rgba(0,0,0,0.75)] transition-[background-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-[#b84700] hover:shadow-[0_18px_32px_-16px_rgba(0,0,0,0.78)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffb380] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
         disabled={!questionSetId || pending}
         type="submit"
       >
