@@ -1,6 +1,62 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-11"
+    changed_at: "2026-10-10"
+    kind: "infrastructure"
+    title: "Dokploy Deployment verified and documented"
+    status: "working_with_limitations"
+    summary: "The deployed web app and Game Server passed WebSocket, CORS, migration, secret, and production-auth checks. The README documents the deployment, and web tests no longer send real email through Gmail."
+    areas:
+      - "deployment"
+      - "documentation"
+      - "web tests"
+    working:
+      - "A WebSocket-only Socket.IO handshake from the web origin connects to https://game.aptiquiz.codesuke.in."
+      - "The Game Server CORS policy grants only https://aptiquiz.codesuke.in."
+      - "The web start command applies all migrations to an empty schema; the Game Server never migrates."
+      - "The repository holds no secret value; only placeholders exist."
+      - "Production Google sign-in and verification/reset email links were confirmed by the owner."
+      - "README has a Deployment section; web tests blank GMAIL_USER and GMAIL_APP_PASSWORD so no test sends real mail."
+    limitations:
+      - "Probes ran from Node, not a real browser."
+      - "Migrations were proven on a scratch schema; the container and Dokploy logs were not inspected."
+      - "Email link domain rests on the owner's report."
+      - "Live Rooms are lost on a Game Server restart; Redis stays unused."
+    prd:
+      issue: 11
+      url: "https://github.com/codesuke/AptiQuiz/issues/11"
+    slices:
+      - issue: 63
+        title: "Verify WebSocket handshake and CORS on the deployed servers"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/63"
+      - issue: 64
+        title: "Prove migrations on web start and a secret-free repository"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/64"
+      - issue: 65
+        title: "Verify production Google sign-in and email links"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/65"
+      - issue: 66
+        title: "Document the deployed setup in the README"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/66"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    verification:
+      - "Evidence comments on issues #63, #64, #65."
+      - "Web google-sign-in.integration and mail-sender tests: 9 passed after the test-config fix."
+    archive:
+      prd: "docs/Specs-Completed/11-dokploy-deployment/PRD.md"
+      slices:
+        - "docs/Specs-Completed/11-dokploy-deployment/slices/63-websocket-and-cors-on-deployed-servers.md"
+        - "docs/Specs-Completed/11-dokploy-deployment/slices/64-migrations-on-web-start-and-secret-free-repo.md"
+        - "docs/Specs-Completed/11-dokploy-deployment/slices/65-production-google-sign-in-and-email-links.md"
+        - "docs/Specs-Completed/11-dokploy-deployment/slices/66-document-the-deployed-setup.md"
   - id: "2026-10-10-github-prd-10"
     changed_at: "2026-10-10"
     kind: "feature"
