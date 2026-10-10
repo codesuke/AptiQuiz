@@ -40,6 +40,8 @@ Percent-encode reserved characters in the username or password. For a Dokploy-ma
    NEXT_PUBLIC_GAME_SERVER_URL=https://game.example.com
    ```
 
+   If these build arguments are missing, the Dockerfile falls back to `http://localhost:3001` for the Game Server. The web server then tries to register each new Room at `localhost` inside its own container, and **Create Room** fails with "The Game Server did not accept the Room" (HTTP 502). Because Next.js inlines `NEXT_PUBLIC_*` values at build time, a runtime environment variable with the same name does not fix this; rebuild with the build arguments instead.
+
 5. Add these runtime environment variables in Dokploy's Environment tab:
 
    ```text
@@ -47,7 +49,10 @@ Percent-encode reserved characters in the username or password. For a Dokploy-ma
    BETTER_AUTH_SECRET=replace-with-your-generated-32-plus-character-secret
    BETTER_AUTH_URL=https://app.example.com
    ADMIN_EMAILS=admin@example.com
+   GAME_SERVER_SECRET=the-same-secret-as-the-game-server
    ```
+
+   Optionally add `GAME_SERVER_INTERNAL_URL` (for example `http://game-server-service-name:3001`). The web server uses it, not the public URL, to register Rooms with the Game Server, and it is read at run time, so a restart applies it. When it is unset, the web server uses `NEXT_PUBLIC_GAME_SERVER_URL`. A failed registration is logged by the web service as `Game Server refused Room registration` or `Game Server Room registration failed`, with the URL and the reason.
 
    `BETTER_AUTH_SECRET` must be a stable secret that is at least 32 characters long. Generate one locally with `openssl rand -base64 32`; do not rotate it during a normal redeploy, because doing so invalidates existing authentication material. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` only when Google sign-in is configured.
 
