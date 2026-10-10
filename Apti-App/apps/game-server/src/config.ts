@@ -7,6 +7,7 @@ export interface GameServerConfig {
   readonly webOrigin: string;
   readonly logLevel: string;
   readonly gameServerSecret: string;
+  readonly databaseUrl: string;
 }
 
 export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServerConfig {
@@ -22,6 +23,7 @@ export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServer
     webOrigin: environment.GAME_SERVER_ORIGIN ?? DEFAULT_WEB_ORIGIN,
     logLevel: environment.LOG_LEVEL ?? "info",
     gameServerSecret: readGameServerSecret(environment.GAME_SERVER_SECRET),
+    databaseUrl: readDatabaseUrl(environment.DATABASE_URL),
   };
 }
 
@@ -31,4 +33,12 @@ function readGameServerSecret(secret: string | undefined): string {
   }
 
   return secret;
+}
+
+function readDatabaseUrl(databaseUrl: string | undefined): string {
+  if (databaseUrl === undefined || databaseUrl.length === 0) {
+    throw new Error("DATABASE_URL is required to record Room Participants");
+  }
+
+  return databaseUrl;
 }

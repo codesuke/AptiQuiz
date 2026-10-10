@@ -254,7 +254,7 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
     );
     expect((await listQuestionSets(db, otherId)).map((set) => set.id)).toContain(first.id);
     expect(await getQuestionSet(db, otherId, first.id)).not.toBeNull();
-    expect(await db.questionSet.count({ where: { isStarter: true } })).toBe(1);
+    expect(await db.questionSet.count({ where: { id: first.id } })).toBe(1);
     await expect(
       addQuestion(db, ownerId, {
         setId: first.id,

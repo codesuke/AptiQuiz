@@ -4,6 +4,7 @@ import pino from "pino";
 import { io, type Socket } from "socket.io-client";
 import { afterEach, describe, expect, it } from "vitest";
 import { createGameServer, type RunningGameServer } from "./server.js";
+import { createInMemoryRoomStore } from "./testing/in-memory-room-store.js";
 
 const ONE_SECOND_MS = 1_000;
 const gameServerSecret = "test-secret-with-at-least-32-characters";
@@ -32,8 +33,15 @@ afterEach(async () => {
 
 async function startServer(): Promise<number> {
   server = createGameServer(
-    { port: 0, webOrigin: "http://localhost:3000", logLevel: "silent", gameServerSecret },
+    {
+      port: 0,
+      webOrigin: "http://localhost:3000",
+      logLevel: "silent",
+      gameServerSecret,
+      databaseUrl: "postgresql://unused",
+    },
     pino({ level: "silent" }),
+    createInMemoryRoomStore(),
   );
   return server.listen();
 }

@@ -5,11 +5,15 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from "@aptiquiz/contracts";
-import { timePingSchema } from "@aptiquiz/contracts";
+import { ROOM_REGISTRATION_PATH, timePingSchema } from "@aptiquiz/contracts";
 import type { Logger } from "pino";
 import { Server as SocketServer } from "socket.io";
 import type { GameServerConfig } from "./config.js";
 import { identifyConnection } from "./handshake.js";
+import { registerRoomHandlers } from "./room-handlers.js";
+import { handleRoomRegistration } from "./room-registration.js";
+import type { RoomStore } from "./room-store.js";
+import { createRoomRegistry } from "./rooms.js";
 
 export interface RunningGameServer {
   readonly httpServer: HttpServer;
@@ -17,8 +21,25 @@ export interface RunningGameServer {
   close(): Promise<void>;
 }
 
-export function createGameServer(config: GameServerConfig, logger: Logger): RunningGameServer {
+export function createGameServer(
+  config: GameServerConfig,
+  logger: Logger,
+  roomStore: RoomStore,
+): RunningGameServer {
+  const registry = createRoomRegistry(roomStore);
   const httpServer = createServer((request, response) => {
+    if (request.method === "POST" && request.url === ROOM_REGISTRATION_PATH) {
+      handleRoomRegistration(request, response, {
+        registry,
+        secret: config.gameServerSecret,
+        logger,
+      }).catch((error: unknown) => {
+        logger.error({ err: error }, "room registration failed");
+        response.destroy();
+      });
+      return;
+    }
+
     if (request.method === "GET" && request.url === "/health") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ status: "ok", serverTime: Date.now() }));
@@ -78,6 +99,8 @@ export function createGameServer(config: GameServerConfig, logger: Logger): Runn
         serverReceivedAt: Date.now(),
       });
     });
+
+    registerRoomHandlers(socket, { io, registry, store: roomStore, logger });
 
     socket.on("disconnect", (reason) => {
       logger.info({ connectionId: socket.id, reason }, "player transport disconnected");

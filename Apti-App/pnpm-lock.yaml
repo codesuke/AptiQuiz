@@ -23,6 +23,9 @@ importers:
       '@aptiquiz/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@aptiquiz/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@aptiquiz/game-engine':
         specifier: workspace:*
         version: link:../../packages/game-engine
@@ -115,6 +118,9 @@ importers:
       nodemailer:
         specifier: 7.0.12
         version: 7.0.12
+      qrcode.react:
+        specifier: ^4.2.0
+        version: 4.2.0(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -180,6 +186,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@aptiquiz/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@prisma/adapter-pg':
         specifier: ^7.8.0
         version: 7.10.0
@@ -2133,6 +2142,11 @@ packages:
 
   pure-rand@6.1.0:
     resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
+
+  qrcode.react@4.2.0:
+    resolution: {integrity: sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   quick-format-unescaped@4.0.4:
     resolution: {integrity: sha512-tYC1Q1hgyRuHgloV/YXs2w15unPVh8qfu/qCTfhTYamaw7fyhumKa2yGpdSo87vY32rIclj+4fWYQXUMs9EHvg==}
@@ -4147,6 +4161,10 @@ snapshots:
       signal-exit: 3.0.7
 
   pure-rand@6.1.0: {}
+
+  qrcode.react@4.2.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
 
   quick-format-unescaped@4.0.4: {}
 

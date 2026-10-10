@@ -49,10 +49,26 @@ Percent-encode reserved characters in the username or password. For a Dokploy-ma
    ADMIN_EMAILS=admin@example.com
    ```
 
-   `BETTER_AUTH_SECRET` must be a stable secret that is at least 32 characters long. Generate one locally with `openssl rand -base64 32`; do not rotate it during a normal redeploy, because doing so invalidates existing authentication material. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` only when Google sign-in is configured. Add `GMAIL_USER` and `GMAIL_APP_PASSWORD` when email verification must send email.
+   `BETTER_AUTH_SECRET` must be a stable secret that is at least 32 characters long. Generate one locally with `openssl rand -base64 32`; do not rotate it during a normal redeploy, because doing so invalidates existing authentication material. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` only when Google sign-in is configured.
 
 6. In **Domains**, add `app.example.com`, select service port `3000`, and enable HTTPS. Dokploy configures Traefik for Dockerfile applications.
 7. Deploy. The first start runs `prisma migrate deploy`; a failed database connection prevents the web process from starting, which protects the application from serving against an unmigrated database.
+
+### Prepare Google SMTP credentials
+
+The web workspace has a Gmail/Nodemailer sender that reads `GMAIL_USER` and `GMAIL_APP_PASSWORD`. **Better Auth verification and password-reset callbacks are not wired to that sender yet**, so setting these variables does not currently cause auth mail to be sent. Add them in Dokploy only when preparing that integration or after it is wired.
+
+1. Create a dedicated Gmail or Google Workspace sender mailbox.
+2. Enable [Google 2-Step Verification](https://support.google.com/mail/answer/185839) for that mailbox.
+3. Create a dedicated [Google App Password](https://myaccount.google.com/apppasswords), for example `AptiQuiz SMTP`.
+4. Add its values as **runtime environment variables** to the web application—never as Docker build arguments:
+
+   ```text
+   GMAIL_USER=aptiquiz.notifications@gmail.com
+   GMAIL_APP_PASSWORD=your-16-character-google-app-password
+   ```
+
+Use the generated App Password, not the normal Google account password. Store it only in Dokploy's secret environment configuration; it is revoked if the Google account password changes. Google may hide App Passwords for some Workspace-managed or Advanced Protection accounts. See [Google's App Password documentation](https://support.google.com/accounts/answer/185833).
 
 Set this health check in Dokploy's advanced or cluster settings if you enable health-check-based rollbacks:
 

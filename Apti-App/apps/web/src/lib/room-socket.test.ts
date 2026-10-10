@@ -1,0 +1,99 @@
+import type { LobbySnapshot, RoomJoin, RoomJoinResponse } from "@aptiquiz/contracts";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRoomSocket, emitRoomJoin, parseLobbyUpdate } from "./room-socket";
+
+const lobby: LobbySnapshot = {
+  roomId: "room-1",
+  joinCode: "AB3CD9",
+  phase: "LOBBY",
+  college: { id: "college-1", name: "Example College" },
+  questionSetTitle: "Quant warm-up",
+  questionCount: 10,
+  participants: [{ participantId: "p-1", displayName: "Asha", isGuest: true }],
+};
+
+const attempt: RoomJoin = {
+  joinCode: "AB3CD9",
+  displayName: "Asha",
+  idempotencyKey: "4f0c2b8e-8d1a-4f43-9a55-0e6f7d3b2c11",
+};
+
+describe("createRoomSocket", () => {
+  it("connects over WebSocket with a fresh Socket Ticket on every attempt", async () => {
+    const connect = vi.fn().mockReturnValue("socket");
+    const requestAuth = vi.fn().mockResolvedValue({ ticket: "fresh" });
+
+    expect(createRoomSocket({ connect, requestAuth, serverUrl: "http://game.test" })).toBe(
+      "socket",
+    );
+
+    const [url, options] = connect.mock.calls[0] ?? [];
+    expect(url).toBe("http://game.test");
+    expect(options).toMatchObject({ reconnection: true, transports: ["websocket"] });
+
+    const callback = vi.fn();
+    options.auth(callback);
+    options.auth(callback);
+    await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
+    expect(callback).toHaveBeenCalledWith({ ticket: "fresh" });
+    expect(requestAuth).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("emitRoomJoin", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns the validated acknowledgement", async () => {
+    const response: RoomJoinResponse = {
+      ok: true,
+      participant: { participantId: "p-1", displayName: "Asha", isGuest: true },
+      lobby,
+    };
+    const send = vi.fn((_payload: RoomJoin, acknowledge: (value: unknown) => void) =>
+      acknowledge(response),
+    );
+
+    await expect(emitRoomJoin(send, attempt)).resolves.toEqual(response);
+    expect(send).toHaveBeenCalledWith(attempt, expect.any(Function));
+  });
+
+  it("passes Room errors through", async () => {
+    const send = (_payload: RoomJoin, acknowledge: (value: unknown) => void) =>
+      acknowledge({ ok: false, error: "room_full" });
+
+    await expect(emitRoomJoin(send, attempt)).resolves.toEqual({ ok: false, error: "room_full" });
+  });
+
+  it("treats a malformed acknowledgement as a retryable failure", async () => {
+    const send = (_payload: RoomJoin, acknowledge: (value: unknown) => void) =>
+      acknowledge({ ok: true });
+
+    await expect(emitRoomJoin(send, attempt)).resolves.toEqual({
+      ok: false,
+      error: "join_failed",
+    });
+  });
+
+  it("gives up with no_response when the Game Server does not answer", async () => {
+    vi.useFakeTimers();
+    const result = emitRoomJoin(() => undefined, attempt, 5_000);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    await expect(result).resolves.toEqual({ ok: false, error: "no_response" });
+  });
+});
+
+describe("parseLobbyUpdate", () => {
+  it("accepts a snapshot for the joined Room", () => {
+    expect(parseLobbyUpdate({ ...lobby, phase: "QUESTION_OPEN" }, "room-1")?.phase).toBe(
+      "QUESTION_OPEN",
+    );
+  });
+
+  it("ignores malformed payloads and other Rooms", () => {
+    expect(parseLobbyUpdate({ roomId: "room-1" }, "room-1")).toBeNull();
+    expect(parseLobbyUpdate({ ...lobby, roomId: "room-2" }, "room-1")).toBeNull();
+  });
+});

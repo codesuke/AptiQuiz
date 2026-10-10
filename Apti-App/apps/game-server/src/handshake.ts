@@ -36,6 +36,6 @@ export async function identifyConnection(
     return { ok: false, error };
   }
 
-  const { userId, role, emailVerified } = verification.claims;
-  return { ok: true, identity: { kind: "user", userId, role, emailVerified } };
+  const { userId, role, homeCollegeId, emailVerified } = verification.claims;
+  return { ok: true, identity: { kind: "user", userId, role, homeCollegeId, emailVerified } };
 }

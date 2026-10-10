@@ -1,0 +1,287 @@
+"use client";
+
+import type { LobbyParticipant, LobbySnapshot, RoomJoin } from "@aptiquiz/contracts";
+import { CircleCheck, Hourglass, Play, Radio } from "lucide-react";
+import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
+import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
+import {
+  createRoomSocket,
+  emitRoomJoin,
+  parseLobbyUpdate,
+  type RoomSocket,
+  type SendRoomJoin,
+} from "@/lib/room-socket";
+import { fieldErrorClass, primaryButtonClass, textInputClass } from "./form-styles";
+import { createIdempotencyKey, type FailedJoin, nextJoinKey } from "./join-key";
+import { LobbyDetails } from "./lobby-details";
+
+type ConnectionStatus = "connecting" | "online" | "offline";
+
+interface JoinedRoom {
+  readonly participant: LobbyParticipant;
+  readonly lobby: LobbySnapshot;
+}
+
+interface JoinRoomProps {
+  readonly joinCode: string;
+  readonly defaultDisplayName: string;
+}
+
+/** Generous cap; the schema enforces 32 after trimming and explains the rule. */
+const DISPLAY_NAME_INPUT_LIMIT = 64;
+const NOT_CONNECTED_MESSAGE = "Still connecting to the game server. Try again in a moment.";
+
+function sendJoinVia(socket: RoomSocket): SendRoomJoin {
+  return (payload, acknowledge) => {
+    socket.emit("room:join", payload, acknowledge);
+  };
+}
+
+export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
+  const [connection, setConnection] = useState<ConnectionStatus>("connecting");
+  const [joined, setJoined] = useState<JoinedRoom | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const socketRef = useRef<RoomSocket | null>(null);
+  const joinedAttemptRef = useRef<RoomJoin | null>(null);
+
+  const rejoin = useCallback(async (socket: RoomSocket, attempt: RoomJoin) => {
+    const result = await emitRoomJoin(sendJoinVia(socket), attempt);
+
+    if (result.ok) {
+      setJoined({ participant: result.participant, lobby: result.lobby });
+      setError(null);
+      return;
+    }
+
+    setError(joinFailureMessage(result.error));
+  }, []);
+
+  useEffect(() => {
+    const socket = createRoomSocket();
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setConnection("online");
+      // A reconnect is a new socket on the server: the same key returns the same
+      // Participant and puts this socket back into the Room's Lobby channel.
+      const attempt = joinedAttemptRef.current;
+      if (attempt !== null) void rejoin(socket, attempt);
+    });
+    socket.on("disconnect", () => setConnection("offline"));
+    socket.on("connect_error", () => setConnection("offline"));
+    socket.on("room:lobby", (payload) => {
+      setJoined((current) => {
+        if (current === null) return current;
+        const lobby = parseLobbyUpdate(payload, current.lobby.roomId);
+        return lobby === null ? current : { ...current, lobby };
+      });
+    });
+
+    return () => {
+      socketRef.current = null;
+      socket.disconnect();
+    };
+  }, [rejoin]);
+
+  const handleJoined = useCallback((attempt: RoomJoin, room: JoinedRoom) => {
+    joinedAttemptRef.current = attempt;
+    setJoined(room);
+  }, []);
+
+  if (joined === null) {
+    return (
+      <DisplayNameForm
+        connection={connection}
+        defaultDisplayName={defaultDisplayName}
+        joinCode={joinCode}
+        onJoined={handleJoined}
+        socketRef={socketRef}
+      />
+    );
+  }
+
+  return <JoinedLobby connection={connection} error={error} joined={joined} />;
+}
+
+interface DisplayNameFormProps {
+  readonly connection: ConnectionStatus;
+  readonly defaultDisplayName: string;
+  readonly joinCode: string;
+  readonly onJoined: (attempt: RoomJoin, room: JoinedRoom) => void;
+  readonly socketRef: { readonly current: RoomSocket | null };
+}
+
+function DisplayNameForm({
+  connection,
+  defaultDisplayName,
+  joinCode,
+  onJoined,
+  socketRef,
+}: DisplayNameFormProps) {
+  const inputId = useId();
+  const hintId = useId();
+  const errorId = useId();
+  const [displayName, setDisplayName] = useState(defaultDisplayName);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const failedRef = useRef<FailedJoin | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+
+    const name = parseDisplayNameInput(displayName);
+    if (!name.ok) {
+      setError(name.message);
+      return;
+    }
+
+    const socket = socketRef.current;
+    if (socket === null || !socket.connected) {
+      setError(NOT_CONNECTED_MESSAGE);
+      return;
+    }
+
+    const attempt: RoomJoin = {
+      joinCode,
+      displayName: name.value,
+      idempotencyKey: nextJoinKey(failedRef.current, createIdempotencyKey),
+    };
+    setPending(true);
+    setError(null);
+    const result = await emitRoomJoin(sendJoinVia(socket), attempt);
+    setPending(false);
+
+    if (result.ok) {
+      failedRef.current = null;
+      onJoined(attempt, { participant: result.participant, lobby: result.lobby });
+      return;
+    }
+
+    failedRef.current = { key: attempt.idempotencyKey, failure: result.error };
+    setError(joinFailureMessage(result.error));
+  }
+
+  const isConnected = connection === "online";
+
+  return (
+    <form
+      aria-busy={pending}
+      className="max-w-md rounded-2xl border border-[#e4dfd3] bg-[#f7f4eb] p-5 sm:p-7"
+      noValidate
+      onSubmit={handleSubmit}
+    >
+      <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[#627169]">
+        Room <span className="text-[#b84700]">{joinCode}</span>
+      </p>
+      <label className="mt-4 block font-semibold text-[#172823]" htmlFor={inputId}>
+        Display name
+      </label>
+      <p className="mt-1 text-sm leading-6 text-[#526159]" id={hintId}>
+        2 to 32 characters. Other players in the Room will see it.
+      </p>
+      <input
+        aria-describedby={`${hintId} ${errorId}`}
+        aria-invalid={error !== null}
+        autoComplete="nickname"
+        className={`${textInputClass} mt-3`}
+        disabled={pending}
+        id={inputId}
+        maxLength={DISPLAY_NAME_INPUT_LIMIT}
+        onChange={(event) => setDisplayName(event.target.value)}
+        value={displayName}
+      />
+      <p aria-live="polite" className={`${fieldErrorClass} mt-2 min-h-6`} id={errorId}>
+        {error}
+      </p>
+      <button
+        className={`${primaryButtonClass} mt-3 w-full`}
+        disabled={pending || !isConnected}
+        type="submit"
+      >
+        {pending ? "Joining…" : isConnected ? "Join Room" : "Connecting…"}
+      </button>
+      <ConnectionNote connection={connection} />
+    </form>
+  );
+}
+
+function ConnectionNote({ connection }: { readonly connection: ConnectionStatus }) {
+  const label =
+    connection === "online"
+      ? "Connected to the game server."
+      : connection === "offline"
+        ? "Can't reach the game server. Retrying…"
+        : "Connecting to the game server…";
+
+  return (
+    <p
+      aria-live="polite"
+      className="mt-4 flex items-center gap-2 text-sm text-[#526159]"
+      role="status"
+    >
+      <Radio
+        aria-hidden="true"
+        className={connection === "online" ? "size-4 text-emerald-600" : "size-4 text-amber-600"}
+      />
+      {label}
+    </p>
+  );
+}
+
+interface JoinedLobbyProps {
+  readonly connection: ConnectionStatus;
+  readonly error: string | null;
+  readonly joined: JoinedRoom;
+}
+
+function JoinedLobby({ connection, error, joined }: JoinedLobbyProps) {
+  const { participant, lobby } = joined;
+  const hasStarted = lobby.phase !== "LOBBY";
+
+  return (
+    <div className="grid gap-5">
+      <div className="flex flex-col gap-3 rounded-2xl bg-[#19352d] px-5 py-4 text-[#fdfbf7] sm:flex-row sm:items-center sm:justify-between">
+        <p className="flex min-w-0 items-center gap-3 text-lg font-semibold">
+          <CircleCheck aria-hidden="true" className="size-5 shrink-0 text-[#ffb380]" />
+          <span className="min-w-0 truncate">You're in as {participant.displayName}</span>
+        </p>
+        <p
+          aria-live="polite"
+          className="flex items-center gap-2 text-sm text-[#d0ddd5]"
+          role="status"
+        >
+          <Radio
+            aria-hidden="true"
+            className={
+              connection === "online" ? "size-4 text-emerald-300" : "size-4 text-amber-300"
+            }
+          />
+          {connection === "online" ? "Live" : "Reconnecting…"}
+        </p>
+      </div>
+
+      <div aria-live="polite" role="status">
+        {hasStarted ? (
+          <p className="flex items-center gap-3 rounded-xl border-l-2 border-[#e65c00] bg-[#fff3ea] px-4 py-3 font-semibold text-[#172823]">
+            <Play aria-hidden="true" className="size-4 shrink-0 text-[#b84700]" />
+            The Host started the match. Questions will appear here.
+          </p>
+        ) : (
+          <p className="flex items-center gap-3 px-1 text-[#526159]">
+            <Hourglass aria-hidden="true" className="size-4 shrink-0 text-[#627169]" />
+            Waiting for the Host to start the match.
+          </p>
+        )}
+      </div>
+
+      {error === null ? null : (
+        <p className={`${fieldErrorClass} rounded-xl bg-[#fdecea] px-4 py-3`} role="alert">
+          {error}
+        </p>
+      )}
+
+      <LobbyDetails lobby={lobby} />
+    </div>
+  );
+}

@@ -55,7 +55,7 @@ Build a real-time multiplayer web app where up to 50 students join a room and ra
 
 ## Team build specification
 
-> Status: **PLANNED — not yet implemented or verified.**
+> Status: **PARTIALLY IMPLEMENTED.** Accounts and the Dokploy deployment exist; the complete multiplayer match and 50-Participant proof remain unverified. [MVP issue #13](https://github.com/codesuke/AptiQuiz/issues/13) is the current tracked scope for the team-authored build plan below. The official problem statement above is unchanged.
 
 ### Product goal
 
@@ -63,12 +63,13 @@ Deliver a reliable three-minute demonstration in which a host selects a reusable
 
 The implementation must preserve a direct path from a single-process hackathon build to a horizontally scalable deployment without rewriting the game rules.
 
-### Four-hour release boundary
+### MVP release boundary
 
 #### Must ship
 
 - Minimal question-set authoring with create, edit, reorder, and reuse.
 - Questions with text, options, correct answer, topic, and difficulty.
+- Optional image URL and table content on Questions.
 - A short room code and a lobby showing connected players.
 - Host-controlled start and server-controlled round transitions.
 - Synchronized questions and countdowns based on server timestamps.
@@ -88,22 +89,23 @@ The implementation must preserve a direct path from a single-process hackathon b
 - Teams, power-ups, streaks, seasons, and adaptive difficulty.
 - Faculty exports and advanced analytics.
 - Spectator-specific presentation controls.
-- Full user accounts, social features, payments, and notifications.
+- Further account enhancements, social features, payments, and notifications. Core accounts are already implemented.
+- College registration and approval, Admin Console, Featured set management, Guest score claiming, and multiple League Period views.
 - Complex media upload; support image URLs or seeded assets first.
 
 ### Acceptance journey
 
 1. A host opens the authoring screen, creates or selects a set, and creates a room.
 2. The room receives a short join code.
-3. Players join from separate browser sessions, enter a display name and college, and appear in the lobby.
+3. Participants join from separate browser sessions, enter a display name, and appear in the lobby. The Room belongs to the Host's Home College.
 4. The host starts the match.
 5. Every player sees the same question and server-derived remaining time.
-6. Each player sees a locally shuffled option order without receiving the correct-answer field.
+6. Each Participant sees their server-assigned shuffled option order without receiving the correct-answer field.
 7. The server accepts at most one on-time answer from each player.
 8. When everyone answers or the deadline expires, the server closes the round, calculates scores, reveals the answer, and broadcasts standings.
 9. The leaderboard shows current rank and movement from the previous round.
 10. A refreshed player resumes with the same identity, score, room, and current question.
-11. The final screen shows accuracy, average response time, topic strengths, and league impact.
+11. The final screen shows accuracy, average response time, and topic strengths. Eligible signed-in Users' results contribute to the College League.
 12. The load script completes a room with 50 simulated players and reports connections, answers, errors, and event latency.
 
 ## Planned architecture

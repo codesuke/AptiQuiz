@@ -1,4 +1,7 @@
 import {
+  ROOM_REGISTRATION_AUDIENCE,
+  type RoomRegistration,
+  roomRegistrationSchema,
   SOCKET_TICKET_AUDIENCE,
   type SocketTicketClaims,
   type SocketTicketSubject,
@@ -52,6 +55,52 @@ export async function verifySocketTicket(
       requiredClaims: ["sub", "iat", "exp"],
     });
     return readClaims(payload);
+  } catch (error) {
+    return { ok: false, reason: classifyRejection(error) };
+  }
+}
+
+export const ROOM_REGISTRATION_LIFETIME_MS = 60_000;
+const ROOM_REGISTRATION_LIFETIME_SECONDS = ROOM_REGISTRATION_LIFETIME_MS / MILLISECONDS_PER_SECOND;
+
+export type RoomRegistrationVerification =
+  | { readonly ok: true; readonly registration: RoomRegistration }
+  | { readonly ok: false; readonly reason: SocketTicketRejection };
+
+/** Signs the web server's Room handoff so only a holder of the shared secret can register a Room. */
+export function issueRoomRegistration(
+  registration: RoomRegistration,
+  secret: string,
+  now: number,
+): Promise<string> {
+  const issuedAtSeconds = Math.floor(now / MILLISECONDS_PER_SECOND);
+
+  return new SignJWT({ registration })
+    .setProtectedHeader({ alg: SIGNING_ALGORITHM })
+    .setSubject(registration.roomId)
+    .setAudience(ROOM_REGISTRATION_AUDIENCE)
+    .setIssuedAt(issuedAtSeconds)
+    .setExpirationTime(issuedAtSeconds + ROOM_REGISTRATION_LIFETIME_SECONDS)
+    .sign(encodeSecret(secret));
+}
+
+export async function verifyRoomRegistration(
+  token: string,
+  secret: string,
+  now: number,
+): Promise<RoomRegistrationVerification> {
+  try {
+    const { payload } = await jwtVerify(token, encodeSecret(secret), {
+      algorithms: [SIGNING_ALGORITHM],
+      audience: ROOM_REGISTRATION_AUDIENCE,
+      currentDate: new Date(now),
+      maxTokenAge: ROOM_REGISTRATION_LIFETIME_SECONDS,
+      requiredClaims: ["sub", "iat", "exp"],
+    });
+    const parsed = roomRegistrationSchema.safeParse(payload.registration);
+    return parsed.success && parsed.data.roomId === payload.sub
+      ? { ok: true, registration: parsed.data }
+      : { ok: false, reason: "malformed" };
   } catch (error) {
     return { ok: false, reason: classifyRejection(error) };
   }

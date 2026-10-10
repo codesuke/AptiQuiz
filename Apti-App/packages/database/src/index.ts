@@ -20,6 +20,7 @@ export {
   getQuestionSet,
   listQuestionSets,
   QUESTION_OPTION_NUMBERS,
+  QuestionSetNotFoundError,
   questionInputSchema,
   questionMediaSchema,
   questionOptionsSchema,
@@ -28,3 +29,12 @@ export {
   snapshotQuestionSet,
   updateQuestion,
 } from "./question-sets.js";
+export {
+  createRoom,
+  getHostedRoom,
+  type HostedRoom,
+  markRoomStarted,
+  type ParticipantRecord,
+  randomJoinCode,
+  recordParticipant,
+} from "./rooms.js";

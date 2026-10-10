@@ -85,6 +85,13 @@ function questionCreateData(question: ValidQuestion, position: number) {
   };
 }
 
+export class QuestionSetNotFoundError extends Error {
+  constructor() {
+    super("Question Set not found.");
+    this.name = "QuestionSetNotFoundError";
+  }
+}
+
 function requireHostId(hostId: string | null | undefined): string {
   if (!hostId) throw new Error("Sign in to manage Question Sets.");
   return hostId;
@@ -134,7 +141,7 @@ type Transaction = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
 async function requireEditableSet(tx: Transaction, ownerId: string, setId: string) {
   const set = await tx.questionSet.findFirst({ where: { id: setId, ownerId, isStarter: false } });
-  if (!set) throw new Error("Question Set not found.");
+  if (!set) throw new QuestionSetNotFoundError();
   // Row lock serialises concurrent add, edit, and reorder so the (set, position) key cannot collide.
   await tx.$queryRaw`SELECT id FROM "QuestionSet" WHERE id = ${set.id} FOR UPDATE`;
   return set;
@@ -255,9 +262,10 @@ export async function snapshotQuestionSet(db: PrismaClient, hostId: string | nul
       }),
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
   );
-  if (!set) throw new Error("Question Set not found.");
+  if (!set) throw new QuestionSetNotFoundError();
   return deepFreeze({
     questionSetId: set.id,
+    title: set.title,
     questions: set.questions.map((row) => {
       const question = questionInputSchema.parse({ ...row, media: row.media ?? undefined });
       return { ...questionFields(question), ...(question.media ? { media: question.media } : {}) };

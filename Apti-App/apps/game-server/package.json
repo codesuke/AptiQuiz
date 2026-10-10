@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@aptiquiz/contracts": "workspace:*",
+    "@aptiquiz/database": "workspace:*",
     "@aptiquiz/game-engine": "workspace:*",
     "@aptiquiz/socket-ticket": "workspace:*",
     "pino": "^10.0.0",

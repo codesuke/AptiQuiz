@@ -98,6 +98,7 @@ describe.runIf(databaseUrl)("Host College rule", () => {
         hostId: host.id,
         collegeId: decision.college.id,
         questionSetId: questionSet.id,
+        questionSnapshot: [],
       },
     });
     roomIds.push(room.id);

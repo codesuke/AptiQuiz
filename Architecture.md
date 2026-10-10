@@ -16,7 +16,7 @@ The application is an initial working foundation. It does not contain a complete
 
 The following functions are available:
 
-- The web application serves the foundation page.
+- The web application serves a task-focused home page with links to Question Sets and hosting setup.
 - The web application supplies `GET /api/health`.
 - The web application supports email and password sign-up, sign-in, and sign-out.
 - The web application supports Google sign-in when Google credentials are configured.
@@ -25,7 +25,7 @@ The following functions are available:
 - A verified User in `ADMIN_EMAILS` can open the placeholder `/admin` area.
 - A suspended User cannot create a session or use an existing session on the next request.
 - A signed-in User searches the approved Colleges at `/college` and sets one Home College. The account menu shows it.
-- The "Host a match" link opens `/host`. A Guest is sent to sign in. A User without a Home College is sent to `/college` and returns to `/host` after choosing one. The page does not create a Room.
+- The hosting setup link opens `/host`. A Guest is sent to sign in. A User without a Home College is sent to `/college` and returns to `/host` after choosing one. The page does not create a Room.
 - The web application issues short-lived Socket Tickets to signed-in Users.
 - The browser connects to the Game Server as a User or a Guest and shows the identity reported by `server:ready`.
 - The Game Server supplies `GET /health`.
@@ -45,7 +45,7 @@ The following functions are not available:
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
 - The application does not use Redis or Kafka.
-- The application is not deployed.
+- The web app and Game Server are deployed on Dokploy. Both public HTTPS health endpoints responded on 2026-10-10; WebSocket, CORS, and migration checks remain open in issue #11.
 
 ## System Diagram
 
@@ -127,7 +127,7 @@ Location: `Apti-App/apps/web`
 
 The web application uses Next.js and React. Server Components are the default component type.
 
-The foundation page shows the product direction. The Join and Host buttons do not start product flows. Its account menu reflects the current active session.
+The home page leads to Question Set authoring and hosting setup. It labels Room joining and creation as upcoming because those flows are not implemented. Its account menu reflects the current active session. Connection diagnostics remain available in a disclosure at the bottom of the page.
 
 The sign-in and sign-up pages show "Continue with Google" only when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are both set. Without them, Better Auth has no Google provider and the pages show only the email form. A new Google User gets the email-verified status from the Google `email_verified` claim. A Google sign-in links to an existing User with the same email only when that User's email is verified. Otherwise the sign-in page tells the User to use "Forgot password?". A completed password reset verifies the email, because the User opened the reset link from that inbox. After the reset, Google sign-in opens the same User. This rule prevents an unverified pre-registration from capturing a Google identity, and it gives the real owner of the email a recovery path. The web application does not set the email-verified status of a new Google User to true by force. An unverified Google address must not satisfy the Admin check.
 
@@ -362,7 +362,7 @@ Do not add Kafka placeholders during the core application build.
 
 ## Deployment Plan
 
-ADR 0008 accepts Dokploy as the deployment target. This deployment does not exist at this time.
+ADR 0008 accepts Dokploy as the deployment target. The user reports both services deployed, and both public HTTPS health endpoints responded on 2026-10-10. Other deployment acceptance checks remain open in issue #11.
 
 The accepted target has these parts:
 
@@ -435,7 +435,7 @@ pnpm simulate
 | The simulator creates 50 connections by default. | VERIFIED | `Apti-App/apps/simulator/src/index.ts` and `docs/build-memory.yaml` | Repeat the test after transport changes. | - |
 | A complete 50-Participant Match is not implemented. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` contains no Room or Answer events. | Implement and test the complete flow. | - |
 | The Game Server identifies Users and Guests from Socket Tickets. | VERIFIED | `Apti-App/apps/game-server/src/handshake.ts`, `server.test.ts`, and `Apti-App/packages/socket-ticket/src/index.test.ts` | Keep the handshake tests successful. | - |
-| Email/password sign-in and Socket Ticket issue are implemented; Dokploy deployment, Redis, and Kafka are not. | VERIFIED | `Apti-App/apps/web/src/lib/auth.ts`, `app/api/socket-ticket/route.ts`, and `apps/game-server/src/handshake.ts` | Keep the web and Game Server ticket contracts synchronized. | - |
+| Email/password sign-in and Socket Ticket issue are implemented; the Dokploy health endpoints respond; Redis and Kafka are unused. | PARTIALLY VERIFIED | Auth and handshake source; public HTTPS health responses checked 2026-10-10 | Finish the deployment checks in #11. | - |
 | Google sign-in creates a User, links only to a verified User with the same email, and keeps `GOOGLE_CLIENT_SECRET` on the server. | VERIFIED | `Apti-App/apps/web/src/lib/google-sign-in.ts`, `google-sign-in.integration.test.ts`, and the production build output | Repeat the manual Google round trip when real credentials are available. | - |
 | Email sign-up sends a verification email; `/verify-email` shows success only for a verified signed-in User and lets a User request a new link. | VERIFIED | `Apti-App/apps/web/src/lib/email-verification.ts`, `auth-emails.ts`, `app/(auth)/verify-email/page.tsx`, and their tests | Keep the resend endpoint rate-limited. | - |
 | Password reset uses a one-time 60-minute link, does not show if an account exists, ends all sessions, and verifies the email. | VERIFIED | `Apti-App/apps/web/src/lib/auth.ts`, `password-reset.ts`, and `auth-password-reset.test.ts` | Repeat the Gmail delivery check when mail credentials change. | - |

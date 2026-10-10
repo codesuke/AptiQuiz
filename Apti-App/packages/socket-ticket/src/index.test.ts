@@ -1,6 +1,12 @@
 import type { SocketTicketSubject } from "@aptiquiz/contracts";
 import { describe, expect, it } from "vitest";
-import { issueSocketTicket, SOCKET_TICKET_LIFETIME_MS, verifySocketTicket } from "./index.js";
+import {
+  issueRoomRegistration,
+  issueSocketTicket,
+  SOCKET_TICKET_LIFETIME_MS,
+  verifyRoomRegistration,
+  verifySocketTicket,
+} from "./index.js";
 
 const secret = "test-secret-with-at-least-32-characters";
 const ONE_SECOND_MS = 1_000;
@@ -98,6 +104,55 @@ describe("socket tickets", () => {
     await expect(verifySocketTicket(ticket, secret, issuedAt)).resolves.toEqual({
       ok: false,
       reason: "malformed",
+    });
+  });
+});
+
+describe("room registrations", () => {
+  const registration = {
+    roomId: "room_123",
+    joinCode: "ABC234",
+    hostUserId: "user_123",
+    college: { id: "college_a", name: "College A" },
+    questionSetTitle: "Starter",
+    questions: [
+      {
+        text: "1 + 1?",
+        options: [
+          { id: "a", text: "2" },
+          { id: "b", text: "3" },
+        ],
+        correctOptionId: "a",
+        topic: "Arithmetic",
+        difficulty: "EASY" as const,
+      },
+    ],
+  };
+
+  it("round-trips a signed registration", async () => {
+    const token = await issueRoomRegistration(registration, secret, issuedAt);
+
+    await expect(verifyRoomRegistration(token, secret, issuedAt)).resolves.toEqual({
+      ok: true,
+      registration,
+    });
+  });
+
+  it("rejects a registration signed with another secret", async () => {
+    const token = await issueRoomRegistration(registration, `${secret}-other`, issuedAt);
+
+    await expect(verifyRoomRegistration(token, secret, issuedAt)).resolves.toEqual({
+      ok: false,
+      reason: "tampered",
+    });
+  });
+
+  it("does not accept a Socket Ticket as a registration", async () => {
+    const ticket = await issueSocketTicket(subject, secret, issuedAt);
+
+    await expect(verifyRoomRegistration(ticket, secret, issuedAt)).resolves.toEqual({
+      ok: false,
+      reason: "wrong_audience",
     });
   });
 });

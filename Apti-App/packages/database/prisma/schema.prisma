@@ -55,6 +55,7 @@ model User {
   sessions      Session[]
   questionSets  QuestionSet[]
   hostedRooms   Room[]
+  participants  Participant[]
 }
 
 model Session {
@@ -138,21 +139,25 @@ model Question {
 }
 
 model Room {
-  id            String        @id @default(cuid())
-  joinCode      String        @unique
-  hostId        String
-  collegeId     String
-  questionSetId String
-  status        RoomStatus    @default(LOBBY)
-  createdAt     DateTime      @default(now())
-  completedAt   DateTime?
-  host          User          @relation(fields: [hostId], references: [id])
-  college       College       @relation(fields: [collegeId], references: [id])
-  questionSet   QuestionSet   @relation(fields: [questionSetId], references: [id])
-  participants  Participant[]
-  rounds        Round[]
-  matchResults  MatchResult[]
+  id               String        @id @default(cuid())
+  joinCode         String        @unique
+  hostId           String
+  collegeId        String
+  questionSetId    String
+  // Stable copy of the Question Set's Questions at Room creation; later edits do not change it.
+  questionSnapshot Json
+  idempotencyKey   String?
+  status           RoomStatus    @default(LOBBY)
+  createdAt        DateTime      @default(now())
+  completedAt      DateTime?
+  host             User          @relation(fields: [hostId], references: [id])
+  college          College       @relation(fields: [collegeId], references: [id])
+  questionSet      QuestionSet   @relation(fields: [questionSetId], references: [id])
+  participants     Participant[]
+  rounds           Round[]
+  matchResults     MatchResult[]
 
+  @@unique([hostId, idempotencyKey])
   @@index([hostId])
   @@index([collegeId, createdAt])
   @@index([questionSetId])
@@ -162,15 +167,21 @@ model Participant {
   id              String        @id @default(cuid())
   roomId          String
   collegeId       String
+  userId          String?
+  idempotencyKey  String
   displayName     String
-  resumeTokenHash String        @unique
+  // Resume Tokens arrive with reconnect support (PRD #6); until then a Participant has none.
+  resumeTokenHash String?       @unique
   score           Int           @default(0)
   joinedAt        DateTime      @default(now())
   room            Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
   college         College       @relation(fields: [collegeId], references: [id])
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   answers         Answer[]
   matchResults    MatchResult[]
 
+  @@unique([roomId, idempotencyKey])
+  @@unique([roomId, userId])
   @@index([roomId])
   @@index([collegeId, score])
 }
