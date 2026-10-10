@@ -19,6 +19,7 @@ export async function createQuestionSetAction(formData: FormData) {
     text: String(formData.get(`option-${number}`) ?? "").trim(),
   })).filter((option) => option.text.length > 0);
   const input = {
+    idempotencyKey: formData.get("idempotencyKey"),
     title: formData.get("title"),
     questions: [
       {
@@ -36,11 +37,6 @@ export async function createQuestionSetAction(formData: FormData) {
     redirect(`/question-sets?error=${encodeURIComponent(message)}`);
   }
 
-  const set = await createQuestionSet(
-    database,
-    session.user.id,
-    String(formData.get("idempotencyKey") ?? ""),
-    parsed.data,
-  );
+  const set = await createQuestionSet(database, session.user.id, parsed.data);
   redirect(`/question-sets/${set.id}`);
 }

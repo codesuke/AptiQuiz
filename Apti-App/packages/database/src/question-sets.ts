@@ -33,6 +33,7 @@ export const questionInputSchema = z
   });
 
 export const createQuestionSetSchema = z.object({
+  idempotencyKey: z.uuid(),
   title: z.string().trim().min(1).max(160),
   questions: z.array(questionInputSchema).min(1).max(100),
 });
@@ -42,21 +43,15 @@ function requireHostId(hostId: string | null | undefined): string {
   return hostId;
 }
 
-export async function createQuestionSet(
-  db: PrismaClient,
-  hostId: string | null,
-  idempotencyKey: string,
-  input: unknown,
-) {
+export async function createQuestionSet(db: PrismaClient, hostId: string | null, input: unknown) {
   const ownerId = requireHostId(hostId);
-  const key = z.uuid().parse(idempotencyKey);
   const data = createQuestionSetSchema.parse(input);
   return db.questionSet.upsert({
-    where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: key } },
+    where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: data.idempotencyKey } },
     update: {},
     create: {
       ownerId,
-      idempotencyKey: key,
+      idempotencyKey: data.idempotencyKey,
       title: data.title,
       questions: {
         create: data.questions.map((question, position) => ({

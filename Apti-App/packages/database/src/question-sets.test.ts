@@ -26,8 +26,8 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
       ],
     });
 
-    const requestKey = randomUUID();
     const input = {
+      idempotencyKey: randomUUID(),
       title: "Placement practice",
       questions: [
         {
@@ -52,8 +52,8 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
         },
       ],
     };
-    const created = await createQuestionSet(db, ownerId, requestKey, input);
-    const replay = await createQuestionSet(db, ownerId, requestKey, input);
+    const created = await createQuestionSet(db, ownerId, input);
+    const replay = await createQuestionSet(db, ownerId, input);
 
     expect(created.questions.map((question) => question.text)).toEqual([
       "What is 2 + 2?",
@@ -96,11 +96,19 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
     ];
     for (const question of invalidQuestions) {
       await expect(
-        createQuestionSet(db, ownerId, randomUUID(), { title: "Invalid", questions: [question] }),
+        createQuestionSet(db, ownerId, {
+          idempotencyKey: randomUUID(),
+          title: "Invalid",
+          questions: [question],
+        }),
       ).rejects.toThrow();
     }
     await expect(
-      createQuestionSet(db, null, randomUUID(), { title: "Guest", questions: [validQuestion] }),
+      createQuestionSet(db, null, {
+        idempotencyKey: randomUUID(),
+        title: "Guest",
+        questions: [validQuestion],
+      }),
     ).rejects.toThrow();
     expect(await db.questionSet.count({ where: { ownerId, title: "Invalid" } })).toBe(0);
   });
