@@ -129,7 +129,7 @@ export default async function HostPage({
           </div>
           <Image
             alt=""
-            className="pointer-events-none absolute -bottom-6 -left-10 hidden h-auto w-[calc(100%+240px)] max-w-none opacity-40 grayscale lg:block"
+            className="pointer-events-none absolute -bottom-2 left-0 hidden h-auto w-[calc(100%+4rem)] max-w-none opacity-45 grayscale lg:block"
             data-host-artwork
             height={724}
             src="/images/college-campus-engraving.png"

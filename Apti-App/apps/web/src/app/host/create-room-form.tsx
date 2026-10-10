@@ -28,6 +28,7 @@ export function CreateRoomForm({
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedQuestionSet = questionSets.find((set) => set.id === questionSetId);
 
   function chooseQuestionSet(id: string) {
     setQuestionSetId(id);
@@ -55,36 +56,34 @@ export function CreateRoomForm({
         <legend className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#d0ddd5]">
           Choose a Question Set
         </legend>
-        <ul className="mt-4 space-y-2">
-          {questionSets.map((set) => {
-            const empty = set.questionCount === 0;
-            return (
-              <li key={set.id}>
-                <label
-                  className={`flex min-h-[4.25rem] cursor-pointer items-center gap-4 rounded-xl border bg-white/[0.07] px-5 py-3 transition-[background-color,border-color,transform] duration-300 has-[:checked]:border-[#ffb380] has-[:checked]:bg-white/[0.12] has-[:checked]:ring-2 has-[:checked]:ring-[#ffb380]/30 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#ffb380] ${empty ? "cursor-not-allowed border-white/10 opacity-50" : "border-white/15 hover:-translate-y-0.5 hover:border-[#ffb380]/70"}`}
-                >
-                  <input
-                    checked={questionSetId === set.id}
-                    className="size-5 accent-[#e65c00]"
-                    disabled={empty || pending}
-                    name="questionSetId"
-                    onChange={() => chooseQuestionSet(set.id)}
-                    type="radio"
-                    value={set.id}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium break-words">{set.title}</span>
-                    <span className="mt-0.5 block text-sm text-[#d0ddd5]">
-                      {set.questionCount} {set.questionCount === 1 ? "Question" : "Questions"}
-                      {set.isStarter ? " · Starter set" : ""}
-                      {empty ? " · Add a Question to host it" : ""}
-                    </span>
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
+        <label className="sr-only" htmlFor="question-set">
+          Choose a Question Set
+        </label>
+        <select
+          className="mt-4 min-h-14 w-full cursor-pointer appearance-none rounded-xl border border-white/20 bg-white/[0.1] bg-[linear-gradient(45deg,transparent_50%,#ffb380_50%),linear-gradient(135deg,#ffb380_50%,transparent_50%)] bg-[position:calc(100%-1.45rem)_50%,calc(100%-1rem)_50%] bg-[size:0.45rem_0.45rem,0.45rem_0.45rem] bg-no-repeat px-5 pr-12 text-base font-medium text-white outline-none transition-[background-color,border-color,transform] duration-300 hover:border-[#ffb380]/70 focus-visible:border-[#ffb380] focus-visible:ring-2 focus-visible:ring-[#ffb380]/30 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={pending}
+          id="question-set"
+          onChange={(event) => chooseQuestionSet(event.target.value)}
+          value={questionSetId}
+        >
+          <option disabled value="">
+            Select a Question Set
+          </option>
+          {questionSets.map((set) => (
+            <option disabled={set.questionCount === 0} key={set.id} value={set.id}>
+              {set.title}
+              {set.isStarter ? " — Starter set" : ""}
+              {set.questionCount === 0 ? " — Add a Question first" : ""}
+            </option>
+          ))}
+        </select>
+        {selectedQuestionSet ? (
+          <p className="mt-3 rounded-lg border border-white/10 bg-black/10 px-4 py-3 text-sm leading-6 text-[#d0ddd5]">
+            <span className="font-semibold text-white">{selectedQuestionSet.questionCount}</span>{" "}
+            {selectedQuestionSet.questionCount === 1 ? "Question" : "Questions"}
+            {selectedQuestionSet.isStarter ? " · Starter set" : ""}
+          </p>
+        ) : null}
       </fieldset>
       <div aria-live="assertive" className="mt-4 min-h-6">
         {error ? (
