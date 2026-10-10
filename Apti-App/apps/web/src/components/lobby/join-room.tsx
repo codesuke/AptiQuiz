@@ -5,6 +5,7 @@ import { Hourglass, Lightbulb, Play, Radio } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { FinalResults } from "@/components/results/final-results";
 import { GettingReady } from "@/components/round/getting-ready";
+import { LiveStage } from "@/components/round/live-motion";
 import { ParticipantRound } from "@/components/round/participant-round";
 import { isMatchFinished, nextRound } from "@/components/round/round-view";
 import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
@@ -524,23 +525,29 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
       </div>
 
       {finished || lobby.phase === "FINALIZING_RESULTS" ? (
-        <FinalResults results={lobby.results} viewerId={participant.participantId} />
+        <LiveStage key={lobby.phase}>
+          <FinalResults results={lobby.results} viewerId={participant.participantId} />
+        </LiveStage>
       ) : (
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(30rem,1fr)]">
           <div className="min-w-0 space-y-5">
             {lobby.phase === "GETTING_READY" && lobby.ready ? (
-              <GettingReady
-                key={lobby.ready.endsAt}
-                ready={lobby.ready}
-                receivedAt={lobbyReceivedAt}
-              />
+              <LiveStage key={`ready-${lobby.ready.questionIndex}`}>
+                <GettingReady
+                  key={lobby.ready.endsAt}
+                  ready={lobby.ready}
+                  receivedAt={lobbyReceivedAt}
+                />
+              </LiveStage>
             ) : round !== null ? (
-              <ParticipantRound
-                online={connection === "online"}
-                participantId={participant.participantId}
-                round={round}
-                sendAnswer={sendAnswer}
-              />
+              <LiveStage key={`${round.view.phase}-${round.view.questionIndex}`}>
+                <ParticipantRound
+                  online={connection === "online"}
+                  participantId={participant.participantId}
+                  round={round}
+                  sendAnswer={sendAnswer}
+                />
+              </LiveStage>
             ) : finished ? null : (
               <div aria-live="polite" role="status">
                 {hasStarted ? (

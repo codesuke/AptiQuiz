@@ -4,6 +4,7 @@ import { answerFailureMessage, isTransientAnswerFailure } from "@/lib/room-error
 import type { SendRoundAnswer } from "@/lib/room-socket";
 import type { ReceivedRound } from "@/lib/server-clock";
 import { canSubmitAnswer, lockedAnswerLabel } from "./answer-state";
+import { LiveStage } from "./live-motion";
 import { RevealedQuestion, RoundFrame } from "./round-question";
 import { countdownLabel, roundResultLabel } from "./round-view";
 import { useCountdown } from "./use-countdown";
@@ -61,7 +62,11 @@ function OpenParticipantRound({ round, online, sendAnswer }: ParticipantRoundPro
   });
 
   return (
-    <RoundFrame status={countdownLabel(secondsLeft)} view={round.view}>
+    <RoundFrame
+      status={countdownLabel(secondsLeft)}
+      pulse={secondsLeft > 0 && secondsLeft <= 3}
+      view={round.view}
+    >
       <div className="mt-4 grid gap-2">
         {question.options.map((option) => (
           <button
@@ -78,7 +83,9 @@ function OpenParticipantRound({ round, online, sendAnswer }: ParticipantRoundPro
       </div>
       <div aria-live="polite" className="mt-3 min-h-6 text-sm" role="status">
         {locked !== null ? (
-          <p className="font-semibold text-stone-900">{lockedAnswerLabel(question, locked)}</p>
+          <LiveStage key="locked">
+            <p className="font-semibold text-stone-900">{lockedAnswerLabel(question, locked)}</p>
+          </LiveStage>
         ) : pending ? (
           <p className="text-stone-600">Sending your Answer…</p>
         ) : failure !== null ? (

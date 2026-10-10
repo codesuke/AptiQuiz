@@ -1,4 +1,7 @@
+"use client";
+
 import type { FinalResult } from "@aptiquiz/contracts";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   AVERAGE_TIME_LABEL,
   accuracyLabel,
@@ -13,6 +16,7 @@ interface FinalResultsProps {
 }
 
 export function FinalResults({ results, viewerId }: FinalResultsProps) {
+  const reduceMotion = useReducedMotion();
   if (results === undefined) {
     return (
       <section
@@ -82,8 +86,15 @@ export function FinalResults({ results, viewerId }: FinalResultsProps) {
           </h3>
           <ol className="mt-4 grid gap-3 sm:grid-cols-3">
             {podium.map((result) => (
-              <li
+              <motion.li
                 key={result.participantId}
+                initial={reduceMotion ? false : { opacity: 1, y: 14, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  duration: reduceMotion ? 0 : 0.4,
+                  delay: reduceMotion ? 0 : result.rank * 0.06,
+                  ease: [0.2, 0, 0, 1],
+                }}
                 className={`min-w-0 rounded-2xl border p-5 ${result.rank === 1 ? "border-[var(--aq-action)] bg-[#fff5eb]" : "border-[var(--aq-rule)] bg-white"}`}
               >
                 <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-[var(--aq-action)]">
@@ -99,7 +110,7 @@ export function FinalResults({ results, viewerId }: FinalResultsProps) {
                     points
                   </span>
                 </p>
-              </li>
+              </motion.li>
             ))}
           </ol>
         </section>

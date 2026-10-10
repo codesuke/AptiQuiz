@@ -1,4 +1,7 @@
+"use client";
+
 import type { LobbyParticipant, LobbySnapshot } from "@aptiquiz/contracts";
+import { motion, useReducedMotion } from "framer-motion";
 import { Building2, Gauge, Hash, ListChecks, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import {
@@ -148,6 +151,7 @@ function LobbyFact({ icon, label, children }: LobbyFactProps) {
 }
 
 function ParticipantRoster({ participants }: { readonly participants: LobbyParticipant[] }) {
+  const reduceMotion = useReducedMotion();
   if (participants.length === 0) {
     return (
       <p className="mt-3 rounded-lg border border-dashed border-[var(--aq-rule)] px-4 py-5 text-center text-sm text-[var(--aq-text-muted)]">
@@ -159,9 +163,12 @@ function ParticipantRoster({ participants }: { readonly participants: LobbyParti
   return (
     <ul className="mt-3 divide-y divide-[var(--aq-rule)]">
       {participants.map((participant) => (
-        <li
+        <motion.li
           className="flex min-h-16 min-w-0 items-center gap-3 py-2"
           key={participant.participantId}
+          initial={reduceMotion ? false : { opacity: 1, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.24, ease: "easeOut" }}
         >
           <span
             aria-hidden="true"
@@ -177,7 +184,7 @@ function ParticipantRoster({ participants }: { readonly participants: LobbyParti
               Guest
             </span>
           ) : null}
-        </li>
+        </motion.li>
       ))}
     </ul>
   );

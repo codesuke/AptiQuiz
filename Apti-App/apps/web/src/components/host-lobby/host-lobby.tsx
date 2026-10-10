@@ -4,6 +4,7 @@ import type { RoomError } from "@aptiquiz/contracts";
 import { LobbyDetails, ScoringRuleCard } from "@/components/lobby/lobby-details";
 import { FinalResults } from "@/components/results/final-results";
 import { GettingReady } from "@/components/round/getting-ready";
+import { LiveStage } from "@/components/round/live-motion";
 import { RoundQuestion } from "@/components/round/round-question";
 import { isMatchFinished } from "@/components/round/round-view";
 import { describeRoomError } from "@/lib/rooms-client";
@@ -33,7 +34,11 @@ export function HostLobby({
   const matchFinished = lobby ? isMatchFinished(lobby) : false;
 
   if (lobby && (lobby.phase === "FINALIZING_RESULTS" || matchFinished)) {
-    return <FinalResults results={lobby.results} viewerId={null} />;
+    return (
+      <LiveStage key={lobby.phase}>
+        <FinalResults results={lobby.results} viewerId={null} />
+      </LiveStage>
+    );
   }
 
   return (
@@ -71,11 +76,13 @@ export function HostLobby({
         }
       >
         {lobby?.phase === "GETTING_READY" && lobby.ready ? (
-          <GettingReady key={lobby.ready.endsAt} ready={lobby.ready} receivedAt={lobbyReceivedAt} />
+          <LiveStage key={`ready-${lobby.ready.questionIndex}`}>
+            <GettingReady ready={lobby.ready} receivedAt={lobbyReceivedAt} />
+          </LiveStage>
         ) : round ? (
-          <div className="min-w-0 space-y-4">
+          <LiveStage key={`${round.view.phase}-${round.view.questionIndex}`}>
             <RoundQuestion round={round} />
-          </div>
+          </LiveStage>
         ) : (
           <ShareRoom collegeName={collegeName} joinCode={joinCode} />
         )}

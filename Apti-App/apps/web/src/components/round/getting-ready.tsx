@@ -3,6 +3,7 @@
 import type { LobbySnapshot } from "@aptiquiz/contracts";
 import { useEffect, useState } from "react";
 import { clockOffsetMs, displaySeconds, remainingMs } from "@/lib/server-clock";
+import { LivePulse } from "./live-motion";
 
 interface GettingReadyProps {
   readonly ready: NonNullable<LobbySnapshot["ready"]>;
@@ -43,7 +44,7 @@ export function GettingReady({ ready, receivedAt }: GettingReadyProps) {
         className="mt-9 font-mono text-[clamp(5rem,14vw,9rem)] font-bold leading-none tabular-nums text-white"
         role="timer"
       >
-        {seconds}
+        <LivePulse key={seconds}>{seconds}</LivePulse>
       </p>
     </section>
   );

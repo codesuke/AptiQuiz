@@ -4,6 +4,7 @@ import type { RevealedRound, RoundView } from "@aptiquiz/contracts";
 import type { ReactNode } from "react";
 import type { ReceivedRound } from "@/lib/server-clock";
 import { Leaderboard } from "./leaderboard";
+import { LivePulse } from "./live-motion";
 import { countdownLabel, revealedOptionLabels } from "./round-view";
 import { useCountdown, useDeadlineCountdown } from "./use-countdown";
 
@@ -12,11 +13,18 @@ interface RoundFrameProps {
   /** Countdown while open, "Round closed" after the reveal. */
   readonly status: string;
   readonly hostSecondsLeft?: number;
+  readonly pulse?: boolean;
   readonly children: ReactNode;
 }
 
 /** The Question's header, text, and status line; the options go in `children`. */
-export function RoundFrame({ view, status, hostSecondsLeft, children }: RoundFrameProps) {
+export function RoundFrame({
+  view,
+  status,
+  hostSecondsLeft,
+  pulse = false,
+  children,
+}: RoundFrameProps) {
   const { question, questionIndex, questionCount } = view;
 
   return (
@@ -34,7 +42,7 @@ export function RoundFrame({ view, status, hostSecondsLeft, children }: RoundFra
         </p>
         {hostSecondsLeft === undefined ? (
           <p className="font-mono text-base font-semibold tabular-nums text-[var(--aq-action)] sm:text-xl">
-            {status}
+            {pulse ? <LivePulse key={status}>{status}</LivePulse> : status}
           </p>
         ) : (
           <div className="text-right">
@@ -46,7 +54,13 @@ export function RoundFrame({ view, status, hostSecondsLeft, children }: RoundFra
               className="font-mono text-[clamp(3.2rem,5vw,5rem)] font-bold leading-none tabular-nums text-[var(--aq-action)]"
               role="timer"
             >
-              00:{String(hostSecondsLeft).padStart(2, "0")}
+              {pulse ? (
+                <LivePulse key={hostSecondsLeft}>
+                  00:{String(hostSecondsLeft).padStart(2, "0")}
+                </LivePulse>
+              ) : (
+                `00:${String(hostSecondsLeft).padStart(2, "0")}`
+              )}
             </div>
             <p className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-[var(--aq-text-muted)]">
               Time remaining
@@ -84,7 +98,11 @@ export function RevealedQuestion({
   const secondsLeft = useDeadlineCountdown(view.revealEndsAt, clockOffsetMs);
   const nextLabel = view.questionIndex + 1 === view.questionCount ? "Results" : "Next Question";
   return (
-    <RoundFrame status={`${nextLabel} in ${secondsLeft}s`} view={view}>
+    <RoundFrame
+      status={`${nextLabel} in ${secondsLeft}s`}
+      pulse={secondsLeft > 0 && secondsLeft <= 3}
+      view={view}
+    >
       <ol className="mt-6 grid gap-2">
         {view.question.options.map((option) => {
           const labels = revealedOptionLabels(view, option.id);
@@ -120,6 +138,7 @@ function OpenHostQuestion({ round }: OpenHostQuestionProps) {
   return (
     <RoundFrame
       hostSecondsLeft={secondsLeft}
+      pulse={secondsLeft > 0 && secondsLeft <= 3}
       status={countdownLabel(secondsLeft)}
       view={round.view}
     >

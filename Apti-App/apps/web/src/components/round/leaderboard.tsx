@@ -1,5 +1,6 @@
 import type { LeaderboardEntry } from "@aptiquiz/contracts";
 import { isOwnRow, movementView } from "./leaderboard-view";
+import { LivePulse } from "./live-motion";
 
 interface LeaderboardProps {
   readonly entries: readonly LeaderboardEntry[];
@@ -49,7 +50,7 @@ export function Leaderboard({ entries, viewerId }: LeaderboardProps) {
                   </td>
                   <td className="py-2 tabular-nums">
                     <span aria-label={movement.ariaLabel} role="img">
-                      {movement.text}
+                      <LivePulse key={`${entry.rank}-${entry.movement}`}>{movement.text}</LivePulse>
                     </span>
                   </td>
                   <td className="py-2 text-right tabular-nums">{entry.totalScore}</td>
