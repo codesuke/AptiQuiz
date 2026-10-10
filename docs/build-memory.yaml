@@ -1,6 +1,43 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-73"
+    changed_at: "2026-10-10"
+    kind: "change"
+    title: "Participant live Room layout and personal-first reveal"
+    status: "working_with_limitations"
+    summary: "The active Participant Room keeps the Question primary with Room details and a scrollable roster below it, and each reveal shows the Participant's result, Round points, and rank movement before the fastest-correct highlight and the Leaderboard."
+    areas:
+      - "live Room web UI"
+    working:
+      - "Getting-ready, Question, and reveal phases render the quiz area full width, then Room details and a ~7-row scrollable roster with count; no QR, share, or Host controls."
+      - "Reveal order: personal result (outcome, +points, rank #N of M, movement), then fastest correct with server Effective Response Time or 'No correct answers this Round' plus the correct count, then the Leaderboard with Round points per row."
+      - "Open Questions show no correctness, points, rank, highlights, or Leaderboard."
+    limitations:
+      - "Layout and motion were checked in render tests; no live browser Match was replayed at 1440px or 390px."
+    prd:
+      issue: 73
+      url: "https://github.com/codesuke/AptiQuiz/issues/73"
+    slices:
+      - issue: 74
+        title: "Reframe the active Participant Room around the Question"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/74"
+      - issue: 75
+        title: "Make Participant reveal results personal and competitive"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/75"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "4f40aed"
+      tests:
+        - "Web 232/232, Game Server 165/165, database tests passed; Biome and typecheck clean."
   - id: "2026-10-10-github-prd-69"
     changed_at: "2026-10-10"
     kind: "change"
