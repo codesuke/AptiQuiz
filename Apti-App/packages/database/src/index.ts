@@ -14,6 +14,14 @@ export { APPROVED_COLLEGES, collegeIdFor, normalizeCollegeName, seedColleges } f
 export type { PrismaClient } from "./generated/prisma/client.js";
 export { Prisma } from "./generated/prisma/client.js";
 export {
+  type CommittedMatchResult,
+  type CompleteRoomInput,
+  completeRoom,
+  type MatchResultInput,
+  RoomCompletionError,
+  type TopicStat,
+} from "./match-results.js";
+export {
   addQuestion,
   createQuestionSet,
   createQuestionSetSchema,

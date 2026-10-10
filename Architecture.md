@@ -41,14 +41,14 @@ The following functions are available:
 - Start opens the first Round: one server `startsAt` and a deadline 30 seconds later. Each Participant receives `round:state` with the public Question in a stable option order of their own, with option ids that are opaque to them. The Host receives the authored order. Both browsers show a countdown from server timestamps.
 - A joined Participant answers the open Round with `round:answer`. The Game Server accepts the first valid Answer received at or before the deadline, by server receipt time. It scores the Answer with delay compensation from server-initiated `latency:ping` samples. The acknowledgement and later views do not show correctness before the reveal. The Lobby shows the scoring rule and the delay policy from the server values.
 - The Round closes once: at the server deadline, or earlier when every connected Participant has answered. Then each Participant receives the correct option in their own option ids, their result, and the Round scores of all Participants. The Host receives the same reveal with the authored ids.
-- After a reveal, only the Host advances. Each next Question opens with a new server deadline. After the last Question, the Room moves to `FINISHED`, the browsers show "Match finished.", and the Game Server writes the `FINISHED` status to PostgreSQL. A complete Match was played in two headless browsers on 2026-10-10.
+- After a reveal, only the Host advances. Each next Question opens with a new server deadline. After the last Question, the Room moves to `FINISHED`, the browsers show "Match finished.", and the Game Server saves one `MatchResult` for each joined Participant and writes the `FINISHED` status and completion time to PostgreSQL in one transaction. The Room moves to `FINISHED` only after that commit. If the commit fails, the advance returns `advance_failed` and the Host can send it again. A complete Match was played in two headless browsers on 2026-10-10.
 - The simulator opens 50 connections by default.
 - The database package generates a Prisma client.
 
 The following functions are not available:
 
 - The application does not calculate a live Leaderboard.
-- The application does not save a completed Match.
+- The application does not show the final results to the browsers. The saved `MatchResult` rows are not yet read by any screen.
 - The application does not implement reconnect tokens.
 - The application does not use Redis or Kafka.
 - The web app and Game Server are deployed on Dokploy. Both public HTTPS health endpoints responded on 2026-10-10; WebSocket, CORS, and migration checks remain open in issue #11.
@@ -315,7 +315,7 @@ The schema contains these main models:
 
 The unique key on `(roundId, participantId)` prevents two stored Answers for one Participant and one Round.
 
-Room creation uses `College`, `QuestionSet`, `Question`, and `Room`. Room join uses `Participant`, which links to the joining User or to no User for a Guest. The Game Server writes the Room status `RUNNING` at start and `FINISHED` after the last Question. The application does not use `Round`, `Answer`, or `MatchResult` at this time. Live Answers and scores stay in memory, and #7 persists Match results.
+Room creation uses `College`, `QuestionSet`, `Question`, and `Room`. Room join uses `Participant`, which links to the joining User or to no User for a Guest. The Game Server writes the Room status `RUNNING` at start. After the last Question, `completeRoom` saves one `MatchResult` for each joined Participant, the Room status `FINISHED`, and the Room `completedAt` in one transaction. A repeated or concurrent attempt returns the first committed results and changes no row. A `MatchResult` stores the rank, score, correct Answers, the Question count (accuracy denominator), the rounded average Effective Response Time (null without accepted Answers), and the correct and total count for each Topic of the Room snapshot. It also stores the Participant College, the User ID (null for a Guest), and the email-verified status read from the User row at completion. The application does not use `Round` or `Answer` at this time. Live Answers stay in memory.
 
 ### Simulator
 

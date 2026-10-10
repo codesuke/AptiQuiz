@@ -1,4 +1,12 @@
 export {
+  type MatchParticipant,
+  type MatchSummaryInput,
+  type ParticipantSummary,
+  type ResultAnswer,
+  summarizeMatch,
+  type TopicTally,
+} from "./results.js";
+export {
   type AnswerTiming,
   calculateScore,
   effectiveResponseTime,

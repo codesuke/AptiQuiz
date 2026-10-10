@@ -152,6 +152,27 @@ export const roundRulesSchema = z.object({
   scoreBucketMs: z.number().int().positive(),
 });
 
+/** Correct Answers out of the Questions of one Topic; unanswered Questions stay in `total`. */
+export const topicStrengthSchema = z.object({
+  topic: z.string().min(1),
+  correct: z.number().int().nonnegative(),
+  total: z.number().int().positive(),
+});
+
+/** One Participant's saved result, shown to the whole Room after durable completion. */
+export const finalResultSchema = z.object({
+  participantId: z.string().min(1),
+  displayName: displayNameSchema,
+  rank: z.number().int().positive(),
+  totalScore: z.number().int().nonnegative(),
+  correctAnswers: z.number().int().nonnegative(),
+  /** Questions in the Room, answered or not: the accuracy denominator. */
+  totalQuestions: z.number().int().positive(),
+  /** Mean Effective Response Time of all accepted Answers in ms; null when there were none. */
+  averageResponseMs: z.number().int().nonnegative().nullable(),
+  topics: z.array(topicStrengthSchema),
+});
+
 export const lobbySnapshotSchema = z.object({
   roomId: roomIdSchema,
   joinCode: roomCodeSchema,
@@ -161,6 +182,8 @@ export const lobbySnapshotSchema = z.object({
   questionCount: z.number().int().positive(),
   participants: z.array(lobbyParticipantSchema).max(MAX_ROOM_PARTICIPANTS),
   rules: roundRulesSchema,
+  /** Saved results, best rank first. Present only once the Room is FINISHED and its results committed. */
+  results: z.array(finalResultSchema).optional(),
 });
 
 /** A Question as Participants see it before the reveal: no correct option, no explanation. */
@@ -371,11 +394,14 @@ export type CreateRoomRequest = z.infer<typeof createRoomRequestSchema>;
 export type CreateRoomResponse = z.infer<typeof createRoomResponseSchema>;
 export type RoomPhase = z.infer<typeof roomPhaseSchema>;
 export type LobbyParticipant = z.infer<typeof lobbyParticipantSchema>;
+export type TopicStrength = z.infer<typeof topicStrengthSchema>;
+export type FinalResult = z.infer<typeof finalResultSchema>;
 export type LobbySnapshot = z.infer<typeof lobbySnapshotSchema>;
 export type PublicQuestion = z.infer<typeof publicQuestionSchema>;
 export type OpenRound = z.infer<typeof openRoundSchema>;
 export type RoundResult = z.infer<typeof roundResultSchema>;
 export type RoundScore = z.infer<typeof roundScoreSchema>;
+export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>;
 export type RevealedRound = z.infer<typeof revealedRoundSchema>;
 export type RoundView = z.infer<typeof roundViewSchema>;
 export type RoundRules = z.infer<typeof roundRulesSchema>;
@@ -402,7 +428,6 @@ export type ServerReady = z.infer<typeof serverReadySchema>;
 export type UserRole = z.infer<typeof userRoleSchema>;
 export type SocketTicketSubject = z.infer<typeof socketTicketSubjectSchema>;
 export type SocketTicketClaims = z.infer<typeof socketTicketClaimsSchema>;
-export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>;
 export type SocketHandshakeAuth = z.infer<typeof socketHandshakeAuthSchema>;
 export type SocketHandshakeErrorCode = z.infer<typeof socketHandshakeErrorCodeSchema>;
 export type ConnectionIdentity = z.infer<typeof connectionIdentitySchema>;

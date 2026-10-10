@@ -218,22 +218,33 @@ model Answer {
   @@index([participantId])
 }
 
+/// One immutable result per joined Participant, written once when the Room completes.
 model MatchResult {
-  id                String      @id @default(cuid())
-  roomId            String
-  participantId     String
-  collegeId         String
-  totalScore        Int
-  correctAnswers    Int
-  totalAnswers      Int
-  averageResponseMs Int
-  topicStats        Json
-  completedAt       DateTime    @default(now())
-  room              Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  participant       Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  college           College     @relation(fields: [collegeId], references: [id])
+  id                        String      @id @default(cuid())
+  roomId                    String
+  participantId             String
+  /// The College attached to the Participant row for this Room, not a later Home College.
+  collegeId                 String
+  /// The signed-in User at completion; null for a Guest. A plain column so the snapshot never changes.
+  userId                    String?
+  /// Read from the User row at completion, not from the Socket Ticket. False for a Guest.
+  emailVerifiedAtCompletion Boolean
+  rank                      Int
+  totalScore                Int
+  correctAnswers            Int
+  /// The Room's Question count: the accuracy denominator, counting unanswered Questions.
+  totalAnswers              Int
+  /// Mean Effective Response Time over all accepted Answers; null when there are none.
+  averageResponseMs         Int?
+  /// One { topic, correct, total } per Topic in the Room's Question snapshot.
+  topicStats                Json
+  completedAt               DateTime
+  room                      Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  participant               Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  college                   College     @relation(fields: [collegeId], references: [id])
 
   @@unique([roomId, participantId])
-  @@index([collegeId, completedAt])
+  @@index([collegeId, emailVerifiedAtCompletion, completedAt])
+  @@index([userId, completedAt])
   @@index([totalScore])
 }

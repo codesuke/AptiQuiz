@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   type AnswerError,
   type ConnectionIdentity,
+  type FinalResult,
   type LeaderboardEntry,
   type LobbyParticipant,
   type LobbySnapshot,
@@ -26,12 +27,13 @@ import {
   rankStandings,
   type Standing,
   scoreAnswer,
+  summarizeMatch,
   type TimingPolicy,
   transitionGame,
 } from "@aptiquiz/game-engine";
 import type { Logger } from "pino";
 import { deriveResumeToken, hashResumeToken } from "./resume-token.js";
-import type { RoomStore } from "./room-store.js";
+import type { CommittedMatchResult, CompleteRoomInput, RoomStore } from "./room-store.js";
 import type { CancelScheduled, Schedule } from "./scheduler.js";
 
 type RoomFailure = { readonly ok: false; readonly error: RoomError };
@@ -200,6 +202,10 @@ interface LiveRoom {
   readonly connections: Map<string, Set<string>>;
   /** Cancels the open Round's deadline timer; null when no timer is pending. */
   cancelDeadline: CancelScheduled | null;
+  /** The in-flight result commit of the final advance; it never rejects. Null when idle. */
+  completion: Promise<boolean> | null;
+  /** The committed results, best rank first; null until the final advance saves them. */
+  results: FinalResult[] | null;
 }
 
 /** The game state and Questions a Round view is built from. */
@@ -247,7 +253,11 @@ export interface RoomRegistry {
   resume(request: ValidResumeRequest, identity: ConnectionIdentity): ResumeResult;
   start(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): StartResult;
   /** Opens the next Question after a reveal, or finishes the Room after the last one. */
-  advance(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): AdvanceResult;
+  advance(
+    roomId: string,
+    idempotencyKey: string,
+    identity: ConnectionIdentity,
+  ): Promise<AdvanceResult>;
   answer(submission: AnswerSubmission): AnswerResult;
   /** Scored Answers for one Question, for the reveal; never sent to clients before it. */
   answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[];
@@ -319,6 +329,8 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       answerReceipts: new Map(),
       connections: new Map(),
       cancelDeadline: null,
+      completion: null,
+      results: null,
     });
     roomIdsByJoinCode.set(registration.joinCode, registration.roomId);
     return { ok: true };
@@ -519,11 +531,11 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     return { ok: true, lobby, delivery };
   }
 
-  function advance(
+  async function advance(
     roomId: string,
     idempotencyKey: string,
     identity: ConnectionIdentity,
-  ): AdvanceResult {
+  ): Promise<AdvanceResult> {
     const room = rooms.get(roomId);
 
     if (room === undefined) {
@@ -540,11 +552,21 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       return { ok: true, ...earlier, publication: null };
     }
 
+    if (room.completion !== null) {
+      // Wait for the commit in flight, then answer from its outcome: a replay, room_finished,
+      // or a fresh attempt when it failed. This keeps one completion per Room.
+      await room.completion;
+      return advance(roomId, idempotencyKey, identity);
+    }
+
     return advanceAfterReveal(room, idempotencyKey);
   }
 
   /** Only a revealed Round advances, so a repeated command cannot skip a Question. */
-  function advanceAfterReveal(room: LiveRoom, idempotencyKey: string): AdvanceResult {
+  function advanceAfterReveal(
+    room: LiveRoom,
+    idempotencyKey: string,
+  ): AdvanceResult | Promise<AdvanceResult> {
     if (room.game.phase === "FINISHED") {
       return ROOM_FINISHED;
     }
@@ -565,12 +587,48 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     }
 
     if (next.phase === "FINISHED") {
-      room.game = next;
-      return recordAdvance(room, idempotencyKey, null);
+      return finishRoom(room, idempotencyKey, next, serverTime);
     }
 
     const delivery = openRoundAt(room, next, serverTime);
     return delivery === null ? ADVANCE_FAILED : recordAdvance(room, idempotencyKey, delivery);
+  }
+
+  /**
+   * The Room leaves its last reveal only after its results commit, so a displayed finish always
+   * has durable results. A failed commit changes nothing and the Host can send the command again.
+   */
+  async function finishRoom(
+    room: LiveRoom,
+    idempotencyKey: string,
+    finished: GameState,
+    serverTime: number,
+  ): Promise<AdvanceResult> {
+    const commit = commitFinalResults(room, serverTime);
+    room.completion = commit;
+    const committed = await commit;
+    room.completion = null;
+
+    if (!committed) {
+      return ADVANCE_FAILED;
+    }
+
+    room.game = finished;
+    return recordAdvance(room, idempotencyKey, null);
+  }
+
+  async function commitFinalResults(room: LiveRoom, serverTime: number): Promise<boolean> {
+    try {
+      const committed = await store.completeRoom(finalResults(room, serverTime));
+      room.results = toFinalResults(room, committed);
+      return true;
+    } catch (error) {
+      logger.error(
+        { roomId: room.registration.roomId, err: error },
+        "failed to commit room results",
+      );
+      return false;
+    }
   }
 
   /** `delivery` is the newly opened Round, or null when the advance finished the Room. */
@@ -1113,6 +1171,32 @@ function leaderboardAfter(room: LiveRoom, round: ActiveRound): LeaderboardEntry[
   }));
 }
 
+/** Final metrics of every joined Participant, from accepted Answers and the Question snapshot. */
+function finalResults(room: LiveRoom, completedAt: number): CompleteRoomInput {
+  const summaries = summarizeMatch({
+    questionTopics: room.registration.questions.map(({ topic }) => topic),
+    participants: [...room.participants.values()].map(({ participantId }) => ({
+      participantId,
+      joinedAt: room.joinedAt.get(participantId) ?? 0,
+    })),
+    answers: [...room.answers.values()],
+  });
+
+  return {
+    roomId: room.registration.roomId,
+    completedAt: new Date(completedAt),
+    results: summaries.map((summary) => ({
+      participantId: summary.participantId,
+      rank: summary.rank,
+      totalScore: summary.totalScore,
+      correctAnswers: summary.correctAnswers,
+      totalAnswers: summary.questionCount,
+      averageResponseMs: summary.averageResponseMs,
+      topicStats: summary.topics,
+    })),
+  };
+}
+
 /** Every joined Participant's score from accepted Answers of Questions 0 through `lastQuestion`. */
 function standingsThrough(room: LiveRoom, lastQuestion: number): Standing[] {
   const answers = [...room.answers.values()].filter(
@@ -1186,5 +1270,29 @@ function toLobby(room: LiveRoom): LobbySnapshot {
     questionCount: registration.questions.length,
     participants: [...room.participants.values()],
     rules: room.rules,
+    ...(room.game.phase === "FINISHED" && room.results !== null ? { results: room.results } : {}),
   };
+}
+
+/** Shapes the saved MatchResults for the Room, so every viewer gets the committed values and order. */
+function toFinalResults(room: LiveRoom, committed: readonly CommittedMatchResult[]): FinalResult[] {
+  const names = new Map(
+    [...room.participants.values()].map(({ participantId, displayName }) => [
+      participantId,
+      displayName,
+    ]),
+  );
+
+  return [...committed]
+    .sort((first, second) => first.rank - second.rank)
+    .map((saved) => ({
+      participantId: saved.participantId,
+      displayName: names.get(saved.participantId) ?? "",
+      rank: saved.rank,
+      totalScore: saved.totalScore,
+      correctAnswers: saved.correctAnswers,
+      totalQuestions: saved.totalAnswers,
+      averageResponseMs: saved.averageResponseMs,
+      topics: saved.topicStats.map(({ topic, correct, total }) => ({ topic, correct, total })),
+    }));
 }

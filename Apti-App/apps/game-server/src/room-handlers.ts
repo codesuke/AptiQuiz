@@ -215,7 +215,7 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     }
 
     const { roomId, idempotencyKey } = parsed.data;
-    const result = registry.advance(roomId, idempotencyKey, socket.data.identity);
+    const result = await registry.advance(roomId, idempotencyKey, socket.data.identity);
 
     if (!result.ok) {
       acknowledge(result);
@@ -227,12 +227,6 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
 
     if (result.publication !== null) {
       publishAdvance(io, result.publication);
-    }
-
-    const finishedNow = result.publication !== null && result.round === null;
-
-    if (finishedNow) {
-      await persistRoomStatus(() => store.markRoomFinished(roomId), roomId, logger);
     }
   });
 

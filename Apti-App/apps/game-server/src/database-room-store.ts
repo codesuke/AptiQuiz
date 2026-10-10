@@ -1,6 +1,6 @@
 import {
+  completeRoom,
   createDatabase,
-  markRoomFinished,
   markRoomStarted,
   recordParticipant,
 } from "@aptiquiz/database";
@@ -16,7 +16,7 @@ export function createDatabaseRoomStore(databaseUrl: string): DatabaseRoomStore 
   return {
     recordParticipant: (input) => recordParticipant(db, input),
     markRoomStarted: (roomId) => markRoomStarted(db, roomId),
-    markRoomFinished: (roomId) => markRoomFinished(db, roomId),
+    completeRoom: (input) => completeRoom(db, input),
     close: () => db.$disconnect(),
   };
 }

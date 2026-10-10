@@ -1,9 +1,18 @@
-import type { ParticipantRecord, RoomStore } from "../room-store.js";
+import type {
+  CommittedMatchResult,
+  CompleteRoomInput,
+  ParticipantRecord,
+  RoomStore,
+} from "../room-store.js";
 
 export interface InMemoryRoomStore extends RoomStore {
   readonly participants: readonly ParticipantRecord[];
   readonly startedRoomIds: readonly string[];
   readonly finishedRoomIds: readonly string[];
+  /** Every completion the Game Server committed, in order. */
+  readonly completions: readonly CompleteRoomInput[];
+  /** Makes the next Room completion reject, as a failed transaction would. */
+  failNextCompletion(): void;
   /** Makes the next participant write reject, as a database outage would. */
   failNextParticipant(): void;
   /** Holds participant writes in flight until the returned release function runs. */
@@ -14,13 +23,19 @@ export function createInMemoryRoomStore(): InMemoryRoomStore {
   const participants: ParticipantRecord[] = [];
   const startedRoomIds: string[] = [];
   const finishedRoomIds: string[] = [];
+  const completions: CompleteRoomInput[] = [];
   let failNext = false;
+  let failNextCompletion = false;
   let writeGate: Promise<void> = Promise.resolve();
 
   return {
     participants,
     startedRoomIds,
     finishedRoomIds,
+    completions,
+    failNextCompletion: () => {
+      failNextCompletion = true;
+    },
     failNextParticipant: () => {
       failNext = true;
     },
@@ -46,8 +61,23 @@ export function createInMemoryRoomStore(): InMemoryRoomStore {
     markRoomStarted: async (roomId) => {
       startedRoomIds.push(roomId);
     },
-    markRoomFinished: async (roomId) => {
-      finishedRoomIds.push(roomId);
+    completeRoom: async (input) => {
+      if (failNextCompletion) {
+        failNextCompletion = false;
+        throw new Error("completion failed");
+      }
+
+      completions.push(input);
+      finishedRoomIds.push(input.roomId);
+      return input.results.map(
+        (result): CommittedMatchResult => ({
+          ...result,
+          collegeId: "college_room",
+          userId: null,
+          emailVerifiedAtCompletion: false,
+          completedAt: input.completedAt,
+        }),
+      );
     },
   };
 }

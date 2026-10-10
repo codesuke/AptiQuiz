@@ -12,6 +12,7 @@ import pino from "pino";
 import { io, type Socket, type Socket as UntypedSocket } from "socket.io-client";
 import { expect } from "vitest";
 import { type GameServerConfig, readGameServerConfig } from "../config.js";
+import type { RoomStore } from "../room-store.js";
 import type { RoomRegistry } from "../rooms.js";
 import type { Schedule } from "../scheduler.js";
 import { createConfiguredRegistry, createGameServer, type RunningGameServer } from "../server.js";
@@ -94,9 +95,9 @@ export interface TestScheduler {
   fireDue(): void;
 }
 
-export interface TestServer {
+export interface TestServer<Store extends RoomStore = InMemoryRoomStore> {
   readonly port: number;
-  readonly store: InMemoryRoomStore;
+  readonly store: Store;
   readonly clock: TestClock;
   /** The Round deadline timers; nothing fires until the test calls `fireDue`. */
   readonly deadlines: TestScheduler;
@@ -170,10 +171,17 @@ function testConfig(overrides: Partial<GameServerConfig> = {}): GameServerConfig
   };
 }
 
-export async function startServer(options: TestServerOptions = {}): Promise<TestServer> {
+export function startServer(options: TestServerOptions = {}): Promise<TestServer> {
+  return startServerWithStore(createInMemoryRoomStore(), options);
+}
+
+/** Starts the server on a store of the test's choice, such as a real PostgreSQL one. */
+export async function startServerWithStore<Store extends RoomStore>(
+  store: Store,
+  options: TestServerOptions = {},
+): Promise<TestServer<Store>> {
   const { logger = pino({ level: "silent" }) } = options;
   const config = testConfig(options.config);
-  const store = createInMemoryRoomStore();
   const clock = createTestClock(ROUND_OPENED_AT);
   const deadlines = createTestScheduler(clock);
   const registry = createConfiguredRegistry(config, {

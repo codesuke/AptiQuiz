@@ -371,3 +371,115 @@ describe("finishing the Room", () => {
     ).resolves.toMatchObject({ ok: true, lobby: { phase: "FINISHED" }, round: null });
   });
 });
+
+describe("final results of a finished Room", () => {
+  /** Asha answers every Question (two right, one wrong); Ravi never answers. */
+  async function finishWithResults(table: Table) {
+    const [ashaFirst] = table.firstRounds;
+    await answer(table.asha, ashaFirst, CORRECT_OPTION_TEXT);
+    await revealByDeadline(table);
+    const second = await advanceToNextRound(table);
+    await answer(table.asha, second.asha, "3");
+    await revealByDeadline(table);
+    const third = await advanceToNextRound(table);
+    await answer(table.asha, third.asha, CORRECT_OPTION_TEXT);
+    await revealByDeadline(table);
+  }
+
+  function savedResults(table: Table) {
+    const [completion] = table.testServer.store.completions;
+    return (completion?.results ?? []).map((saved) => ({
+      participantId: saved.participantId,
+      rank: saved.rank,
+      totalScore: saved.totalScore,
+      correctAnswers: saved.correctAnswers,
+      totalQuestions: saved.totalAnswers,
+      averageResponseMs: saved.averageResponseMs,
+      topics: saved.topicStats,
+    }));
+  }
+
+  it("delivers the saved results, in saved order, to the Host and every Participant", async () => {
+    const table = await openTable();
+    await finishWithResults(table);
+    const sockets = [table.host, table.asha.socket, table.ravi.socket];
+    const lobbies = sockets.map((socket) => collect<LobbySnapshot>(socket, "room:lobby"));
+
+    const finished = await advance(table.host);
+    await settle();
+
+    const saved = savedResults(table);
+    expect(saved).toHaveLength(2);
+    const expected = saved.map((result) => ({
+      ...result,
+      displayName: result.participantId === table.asha.participantId ? "Asha" : "Ravi",
+    }));
+    expect(finished).toMatchObject({ ok: true, lobby: { phase: "FINISHED", results: expected } });
+    for (const received of lobbies) {
+      expect(received).toMatchObject([{ phase: "FINISHED", results: expected }]);
+    }
+  });
+
+  it("keeps the Guest, the no-Answer average, and unanswered Questions in the denominators", async () => {
+    const table = await openTable();
+    await finishWithResults(table);
+
+    const finished = await advance(table.host);
+
+    if (!finished.ok) throw new Error("the Room did not finish");
+    const ravi = finished.lobby.results?.find(
+      ({ participantId }) => participantId === table.ravi.participantId,
+    );
+    const asha = finished.lobby.results?.find(
+      ({ participantId }) => participantId === table.asha.participantId,
+    );
+    expect(ravi).toMatchObject({
+      displayName: "Ravi",
+      correctAnswers: 0,
+      totalQuestions: 3,
+      averageResponseMs: null,
+    });
+    expect(ravi?.topics.every(({ correct, total }) => correct === 0 && total > 0)).toBe(true);
+    expect(asha).toMatchObject({ correctAnswers: 2, totalQuestions: 3 });
+    expect(asha?.averageResponseMs).not.toBeNull();
+    expect(finished.lobby.results?.map(({ rank }) => rank)).toEqual([1, 2]);
+  });
+
+  it("gives a returning Host and Participant the same results without a broadcast", async () => {
+    const table = await openTable();
+    await finishWithResults(table);
+    const finished = await advance(table.host);
+    if (!finished.ok) throw new Error("the Room did not finish");
+
+    const joined = await join(
+      await connectAs(table.testServer.port),
+      "Asha",
+      roundRoom.joinCode,
+      table.asha.key,
+    );
+
+    expect(joined).toMatchObject({ ok: true, lobby: { results: finished.lobby.results } });
+    const returningHost = await table.host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+    expect(returningHost).toMatchObject({ ok: true, lobby: { results: finished.lobby.results } });
+  });
+
+  it("shows no results and no FINISHED phase when the save fails, then delivers them on retry", async () => {
+    const table = await openTable();
+    await finishWithResults(table);
+    const lobbies = collect<LobbySnapshot>(table.asha.socket, "room:lobby");
+    table.testServer.store.failNextCompletion();
+
+    const failed = await advance(table.host);
+    await settle();
+
+    expect(failed.ok).toBe(false);
+    expect(lobbies).toEqual([]);
+    const during = await table.host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+    expect(during).toMatchObject({ ok: true, lobby: { phase: "QUESTION_REVEAL" } });
+    expect(during.ok && during.lobby.results).toBeFalsy();
+
+    const retried = await advance(table.host);
+    expect(retried).toMatchObject({ ok: true, lobby: { phase: "FINISHED" } });
+    expect(retried.ok && retried.lobby.results).toHaveLength(2);
+  });
+});

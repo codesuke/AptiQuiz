@@ -29,7 +29,9 @@ export function rankStandings(
 }
 
 function ranksById(standings: readonly Standing[]): Map<string, number> {
-  return new Map(sortStandings(standings).map(({ participantId }, index) => [participantId, index + 1]));
+  return new Map(
+    sortStandings(standings).map(({ participantId }, index) => [participantId, index + 1]),
+  );
 }
 
 function sortStandings(standings: readonly Standing[]): Standing[] {
