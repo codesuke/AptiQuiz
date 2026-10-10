@@ -120,9 +120,21 @@ This runs formatting/lint checks, TypeScript checks, behavior tests, and product
 | `pnpm typecheck` | Strict TypeScript checks |
 | `pnpm test` | Vitest behavior tests |
 | `pnpm build` | Production builds for apps and packages |
-| `pnpm simulate` | Concurrent Socket.IO connection and time-ping check |
+| `pnpm simulate` | Creates a starter Room and joins up to 50 virtual Participants into its Lobby |
 
 Run `pnpm simulate` in another terminal while `pnpm dev` is running.
+
+The simulator needs a signed-in Host with a Home College. Pass that Host's session as a `Cookie` header value. Treat it as a secret: the simulator never prints it.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SIMULATOR_HOST_COOKIE` | none | Host session. The simulator creates a starter Room and a Host Socket Ticket through the web app. |
+| `SIMULATOR_WEB_URL` | `http://localhost:3000` | Web application that creates the Room. |
+| `SIMULATOR_URL` | `http://localhost:3001` | Game Server under test. |
+| `SIMULATED_PLAYERS` | `50` | Participants to join, 1 to 50. A larger value fails before any connection. |
+| `SIMULATOR_ROOM_ID`, `SIMULATOR_HOST_TICKET` | none | Alternative to the cookie: a fresh starter Room and a Host ticket made beforehand. Set both. A ticket lives 60 seconds. |
+
+The report is JSON. `connectedSockets` counts open sockets and `joinedParticipants` counts accepted joins; `lobbyParticipants` is read back from the public Lobby. `latencyMs` metrics are client-observed acknowledgement round trips in milliseconds (`timePingAck`, `roomJoinAck`, `roomHostAck`) with sample counts, p50, p95, and max. The process exits nonzero when any setup, connection, join, or Lobby check fails or times out. This stage stops at the Lobby: it does not start the match.
 
 ### Database commands
 

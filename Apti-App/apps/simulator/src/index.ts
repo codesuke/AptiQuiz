@@ -1,97 +1,53 @@
-import type {
-  ClientToServerEvents,
-  ServerToClientEvents,
-  TimePingResponse,
-} from "@aptiquiz/contracts";
-import { io, type Socket } from "socket.io-client";
+import { ConfigError, readConfig, secretsOf } from "./config.js";
+import { runLobbyStage } from "./lobby-run.js";
+import { formatReport, type SimulatorReport, scrubSecrets } from "./report.js";
+import { obtainHostAccess } from "./setup.js";
 
-const targetUrl = process.env.SIMULATOR_URL ?? "http://localhost:3001";
-const playerCount = readPlayerCount(process.env.SIMULATED_PLAYERS);
-const connectionTimeoutMs = 10_000;
+const OVERALL_TIMEOUT_MS = 120_000;
 
-type SimulatorSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+async function main(): Promise<number> {
+  const startedAt = performance.now();
+  let config: ReturnType<typeof readConfig>;
+  try {
+    config = readConfig(process.env);
+  } catch (error) {
+    // Configuration is invalid, so nothing connects. The message never echoes a value.
+    const message = error instanceof ConfigError ? error.message : "Invalid configuration";
+    console.error(JSON.stringify({ ok: false, errors: [message] }, null, 2));
+    return 1;
+  }
 
-const results = await Promise.all(
-  Array.from({ length: playerCount }, (_, index) => connectPlayer(index + 1)),
-);
-
-const latencies = results.map((result) => result.roundTripMs).sort((left, right) => left - right);
-const report = {
-  targetUrl,
-  requestedPlayers: playerCount,
-  connectedPlayers: results.length,
-  roundTripMs: {
-    minimum: latencies[0] ?? null,
-    median: percentile(latencies, 50),
-    p95: percentile(latencies, 95),
-    maximum: latencies.at(-1) ?? null,
-  },
-};
-
-console.log(JSON.stringify(report, null, 2));
-
-async function connectPlayer(playerNumber: number): Promise<{ roundTripMs: number }> {
-  const socket: SimulatorSocket = io(targetUrl, {
-    forceNew: true,
-    reconnection: false,
-    timeout: connectionTimeoutMs,
-    transports: ["websocket"],
-  });
+  const secrets = secretsOf(config);
+  const report: SimulatorReport = {
+    ok: false,
+    target: config.gameServerUrl,
+    requestedParticipants: config.participantCount,
+    lobby: null,
+    errors: [],
+    durationMs: 0,
+  };
+  const watchdog = setTimeout(() => {
+    report.errors.push(`Run exceeded ${OVERALL_TIMEOUT_MS}ms`);
+    report.durationMs = Math.round(performance.now() - startedAt);
+    console.log(formatReport(report, secrets));
+    process.exit(1);
+  }, OVERALL_TIMEOUT_MS);
 
   try {
-    await waitForConnection(socket, playerNumber);
-    const clientSentAt = Date.now();
-    const response = await emitTimePing(socket, clientSentAt);
-
-    if (!response.ok) {
-      throw new Error(`Player ${playerNumber} received ${response.error}`);
-    }
-
-    return { roundTripMs: Date.now() - clientSentAt };
+    const access = await obtainHostAccess(config.setup);
+    report.lobby = await runLobbyStage(config, access);
+    report.ok = true;
+  } catch (error) {
+    report.errors.push(
+      scrubSecrets(error instanceof Error ? error.message : "Unknown error", secrets),
+    );
   } finally {
-    socket.disconnect();
-  }
-}
-
-function waitForConnection(socket: SimulatorSocket, playerNumber: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error(`Player ${playerNumber} did not connect within ${connectionTimeoutMs}ms`));
-    }, connectionTimeoutMs);
-
-    socket.once("connect", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-
-    socket.once("connect_error", (error) => {
-      clearTimeout(timeout);
-      reject(error);
-    });
-  });
-}
-
-function emitTimePing(socket: SimulatorSocket, clientSentAt: number): Promise<TimePingResponse> {
-  return new Promise((resolve) => {
-    socket.emit("time:ping", { clientSentAt }, resolve);
-  });
-}
-
-function readPlayerCount(value: string | undefined): number {
-  const parsed = value === undefined ? 50 : Number.parseInt(value, 10);
-
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 500) {
-    throw new Error("SIMULATED_PLAYERS must be an integer from 1 to 500");
+    clearTimeout(watchdog);
   }
 
-  return parsed;
+  report.durationMs = Math.round(performance.now() - startedAt);
+  console.log(formatReport(report, secrets));
+  return report.ok ? 0 : 1;
 }
 
-function percentile(sortedValues: readonly number[], percentileValue: number): number | null {
-  if (sortedValues.length === 0) {
-    return null;
-  }
-
-  const index = Math.ceil((percentileValue / 100) * sortedValues.length) - 1;
-  return sortedValues[Math.max(0, index)] ?? null;
-}
+process.exitCode = await main();
