@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { type FormEvent, useState } from "react";
+import { authInputClassName, authTextLinkClassName } from "./form-styles";
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -9,8 +11,6 @@ interface EmailAuthFormProps {
 }
 
 const genericError = "We could not complete that request. Check your details and try again.";
-const inputClassName =
-  "min-h-[52px] w-full rounded-lg border border-[#e5e7eb] bg-transparent px-4 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]";
 
 export function EmailAuthForm({ mode }: EmailAuthFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +64,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
           </label>
           <input
             autoComplete="name"
-            className={inputClassName}
+            className={authInputClassName}
             id="name"
             maxLength={100}
             name="name"
@@ -78,7 +78,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
         </label>
         <input
           autoComplete="email"
-          className={inputClassName}
+          className={authInputClassName}
           id="email"
           name="email"
           required
@@ -91,7 +91,7 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
         </label>
         <input
           autoComplete={isSignUp ? "new-password" : "current-password"}
-          className={inputClassName}
+          className={authInputClassName}
           id="password"
           maxLength={128}
           minLength={8}
@@ -100,6 +100,13 @@ export function EmailAuthForm({ mode }: EmailAuthFormProps) {
           type="password"
         />
       </div>
+      {isSignUp ? null : (
+        <div className="mt-1 flex justify-end">
+          <Link className={authTextLinkClassName} href="/forgot-password">
+            Forgot password?
+          </Link>
+        </div>
+      )}
       <button
         className="mt-6 min-h-[52px] w-full rounded-full bg-[#e65c00] px-5 font-medium text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#e65c00]"
         disabled={isSubmitting}

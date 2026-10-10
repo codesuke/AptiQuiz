@@ -6,6 +6,11 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { buildVerificationEmail, VERIFICATION_LINK_LIFETIME_SECONDS } from "./email-verification";
 import { readSocialProviders } from "./google-sign-in";
 import { createGmailMailSender, type MailSender } from "./mail-sender";
+import {
+  buildPasswordResetEmail,
+  buildPasswordResetLink,
+  PASSWORD_RESET_LINK_LIFETIME_SECONDS,
+} from "./password-reset";
 
 function readRequiredUrl(name: "BETTER_AUTH_URL" | "DATABASE_URL") {
   const value = process.env[name];
@@ -46,10 +51,25 @@ function getMailSender() {
   return mailSender;
 }
 
+async function sendPasswordResetEmail({ user, token }: { user: { email: string }; token: string }) {
+  const link = buildPasswordResetLink(readRequiredUrl("BETTER_AUTH_URL"), token);
+  // Not awaited: a slow mail server must not reveal which emails have accounts.
+  void Promise.resolve()
+    .then(() => getMailSender().send(buildPasswordResetEmail({ to: user.email, link })))
+    .catch((error: unknown) => console.error("Password reset email failed", error));
+}
+
 export const auth = betterAuth({
   baseURL: readRequiredUrl("BETTER_AUTH_URL"),
   database: prismaAdapter(database, { provider: "postgresql" }),
-  emailAndPassword: { enabled: true, maxPasswordLength: 128, minPasswordLength: 8 },
+  emailAndPassword: {
+    enabled: true,
+    maxPasswordLength: 128,
+    minPasswordLength: 8,
+    resetPasswordTokenExpiresIn: PASSWORD_RESET_LINK_LIFETIME_SECONDS,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: sendPasswordResetEmail,
+  },
   emailVerification: {
     expiresIn: VERIFICATION_LINK_LIFETIME_SECONDS,
     sendOnSignUp: true,
@@ -63,7 +83,10 @@ export const auth = betterAuth({
     enabled: true,
     max: 5,
     window: 60,
-    customRules: { "/send-verification-email": { max: 3, window: 300 } },
+    customRules: {
+      "/request-password-reset": { max: 3, window: 300 },
+      "/send-verification-email": { max: 3, window: 300 },
+    },
   },
   secret: readRequiredSecret(),
   socialProviders: readSocialProviders(),
