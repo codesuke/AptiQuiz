@@ -14,6 +14,22 @@ import { redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
 
+function redirectWithError(path: string, message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+function firstIssueMessage(error: { issues: { message: string }[] }) {
+  return error.issues[0]?.message ?? "Check the Question fields.";
+}
+
+async function runAuthoring(path: string, mutation: () => Promise<unknown>) {
+  try {
+    await mutation();
+  } catch (error) {
+    redirectWithError(path, error instanceof Error ? error.message : "Could not save changes.");
+  }
+}
+
 function readTable(value: string) {
   const [headers, ...rows] = value
     .split(/\r?\n/)
@@ -52,10 +68,7 @@ export async function createQuestionSetAction(formData: FormData) {
     questions: [readQuestion(formData)],
   };
   const parsed = createQuestionSetSchema.safeParse(input);
-  if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? "Check the Question fields.";
-    redirect(`/question-sets?error=${encodeURIComponent(message)}`);
-  }
+  if (!parsed.success) redirectWithError("/question-sets", firstIssueMessage(parsed.error));
 
   const set = await createQuestionSet(database, session.user.id, parsed.data);
   redirect(`/question-sets/${set.id}`);
@@ -66,15 +79,15 @@ export async function addQuestionAction(formData: FormData) {
   if (!session) redirect("/sign-in");
   const setId = String(formData.get("setId") ?? "");
   const parsed = questionInputSchema.safeParse(readQuestion(formData));
-  if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? "Check the Question fields.";
-    redirect(`/question-sets/${encodeURIComponent(setId)}?error=${encodeURIComponent(message)}`);
-  }
-  await addQuestion(database, session.user.id, {
-    setId,
-    idempotencyKey: formData.get("idempotencyKey"),
-    question: parsed.data,
-  });
+  const setPath = `/question-sets/${encodeURIComponent(setId)}`;
+  if (!parsed.success) redirectWithError(setPath, firstIssueMessage(parsed.error));
+  await runAuthoring(setPath, () =>
+    addQuestion(database, session.user.id, {
+      setId,
+      idempotencyKey: formData.get("idempotencyKey"),
+      question: parsed.data,
+    }),
+  );
   redirect(`/question-sets/${setId}`);
 }
 
@@ -85,11 +98,10 @@ export async function updateQuestionAction(formData: FormData) {
   const questionId = String(formData.get("questionId") ?? "");
   const editPath = `/question-sets/${encodeURIComponent(setId)}/questions/${encodeURIComponent(questionId)}`;
   const parsed = questionInputSchema.safeParse(readQuestion(formData));
-  if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? "Check the Question fields.";
-    redirect(`${editPath}?error=${encodeURIComponent(message)}`);
-  }
-  await updateQuestion(database, session.user.id, { setId, questionId, question: parsed.data });
+  if (!parsed.success) redirectWithError(editPath, firstIssueMessage(parsed.error));
+  await runAuthoring(editPath, () =>
+    updateQuestion(database, session.user.id, { setId, questionId, question: parsed.data }),
+  );
   redirect(`/question-sets/${encodeURIComponent(setId)}`);
 }
 
@@ -98,6 +110,9 @@ export async function reorderQuestionsAction(formData: FormData) {
   if (!session) redirect("/sign-in");
   const setId = String(formData.get("setId") ?? "");
   const questionIds = formData.getAll("questionId").map(String);
-  await reorderQuestions(database, session.user.id, { setId, questionIds });
-  redirect(`/question-sets/${encodeURIComponent(setId)}`);
+  const setPath = `/question-sets/${encodeURIComponent(setId)}`;
+  await runAuthoring(setPath, () =>
+    reorderQuestions(database, session.user.id, { setId, questionIds }),
+  );
+  redirect(setPath);
 }

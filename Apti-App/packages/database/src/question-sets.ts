@@ -57,10 +57,12 @@ export const questionInputSchema = z
     path: ["correctOptionId"],
   });
 
+const MAX_QUESTIONS_PER_SET = 100;
+
 export const createQuestionSetSchema = z.object({
   idempotencyKey: z.uuid(),
   title: z.string().trim().min(1).max(160),
-  questions: z.array(questionInputSchema).min(1).max(100),
+  questions: z.array(questionInputSchema).min(1).max(MAX_QUESTIONS_PER_SET),
 });
 
 type ValidQuestion = z.infer<typeof questionInputSchema>;
@@ -133,7 +135,13 @@ type Transaction = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 async function requireEditableSet(tx: Transaction, ownerId: string, setId: string) {
   const set = await tx.questionSet.findFirst({ where: { id: setId, ownerId, isStarter: false } });
   if (!set) throw new Error("Question Set not found.");
+  // Row lock serialises concurrent add, edit, and reorder so the (set, position) key cannot collide.
+  await tx.$queryRaw`SELECT id FROM "QuestionSet" WHERE id = ${set.id} FOR UPDATE`;
   return set;
+}
+
+function touchSet(tx: Transaction, setId: string) {
+  return tx.questionSet.update({ where: { id: setId }, data: { updatedAt: new Date() } });
 }
 
 const addQuestionSchema = z.object({
@@ -167,7 +175,7 @@ export async function addQuestion(db: PrismaClient, hostId: string | null, input
         ...questionCreateData(data.question, (last?.position ?? -1) + 1),
       },
     });
-    await tx.questionSet.update({ where: { id: set.id }, data: { updatedAt: new Date() } });
+    await touchSet(tx, set.id);
     return question;
   });
 }
@@ -191,14 +199,16 @@ export async function updateQuestion(db: PrismaClient, hostId: string | null, in
       where: { id: existing.id },
       data: { ...questionFields(data.question), media: data.question.media ?? Prisma.DbNull },
     });
-    await tx.questionSet.update({ where: { id: set.id }, data: { updatedAt: new Date() } });
+    await touchSet(tx, set.id);
     return question;
   });
 }
 
+const parkedPosition = (index: number) => -(index + 1);
+
 const reorderQuestionsSchema = z.object({
   setId: z.string().min(1),
-  questionIds: z.array(z.string().min(1)).min(1).max(100),
+  questionIds: z.array(z.string().min(1)).min(1).max(MAX_QUESTIONS_PER_SET),
 });
 
 export async function reorderQuestions(db: PrismaClient, hostId: string | null, input: unknown) {
@@ -218,12 +228,12 @@ export async function reorderQuestions(db: PrismaClient, hostId: string | null, 
     if (!isPermutation) throw new Error("Reorder must list every Question in the set once.");
     // Park positions below zero first so the (set, position) unique key never collides mid-update.
     for (const [index, id] of data.questionIds.entries()) {
-      await tx.question.update({ where: { id }, data: { position: -(index + 1) } });
+      await tx.question.update({ where: { id }, data: { position: parkedPosition(index) } });
     }
     for (const [index, id] of data.questionIds.entries()) {
       await tx.question.update({ where: { id }, data: { position: index } });
     }
-    await tx.questionSet.update({ where: { id: set.id }, data: { updatedAt: new Date() } });
+    await touchSet(tx, set.id);
   });
 }
 

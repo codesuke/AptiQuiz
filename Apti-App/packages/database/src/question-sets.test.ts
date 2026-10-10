@@ -366,6 +366,28 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
       expect(unchanged?.questions.map((q) => q.position)).toEqual([0, 1, 2]);
     });
 
+    it("serialises concurrent adds and reorders without position collisions", async () => {
+      const set = await createSet("Concurrent");
+      const ids = set.questions.map((q) => q.id);
+      await Promise.all([
+        ...["Four", "Five", "Six"].map((text) =>
+          addQuestion(db, ownerId, {
+            setId: set.id,
+            idempotencyKey: randomUUID(),
+            question: question(text),
+          }),
+        ),
+        reorderQuestions(db, ownerId, { setId: set.id, questionIds: [...ids].reverse() }),
+      ]).catch((error) => {
+        // A reorder racing an add may be refused as stale; it must never corrupt positions.
+        expect(String(error)).toContain("Reorder must list every Question");
+      });
+      const positions = (await getQuestionSet(db, ownerId, set.id))?.questions.map(
+        (q) => q.position,
+      );
+      expect(positions).toEqual(positions?.map((_, index) => index));
+    });
+
     it("refuses another User, a Guest, a foreign Question, and the starter set", async () => {
       const set = await createSet("Private");
       const other = await createQuestionSet(db, otherId, {

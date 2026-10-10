@@ -11,7 +11,7 @@ import { QuestionMedia } from "../question-media";
 
 export const dynamic = "force-dynamic";
 
-function swapped(questions: { id: string }[], from: number, to: number) {
+function withMoved(questions: { id: string }[], from: number, to: number) {
   const ids = questions.map((question) => question.id);
   const [moved] = ids.splice(from, 1);
   if (moved !== undefined) ids.splice(to, 0, moved);
@@ -106,13 +106,13 @@ export default async function QuestionSetPage({
                   <MoveButton
                     direction="Move up"
                     disabled={index === 0}
-                    ids={swapped(set.questions, index, index - 1)}
+                    ids={withMoved(set.questions, index, index - 1)}
                     setId={set.id}
                   />
                   <MoveButton
                     direction="Move down"
                     disabled={index === set.questions.length - 1}
-                    ids={swapped(set.questions, index, index + 1)}
+                    ids={withMoved(set.questions, index, index + 1)}
                     setId={set.id}
                   />
                 </div>
