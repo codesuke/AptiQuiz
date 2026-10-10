@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   type AnswerError,
   type ConnectionIdentity,
+  type LeaderboardEntry,
   type LobbyParticipant,
   type LobbySnapshot,
   type LockedAnswer,
@@ -22,6 +23,8 @@ import {
   type GameState,
   isAnswerOnTime,
   orderOptions,
+  rankStandings,
+  type Standing,
   scoreAnswer,
   type TimingPolicy,
   transitionGame,
@@ -153,6 +156,8 @@ interface LiveRoom {
   readonly advances: Map<string, AdvanceRecord>;
   /** Joined Participants keyed by identity, in join order. */
   readonly participants: Map<string, LobbyParticipant>;
+  /** Server time each Participant joined the Lobby, keyed by Participant id. */
+  readonly joinedAt: Map<string, number>;
   /** Reserved slots whose persistence is still in flight, keyed by identity. */
   readonly pendingJoins: Map<string, Promise<JoinResult>>;
   /**
@@ -273,6 +278,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       start: null,
       advances: new Map(),
       participants: new Map(),
+      joinedAt: new Map(),
       pendingJoins: new Map(),
       answers: new Map(),
       answerReceipts: new Map(),
@@ -369,6 +375,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
         isGuest: identity.kind === "guest",
       };
       room.participants.set(identityKey, participant);
+      room.joinedAt.set(participantId, now());
       return { ok: true, participant, lobby: toLobby(room), round: null, rosterChanged: true };
     } catch (error) {
       logger.error(
@@ -918,6 +925,7 @@ function viewRound(context: RoundContext, receiver: RoundReceiver, serverTime: n
     correctOptionId: correctOptionIdFor(room, round, receiver),
     result: resultFor(room, round, receiver),
     scores: roundScores(room, round),
+    leaderboard: leaderboardAfter(room, round),
   };
 }
 
@@ -970,6 +978,49 @@ function roundScores(room: LiveRoom, round: ActiveRound): RoundScore[] {
     const recorded = recordedAnswerOf(room, round, participantId);
     return { participantId, displayName, answered: recorded !== undefined, ...resultOf(recorded) };
   });
+}
+
+/** Cumulative standings through this closed Round; movement compares with the Round before it. */
+function leaderboardAfter(room: LiveRoom, round: ActiveRound): LeaderboardEntry[] {
+  const previous =
+    round.questionIndex === 0 ? null : standingsThrough(room, round.questionIndex - 1);
+  const ranked = rankStandings(standingsThrough(room, round.questionIndex), previous);
+  const names = new Map(
+    [...room.participants.values()].map(({ participantId, displayName }) => [
+      participantId,
+      displayName,
+    ]),
+  );
+
+  return ranked.map(({ participantId, rank, totalScore, movement }) => ({
+    participantId,
+    displayName: names.get(participantId) ?? "",
+    rank,
+    totalScore,
+    movement,
+  }));
+}
+
+/** Every joined Participant's score from accepted Answers of Questions 0 through `lastQuestion`. */
+function standingsThrough(room: LiveRoom, lastQuestion: number): Standing[] {
+  const answers = [...room.answers.values()].filter(
+    (recorded) => recorded.questionIndex <= lastQuestion,
+  );
+
+  return [...room.participants.values()].map(({ participantId }) => {
+    const own = answers.filter((recorded) => recorded.participantId === participantId);
+    const correct = own.filter((recorded) => recorded.correct);
+    return {
+      participantId,
+      joinedAt: room.joinedAt.get(participantId) ?? 0,
+      totalScore: sum(own.map((recorded) => recorded.points)),
+      correctResponseMs: sum(correct.map((recorded) => recorded.effectiveResponseMs)),
+    };
+  });
+}
+
+function sum(values: readonly number[]): number {
+  return values.reduce((total, value) => total + value, 0);
 }
 
 /** Copies only public fields: the stored Question also holds the correct option. */

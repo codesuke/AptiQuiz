@@ -9,6 +9,7 @@ export {
   scoreAnswer,
   type TimingPolicy,
 } from "./scoring.js";
+export { type RankedStanding, rankStandings, type Standing } from "./standings.js";
 
 export const gamePhases = [
   "LOBBY",

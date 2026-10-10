@@ -210,6 +210,19 @@ export const roundScoreSchema = roundResultSchema.extend({
   answered: z.boolean(),
 });
 
+/**
+ * One Participant's place in the cumulative standings after a closed Round. Ranks are a total
+ * order (1..n, no shared ranks). `movement` is previous Round rank minus current rank: positive
+ * climbed, negative dropped, 0 unchanged, and null after the first Round (no previous rank).
+ */
+export const leaderboardEntrySchema = z.object({
+  participantId: z.string().min(1),
+  displayName: displayNameSchema,
+  rank: z.number().int().positive(),
+  totalScore: z.number().int().nonnegative(),
+  movement: z.number().int().nullable(),
+});
+
 /** Sent only after the Round closes: the correct option and every Participant's Round points. */
 export const revealedRoundSchema = roundBaseSchema.extend({
   phase: z.literal("QUESTION_REVEAL"),
@@ -222,6 +235,8 @@ export const revealedRoundSchema = roundBaseSchema.extend({
   result: roundResultSchema.nullable(),
   /** Every joined Participant in join order; unanswered Participants have 0 points. */
   scores: z.array(roundScoreSchema),
+  /** Cumulative standings of every joined Participant, best rank first; identical for all receivers. */
+  leaderboard: z.array(leaderboardEntrySchema),
 });
 
 export const roundViewSchema = z.discriminatedUnion("phase", [
@@ -361,6 +376,7 @@ export type ServerReady = z.infer<typeof serverReadySchema>;
 export type UserRole = z.infer<typeof userRoleSchema>;
 export type SocketTicketSubject = z.infer<typeof socketTicketSubjectSchema>;
 export type SocketTicketClaims = z.infer<typeof socketTicketClaimsSchema>;
+export type LeaderboardEntry = z.infer<typeof leaderboardEntrySchema>;
 export type SocketHandshakeAuth = z.infer<typeof socketHandshakeAuthSchema>;
 export type SocketHandshakeErrorCode = z.infer<typeof socketHandshakeErrorCodeSchema>;
 export type ConnectionIdentity = z.infer<typeof connectionIdentitySchema>;
