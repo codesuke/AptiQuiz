@@ -251,6 +251,9 @@ describe("parseRoundUpdate", () => {
       scores: [
         { participantId: "p-1", displayName: "Asha", answered: true, correct: true, points: 900 },
       ],
+      leaderboard: [
+        { participantId: "p-1", displayName: "Asha", rank: 1, totalScore: 900, movement: null },
+      ],
     };
 
     const parsed = parseRoundUpdate(revealed, "room-1");

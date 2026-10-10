@@ -39,6 +39,7 @@ const revealed: RoundView = {
   correctOptionId: "opt-b",
   result: null,
   scores: [],
+  leaderboard: [],
 };
 
 const lobby = (phase: LobbySnapshot["phase"]): LobbySnapshot => ({
