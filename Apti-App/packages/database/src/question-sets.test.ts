@@ -26,7 +26,8 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
       ],
     });
 
-    const created = await createQuestionSet(db, ownerId, {
+    const requestKey = randomUUID();
+    const input = {
       title: "Placement practice",
       questions: [
         {
@@ -50,7 +51,9 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
           difficulty: "EASY",
         },
       ],
-    });
+    };
+    const created = await createQuestionSet(db, ownerId, requestKey, input);
+    const replay = await createQuestionSet(db, ownerId, requestKey, input);
 
     expect(created.questions.map((question) => question.text)).toEqual([
       "What is 2 + 2?",
@@ -63,6 +66,8 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
     expect((await listQuestionSets(db, ownerId)).map((set) => set.id)).toContain(created.id);
     expect(await getQuestionSet(db, otherId, created.id)).toBeNull();
     expect((await listQuestionSets(db, otherId)).map((set) => set.id)).not.toContain(created.id);
+    expect(replay.id).toBe(created.id);
+    expect(await db.questionSet.count({ where: { ownerId, title: "Placement practice" } })).toBe(1);
   });
 
   it("rejects invalid authoring inputs before writing a set", async () => {
@@ -91,11 +96,11 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
     ];
     for (const question of invalidQuestions) {
       await expect(
-        createQuestionSet(db, ownerId, { title: "Invalid", questions: [question] }),
+        createQuestionSet(db, ownerId, randomUUID(), { title: "Invalid", questions: [question] }),
       ).rejects.toThrow();
     }
     await expect(
-      createQuestionSet(db, null, { title: "Guest", questions: [validQuestion] }),
+      createQuestionSet(db, null, randomUUID(), { title: "Guest", questions: [validQuestion] }),
     ).rejects.toThrow();
     expect(await db.questionSet.count({ where: { ownerId, title: "Invalid" } })).toBe(0);
   });

@@ -17,5 +17,7 @@ export {
   createQuestionSetSchema,
   getQuestionSet,
   listQuestionSets,
+  QUESTION_OPTION_NUMBERS,
   questionInputSchema,
+  questionOptionsSchema,
 } from "./question-sets.js";

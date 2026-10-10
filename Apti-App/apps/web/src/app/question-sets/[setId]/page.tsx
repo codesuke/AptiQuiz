@@ -1,4 +1,4 @@
-import { getQuestionSet } from "@aptiquiz/database";
+import { getQuestionSet, questionOptionsSchema } from "@aptiquiz/database";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -31,7 +31,7 @@ export default async function QuestionSetPage({ params }: { params: Promise<{ se
                 {question.position + 1}. {question.text}
               </h2>
               <ol className="mt-4 space-y-2">
-                {(question.options as Array<{ id: string; text: string }>).map((option) => (
+                {questionOptionsSchema.parse(question.options).map((option) => (
                   <li
                     className={
                       option.id === question.correctOptionId

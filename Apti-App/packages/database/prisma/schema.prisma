@@ -102,15 +102,17 @@ model Verification {
 }
 
 model QuestionSet {
-  id        String     @id @default(cuid())
-  ownerId   String
-  title     String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  owner     User       @relation(fields: [ownerId], references: [id])
-  questions Question[]
-  rooms     Room[]
+  id             String     @id @default(cuid())
+  ownerId        String
+  idempotencyKey String?
+  title          String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  owner          User       @relation(fields: [ownerId], references: [id])
+  questions      Question[]
+  rooms          Room[]
 
+  @@unique([ownerId, idempotencyKey])
   @@index([ownerId])
 }
 

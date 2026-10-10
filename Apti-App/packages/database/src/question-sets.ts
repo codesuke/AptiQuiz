@@ -5,11 +5,16 @@ const optionSchema = z.object({
   id: z.string().trim().min(1).max(40),
   text: z.string().trim().min(1).max(500),
 });
+export const QUESTION_OPTION_NUMBERS = [1, 2, 3, 4, 5, 6] as const;
+export const questionOptionsSchema = z
+  .array(optionSchema)
+  .min(2)
+  .max(QUESTION_OPTION_NUMBERS.length);
 
 export const questionInputSchema = z
   .object({
     text: z.string().trim().min(1).max(4_000),
-    options: z.array(optionSchema).min(2).max(6),
+    options: questionOptionsSchema,
     correctOptionId: z.string().min(1),
     topic: z.string().trim().min(1).max(100),
     difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
@@ -37,12 +42,21 @@ function requireHostId(hostId: string | null | undefined): string {
   return hostId;
 }
 
-export async function createQuestionSet(db: PrismaClient, hostId: string | null, input: unknown) {
+export async function createQuestionSet(
+  db: PrismaClient,
+  hostId: string | null,
+  idempotencyKey: string,
+  input: unknown,
+) {
   const ownerId = requireHostId(hostId);
+  const key = z.uuid().parse(idempotencyKey);
   const data = createQuestionSetSchema.parse(input);
-  return db.questionSet.create({
-    data: {
+  return db.questionSet.upsert({
+    where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: key } },
+    update: {},
+    create: {
       ownerId,
+      idempotencyKey: key,
       title: data.title,
       questions: {
         create: data.questions.map((question, position) => ({

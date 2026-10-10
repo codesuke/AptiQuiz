@@ -1,4 +1,5 @@
-import { listQuestionSets } from "@aptiquiz/database";
+import { randomUUID } from "node:crypto";
+import { listQuestionSets, QUESTION_OPTION_NUMBERS } from "@aptiquiz/database";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -7,7 +8,6 @@ import { database } from "@/lib/database";
 import { createQuestionSetAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-const optionNumbers = [1, 2, 3, 4, 5, 6] as const;
 
 export default async function QuestionSetsPage({
   searchParams,
@@ -67,6 +67,7 @@ export default async function QuestionSetsPage({
               </p>
             ) : null}
             <form action={createQuestionSetAction} className="mt-6 space-y-4">
+              <input name="idempotencyKey" type="hidden" value={randomUUID()} />
               <label className="block text-sm font-medium">
                 Set title
                 <input
@@ -89,7 +90,7 @@ export default async function QuestionSetsPage({
                 <legend className="text-sm font-medium">Options (2 to 6)</legend>
                 <p className="mt-1 text-xs text-stone-600">Leave unused options blank.</p>
                 <div className="mt-2 grid gap-2">
-                  {optionNumbers.map((number) => (
+                  {QUESTION_OPTION_NUMBERS.map((number) => (
                     <label className="flex items-center gap-3 text-sm" key={number}>
                       <span className="w-5">{number}.</span>
                       <input
@@ -110,7 +111,7 @@ export default async function QuestionSetsPage({
                   required
                 >
                   <option value="">Select an option</option>
-                  {optionNumbers.map((number) => (
+                  {QUESTION_OPTION_NUMBERS.map((number) => (
                     <option key={number} value={String(number)}>
                       Option {number}
                     </option>
