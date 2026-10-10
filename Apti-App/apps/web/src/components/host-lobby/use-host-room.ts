@@ -32,6 +32,7 @@ const ADVANCE_ACK_TIMEOUT_MS = 10_000;
 /** Connects as the Host, claims the Room's Lobby, and keeps it current until unmount. */
 export function useHostRoom(roomId: string) {
   const [lobby, setLobby] = useState<LobbySnapshot | null>(null);
+  const [lobbyReceivedAt, setLobbyReceivedAt] = useState(0);
   const [round, setRound] = useState<ReceivedRound | null>(null);
   const [connection, setConnection] = useState<HostConnection>("connecting");
   const [roomError, setRoomError] = useState<RoomError | null>(null);
@@ -61,6 +62,7 @@ export function useHostRoom(roomId: string) {
           return;
         }
         setRoomError(null);
+        setLobbyReceivedAt(Date.now());
         setLobby(parsed.data.lobby);
         const current = parsed.data.round;
         setRound(current === null ? null : receiveRound(current, Date.now()));
@@ -68,7 +70,10 @@ export function useHostRoom(roomId: string) {
     });
     socket.on("room:lobby", (payload) => {
       const update = parseLobbyUpdate(payload, roomId);
-      if (update) setLobby(update);
+      if (update) {
+        setLobbyReceivedAt(Date.now());
+        setLobby(update);
+      }
     });
     socket.on("round:state", (payload) => {
       const view = parseRoundUpdate(payload, roomId);
@@ -102,6 +107,7 @@ export function useHostRoom(roomId: string) {
           setStart({ pending: false, error: parsed.data.error });
           return;
         }
+        setLobbyReceivedAt(Date.now());
         setLobby(parsed.data.lobby);
         setStart({ pending: false, error: null });
       });
@@ -126,6 +132,7 @@ export function useHostRoom(roomId: string) {
           setAdvanceAttempt({ questionIndex, pending: false, error: parsed.data.error });
           return;
         }
+        setLobbyReceivedAt(Date.now());
         setLobby(parsed.data.lobby);
         const opened = parsed.data.round;
         if (opened !== null) {
@@ -138,5 +145,15 @@ export function useHostRoom(roomId: string) {
 
   const advance = currentAdvance(advanceAttempt, round?.view ?? null);
 
-  return { lobby, round, connection, roomError, start, startMatch, advance, advanceMatch };
+  return {
+    lobby,
+    lobbyReceivedAt,
+    round,
+    connection,
+    roomError,
+    start,
+    startMatch,
+    advance,
+    advanceMatch,
+  };
 }

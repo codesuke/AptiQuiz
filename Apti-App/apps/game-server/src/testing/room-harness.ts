@@ -22,7 +22,8 @@ export const gameServerSecret = "test-secret-with-at-least-32-characters";
 export const SILENCE_WINDOW_MS = 150;
 export const TEST_ROUND_DURATION_MS = 5_000;
 export const ROUND_OPENED_AT = 1_800_000_000_000;
-export const ROOM_STARTED_AT = ROUND_OPENED_AT - 3_000;
+export const TEST_READY_DURATION_MS = 3_000;
+export const ROOM_STARTED_AT = ROUND_OPENED_AT - TEST_READY_DURATION_MS;
 /** Long enough that a test only ever sees the first latency sample of a socket. */
 const TEST_LATENCY_INTERVAL_MS = 60_000;
 const TEST_LATENCY_TIMEOUT_MS = 100;

@@ -18,6 +18,7 @@ import {
   startRoom,
   startServerWithRooms,
   stopTestServer,
+  TEST_READY_DURATION_MS,
   type TestServer,
   type TestSocket,
 } from "./testing/room-harness.js";
@@ -362,7 +363,7 @@ describe("latency:ping", () => {
     await join(socket, "Asha", roundRoom.joinCode);
     await settle();
 
-    expect(pings).toEqual([{ serverSentAt: ROUND_OPENED_AT - 3_000 }]);
+    expect(pings).toEqual([{ serverSentAt: ROUND_OPENED_AT - TEST_READY_DURATION_MS }]);
   });
 
   it("keeps one sampler when a socket joins again", async () => {

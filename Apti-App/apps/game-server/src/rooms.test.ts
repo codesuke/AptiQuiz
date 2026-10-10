@@ -35,6 +35,7 @@ import {
   startServer,
   startWithRooms,
   stopTestServer,
+  TEST_READY_DURATION_MS,
   TEST_ROUND_DURATION_MS,
   type TestSocket,
 } from "./testing/room-harness.js";
@@ -525,7 +526,7 @@ describe("room:start", () => {
     }
 
     expect(clock.now()).toBe(ROOM_STARTED_AT);
-    clock.advance(3_000);
+    clock.advance(TEST_READY_DURATION_MS);
     deadlines.fireDue();
     await expect(firstRound).resolves.toMatchObject({
       phase: "QUESTION_OPEN",
@@ -567,7 +568,7 @@ describe("room:start", () => {
     expect(JSON.stringify(await guestSees)).not.toContain("correctOptionId");
     expect(store.startedRoomIds).toEqual([roomA.roomId]);
     const guestOpens = nextLobby(guest, (lobby) => lobby.phase === "QUESTION_OPEN");
-    clock.advance(3_000);
+    clock.advance(TEST_READY_DURATION_MS);
     deadlines.fireDue();
     await expect(guestOpens).resolves.toMatchObject({ phase: "QUESTION_OPEN" });
   });

@@ -50,6 +50,7 @@ type ConnectionStatus = "connecting" | "online" | "offline";
 interface JoinedRoom {
   readonly participant: LobbyParticipant;
   readonly lobby: LobbySnapshot;
+  readonly lobbyReceivedAt: number;
   readonly round: ReceivedRound | null;
   /** Points from revealed Rounds, as of the latest resume; a fresh join starts at 0. */
   readonly score: number;
@@ -64,7 +65,13 @@ function toJoinedRoom(
 ): JoinedRoom {
   const receivedRound = round === null ? null : receiveRound(round, Date.now());
   const knownScore = round === null ? score : scoreAfter(score, round, participant.participantId);
-  return { participant, lobby, round: receivedRound, score: knownScore };
+  return {
+    participant,
+    lobby,
+    lobbyReceivedAt: Date.now(),
+    round: receivedRound,
+    score: knownScore,
+  };
 }
 
 interface JoinRoomProps {
@@ -232,7 +239,7 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
       setJoined((current) => {
         if (current === null) return current;
         const lobby = parseLobbyUpdate(payload, current.lobby.roomId);
-        return lobby === null ? current : { ...current, lobby };
+        return lobby === null ? current : { ...current, lobby, lobbyReceivedAt: Date.now() };
       });
     });
     socket.on("round:state", (payload) => {
@@ -472,7 +479,7 @@ interface JoinedLobbyProps {
 }
 
 function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps) {
-  const { participant, lobby, round, score } = joined;
+  const { participant, lobby, lobbyReceivedAt, round, score } = joined;
   const hasStarted = lobby.phase !== "LOBBY";
   const finished = isMatchFinished(lobby);
 
@@ -518,7 +525,11 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(30rem,1fr)]">
         <div className="min-w-0 space-y-5">
           {lobby.phase === "GETTING_READY" && lobby.ready ? (
-            <GettingReady key={lobby.ready.endsAt} ready={lobby.ready} />
+            <GettingReady
+              key={lobby.ready.endsAt}
+              ready={lobby.ready}
+              receivedAt={lobbyReceivedAt}
+            />
           ) : round !== null ? (
             <ParticipantRound
               online={connection === "online"}

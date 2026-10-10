@@ -6,11 +6,12 @@ import { clockOffsetMs, displaySeconds, remainingMs } from "@/lib/server-clock";
 
 interface GettingReadyProps {
   readonly ready: NonNullable<LobbySnapshot["ready"]>;
+  readonly receivedAt: number;
 }
 
 /** The server opens the Question; this timer only describes when that will happen. */
-export function GettingReady({ ready }: GettingReadyProps) {
-  const [offsetMs] = useState(() => clockOffsetMs(ready.serverTime, Date.now()));
+export function GettingReady({ ready, receivedAt }: GettingReadyProps) {
+  const offsetMs = clockOffsetMs(ready.serverTime, receivedAt);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {

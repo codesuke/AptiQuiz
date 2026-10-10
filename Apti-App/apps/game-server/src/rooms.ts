@@ -170,7 +170,6 @@ export interface ValidJoinRequest {
 
 interface StartRecord {
   readonly idempotencyKey: string;
-  readonly lobby: LobbySnapshot;
 }
 
 /** The acknowledgement of one accepted advance, repeated for a retry with the same key. */
@@ -306,6 +305,7 @@ const START_FAILED: RoomFailure = { ok: false, error: "start_failed" };
 const ROUND_NOT_REVEALED: RoomFailure = { ok: false, error: "round_not_revealed" };
 const ROOM_FINISHED: RoomFailure = { ok: false, error: "room_finished" };
 const ADVANCE_FAILED: RoomFailure = { ok: false, error: "advance_failed" };
+const READY_DURATION_MS = 3_000;
 const INVALID_RESUME_TOKEN: RoomFailure = { ok: false, error: "invalid_resume_token" };
 
 type AnswerFailure = Extract<AnswerResult, { ok: false }>;
@@ -528,7 +528,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
 
     if (room.start !== null) {
       return room.start.idempotencyKey === idempotencyKey
-        ? { ok: true, lobby: room.start.lobby, delivery: null, started: false }
+        ? { ok: true, lobby: toLobby(room, now()), delivery: null, started: false }
         : ROOM_NOT_IN_LOBBY;
     }
 
@@ -543,7 +543,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     const serverTime = now();
     const started = tryTransition(
       room.game,
-      { type: "START", durationMs: rules.roundDurationMs, readyDurationMs: 3_000 },
+      { type: "START", durationMs: rules.roundDurationMs, readyDurationMs: READY_DURATION_MS },
       serverTime,
     );
     if (started?.phase !== "GETTING_READY" || started.readyEndsAt === null) {
@@ -552,7 +552,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     room.game = started;
     scheduleReady(room, started.readyEndsAt);
     const lobby = toLobby(room, serverTime);
-    room.start = { idempotencyKey, lobby };
+    room.start = { idempotencyKey };
     return { ok: true, lobby, delivery: null, started: true };
   }
 

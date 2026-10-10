@@ -26,8 +26,17 @@ export function HostLobby({
   questionSetTitle,
   registrationFailed,
 }: HostLobbyProps) {
-  const { lobby, round, connection, roomError, start, startMatch, advance, advanceMatch } =
-    useHostRoom(roomId);
+  const {
+    lobby,
+    lobbyReceivedAt,
+    round,
+    connection,
+    roomError,
+    start,
+    startMatch,
+    advance,
+    advanceMatch,
+  } = useHostRoom(roomId);
   const inLobby = lobby?.phase === "LOBBY";
   const canStart = inLobby && connection === "online" && !start.pending;
 
@@ -68,7 +77,7 @@ export function HostLobby({
         }
       >
         {lobby?.phase === "GETTING_READY" && lobby.ready ? (
-          <GettingReady key={lobby.ready.endsAt} ready={lobby.ready} />
+          <GettingReady key={lobby.ready.endsAt} ready={lobby.ready} receivedAt={lobbyReceivedAt} />
         ) : round ? (
           <div className="min-w-0 space-y-4">
             <RoundQuestion round={round} />
