@@ -4,7 +4,7 @@ import type { LobbyParticipant, LobbySnapshot, RoomJoin } from "@aptiquiz/contra
 import { CircleCheck, Hourglass, Play, Radio } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { ParticipantRound } from "@/components/round/participant-round";
-import { nextRound } from "@/components/round/round-view";
+import { isMatchFinished, nextRound } from "@/components/round/round-view";
 import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
 import {
   createRoomSocket,
@@ -310,6 +310,7 @@ interface JoinedLobbyProps {
 function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps) {
   const { participant, lobby, round } = joined;
   const hasStarted = lobby.phase !== "LOBBY";
+  const finished = isMatchFinished(lobby);
 
   return (
     <div className="grid gap-5">
@@ -333,7 +334,18 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
         </p>
       </div>
 
-      {round === null ? (
+      {finished ? (
+        <p
+          className="rounded-xl border-l-2 border-emerald-600 bg-emerald-50 px-4 py-3 font-semibold text-[#172823]"
+          role="status"
+        >
+          Match finished.
+        </p>
+      ) : null}
+
+      {round !== null ? (
+        <ParticipantRound online={connection === "online"} round={round} sendAnswer={sendAnswer} />
+      ) : finished ? null : (
         <div aria-live="polite" role="status">
           {hasStarted ? (
             <p className="flex items-center gap-3 rounded-xl border-l-2 border-[#e65c00] bg-[#fff3ea] px-4 py-3 font-semibold text-[#172823]">
@@ -347,8 +359,6 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
             </p>
           )}
         </div>
-      ) : (
-        <ParticipantRound online={connection === "online"} round={round} sendAnswer={sendAnswer} />
       )}
 
       {error === null ? null : (

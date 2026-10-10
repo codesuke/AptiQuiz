@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { calculateScore, createGameState, orderOptions, transitionGame } from "./index.js";
+import {
+  calculateScore,
+  createGameState,
+  type GameState,
+  orderOptions,
+  transitionGame,
+} from "./index.js";
 
 describe("game engine", () => {
   it("moves a room through one complete question", () => {
@@ -49,6 +55,72 @@ describe("game engine", () => {
     expect(() => transitionGame(revealed.state, { type: "CLOSE_QUESTION" }, 5_000)).toThrow(
       "CLOSE_QUESTION is not allowed while the game is QUESTION_REVEAL",
     );
+  });
+
+  it("advances from a reveal to the next Question with a fresh deadline", () => {
+    const opened = transitionGame(
+      createGameState("room-1", 3),
+      { type: "START", durationMs: 10_000 },
+      1_000,
+    );
+    const revealed = transitionGame(opened.state, { type: "CLOSE_QUESTION" }, 4_000);
+    const next = transitionGame(revealed.state, { type: "ADVANCE", durationMs: 10_000 }, 6_000);
+
+    expect(next.state).toMatchObject({
+      phase: "QUESTION_OPEN",
+      questionIndex: 1,
+      roundStartsAt: 6_000,
+      roundEndsAt: 16_000,
+      roundClosedAt: null,
+    });
+    expect(next.events).toEqual([{ type: "QUESTION_OPENED", questionIndex: 1 }]);
+  });
+
+  it("finishes after the last revealed Question without opening another", () => {
+    const opened = transitionGame(
+      createGameState("room-1", 1),
+      { type: "START", durationMs: 10_000 },
+      1_000,
+    );
+    const revealed = transitionGame(opened.state, { type: "CLOSE_QUESTION" }, 4_000);
+    const finished = transitionGame(revealed.state, { type: "ADVANCE", durationMs: 10_000 }, 6_000);
+
+    expect(finished.state).toMatchObject({
+      phase: "FINISHED",
+      roundStartsAt: null,
+      roundEndsAt: null,
+      roundClosedAt: null,
+    });
+    expect(finished.events).toEqual([{ type: "GAME_FINISHED" }]);
+  });
+
+  it.each([
+    ["LOBBY", (state: GameState) => state],
+    [
+      "QUESTION_OPEN",
+      (state: GameState) =>
+        transitionGame(state, { type: "START", durationMs: 10_000 }, 1_000).state,
+    ],
+  ])("refuses to advance while the game is %s", (phase, reach) => {
+    const state = reach(createGameState("room-1", 2));
+
+    expect(() => transitionGame(state, { type: "ADVANCE", durationMs: 10_000 }, 2_000)).toThrow(
+      `ADVANCE is not allowed while the game is ${phase}`,
+    );
+  });
+
+  it("refuses to advance a finished game", () => {
+    const opened = transitionGame(
+      createGameState("room-1", 1),
+      { type: "START", durationMs: 10_000 },
+      1_000,
+    );
+    const revealed = transitionGame(opened.state, { type: "CLOSE_QUESTION" }, 4_000);
+    const finished = transitionGame(revealed.state, { type: "ADVANCE", durationMs: 10_000 }, 6_000);
+
+    expect(() =>
+      transitionGame(finished.state, { type: "ADVANCE", durationMs: 10_000 }, 7_000),
+    ).toThrow("ADVANCE is not allowed while the game is FINISHED");
   });
 
   it("rejects commands that violate the state machine", () => {

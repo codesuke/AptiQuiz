@@ -68,6 +68,9 @@ export function createGameState(roomId: string, questionCount: number): GameStat
   };
 }
 
+/** The Host advances straight after a reveal, or after an optional Leaderboard. */
+const ADVANCEABLE_PHASES: readonly GamePhase[] = ["QUESTION_REVEAL", "LEADERBOARD"];
+
 export function transitionGame(
   state: GameState,
   command: GameCommand,
@@ -77,22 +80,22 @@ export function transitionGame(
 
   switch (command.type) {
     case "START":
-      assertPhase(state, "LOBBY", command.type);
+      assertPhase(state, ["LOBBY"], command.type);
       return openQuestion(state, 0, command.durationMs, serverTime);
     case "CLOSE_QUESTION":
-      assertPhase(state, "QUESTION_OPEN", command.type);
+      assertPhase(state, ["QUESTION_OPEN"], command.type);
       return {
         state: { ...state, phase: "QUESTION_REVEAL", roundClosedAt: serverTime },
         events: [{ type: "QUESTION_CLOSED", questionIndex: requireQuestionIndex(state) }],
       };
     case "SHOW_LEADERBOARD":
-      assertPhase(state, "QUESTION_REVEAL", command.type);
+      assertPhase(state, ["QUESTION_REVEAL"], command.type);
       return {
         state: { ...state, phase: "LEADERBOARD" },
         events: [{ type: "LEADERBOARD_SHOWN" }],
       };
     case "ADVANCE": {
-      assertPhase(state, "LEADERBOARD", command.type);
+      assertPhase(state, ADVANCEABLE_PHASES, command.type);
       const nextQuestionIndex = requireQuestionIndex(state) + 1;
 
       if (nextQuestionIndex >= state.questionCount) {
@@ -197,8 +200,12 @@ function assertTimestamp(value: number): void {
   }
 }
 
-function assertPhase(state: GameState, expected: GamePhase, command: GameCommand["type"]): void {
-  if (state.phase !== expected) {
+function assertPhase(
+  state: GameState,
+  allowed: readonly GamePhase[],
+  command: GameCommand["type"],
+): void {
+  if (!allowed.includes(state.phase)) {
     throw new Error(`${command} is not allowed while the game is ${state.phase}`);
   }
 }

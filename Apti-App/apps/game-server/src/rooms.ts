@@ -18,6 +18,7 @@ import {
 import {
   createGameState,
   effectiveResponseTime,
+  type GameCommand,
   type GameState,
   isAnswerOnTime,
   orderOptions,
@@ -73,6 +74,25 @@ export type StartResult =
   | { readonly ok: true; readonly lobby: LobbySnapshot; readonly delivery: RoundDelivery | null }
   | RoomFailure;
 
+/** What a fresh advance publishes; `delivery` is null when the Room finished. */
+export interface AdvancePublication {
+  readonly lobby: LobbySnapshot;
+  readonly delivery: RoundDelivery | null;
+}
+
+/**
+ * `round` is the Host's view of the newly opened Round, or null once the Room finished.
+ * `publication` is null when a retried advance repeats its first result without a transition.
+ */
+export type AdvanceResult =
+  | {
+      readonly ok: true;
+      readonly lobby: LobbySnapshot;
+      readonly round: RoundView | null;
+      readonly publication: AdvancePublication | null;
+    }
+  | RoomFailure;
+
 /** An Answer whose payload passed the public contract schema, stamped at server receipt. */
 export interface AnswerSubmission {
   readonly roomId: string;
@@ -116,6 +136,12 @@ interface StartRecord {
   readonly lobby: LobbySnapshot;
 }
 
+/** The acknowledgement of one accepted advance, repeated for a retry with the same key. */
+interface AdvanceRecord {
+  readonly lobby: LobbySnapshot;
+  readonly round: RoundView | null;
+}
+
 interface LiveRoom {
   readonly registration: RoomRegistration;
   readonly rules: RoundRules;
@@ -123,11 +149,16 @@ interface LiveRoom {
   readonly optionSalt: string;
   game: GameState;
   start: StartRecord | null;
+  /** Accepted advances keyed by idempotency key. */
+  readonly advances: Map<string, AdvanceRecord>;
   /** Joined Participants keyed by identity, in join order. */
   readonly participants: Map<string, LobbyParticipant>;
   /** Reserved slots whose persistence is still in flight, keyed by identity. */
   readonly pendingJoins: Map<string, Promise<JoinResult>>;
-  /** Accepted Answers keyed by `answerSlot`: one per Participant and Question. */
+  /**
+   * Accepted Answers keyed by `answerSlot`: one per Participant and Question, so each Round
+   * starts clean and earlier Rounds keep their Answers.
+   */
   readonly answers: Map<string, RecordedAnswer>;
   /** Accepted Answers keyed by `answerReceipt`, so a retried key repeats its result. */
   readonly answerReceipts: Map<string, RecordedAnswer>;
@@ -177,6 +208,8 @@ export interface RoomRegistry {
   hostLobby(roomId: string, identity: ConnectionIdentity): HostResult;
   join(request: ValidJoinRequest, identity: ConnectionIdentity): Promise<JoinResult>;
   start(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): StartResult;
+  /** Opens the next Question after a reveal, or finishes the Room after the last one. */
+  advance(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): AdvanceResult;
   answer(submission: AnswerSubmission): AnswerResult;
   /** Scored Answers for one Question, for the reveal; never sent to clients before it. */
   answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[];
@@ -198,6 +231,9 @@ const ROOM_NOT_IN_LOBBY: RoomFailure = { ok: false, error: "room_not_in_lobby" }
 const ROOM_FULL: RoomFailure = { ok: false, error: "room_full" };
 const JOIN_FAILED: RoomFailure = { ok: false, error: "join_failed" };
 const START_FAILED: RoomFailure = { ok: false, error: "start_failed" };
+const ROUND_NOT_REVEALED: RoomFailure = { ok: false, error: "round_not_revealed" };
+const ROOM_FINISHED: RoomFailure = { ok: false, error: "room_finished" };
+const ADVANCE_FAILED: RoomFailure = { ok: false, error: "advance_failed" };
 
 type AnswerFailure = Extract<AnswerResult, { ok: false }>;
 
@@ -235,6 +271,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       optionSalt: randomUUID(),
       game: createGameState(registration.roomId, registration.questions.length),
       start: null,
+      advances: new Map(),
       participants: new Map(),
       pendingJoins: new Map(),
       answers: new Map(),
@@ -374,50 +411,127 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     }
 
     const serverTime = now();
-    let started: GameState;
+    const started = tryTransition(
+      room.game,
+      { type: "START", durationMs: rules.roundDurationMs },
+      serverTime,
+    );
+    const delivery = started === null ? null : openRoundAt(room, started, serverTime);
 
-    try {
-      started = transitionGame(
-        room.game,
-        { type: "START", durationMs: rules.roundDurationMs },
-        serverTime,
-      ).state;
-    } catch {
+    if (delivery === null) {
       return START_FAILED;
     }
 
-    const round = findActiveRound({ ...room, game: started });
-
-    if (round === null) {
-      return START_FAILED;
-    }
-
-    room.game = started;
     const lobby = toLobby(room);
     room.start = { idempotencyKey, lobby };
-    scheduleDeadline(room, round.endsAt);
-    return { ok: true, lobby, delivery: deliverRound(room, round, serverTime) };
+    return { ok: true, lobby, delivery };
   }
 
-  /** The timer never depends on Answers; it only closes a Round that is still open. */
-  function scheduleDeadline(room: LiveRoom, atServerTime: number): void {
+  function advance(
+    roomId: string,
+    idempotencyKey: string,
+    identity: ConnectionIdentity,
+  ): AdvanceResult {
+    const room = rooms.get(roomId);
+
+    if (room === undefined) {
+      return ROOM_NOT_FOUND;
+    }
+
+    if (!isRoomHost(room, identity)) {
+      return NOT_ROOM_HOST;
+    }
+
+    const earlier = room.advances.get(idempotencyKey);
+
+    if (earlier !== undefined) {
+      return { ok: true, ...earlier, publication: null };
+    }
+
+    return advanceAfterReveal(room, idempotencyKey);
+  }
+
+  /** Only a revealed Round advances, so a repeated command cannot skip a Question. */
+  function advanceAfterReveal(room: LiveRoom, idempotencyKey: string): AdvanceResult {
+    if (room.game.phase === "FINISHED") {
+      return ROOM_FINISHED;
+    }
+
+    if (room.game.phase !== "QUESTION_REVEAL") {
+      return ROUND_NOT_REVEALED;
+    }
+
+    const serverTime = now();
+    const next = tryTransition(
+      room.game,
+      { type: "ADVANCE", durationMs: rules.roundDurationMs },
+      serverTime,
+    );
+
+    if (next === null) {
+      return ADVANCE_FAILED;
+    }
+
+    if (next.phase === "FINISHED") {
+      room.game = next;
+      return recordAdvance(room, idempotencyKey, null);
+    }
+
+    const delivery = openRoundAt(room, next, serverTime);
+    return delivery === null ? ADVANCE_FAILED : recordAdvance(room, idempotencyKey, delivery);
+  }
+
+  /** `delivery` is the newly opened Round, or null when the advance finished the Room. */
+  function recordAdvance(
+    room: LiveRoom,
+    idempotencyKey: string,
+    delivery: RoundDelivery | null,
+  ): AdvanceResult {
+    const record: AdvanceRecord = { lobby: toLobby(room), round: delivery?.host ?? null };
+    room.advances.set(idempotencyKey, record);
+    return { ok: true, ...record, publication: { lobby: record.lobby, delivery } };
+  }
+
+  /**
+   * The one path that opens every Round, the first and each later one, so deadlines, early
+   * closure, and Answers behave the same for all of them. Returns null when `opened` has no
+   * Question to show, leaving the Room unchanged.
+   */
+  function openRoundAt(
+    room: LiveRoom,
+    opened: GameState,
+    serverTime: number,
+  ): RoundDelivery | null {
+    const round = findActiveRound({ ...room, game: opened });
+
+    if (round === null) {
+      return null;
+    }
+
+    room.game = opened;
+    scheduleDeadline(room, round);
+    return deliverRound(room, round, serverTime);
+  }
+
+  /** The timer never depends on Answers; it only closes the Round it was scheduled for. */
+  function scheduleDeadline(room: LiveRoom, round: ActiveRound, atServerTime = round.endsAt): void {
     room.cancelDeadline = schedule(atServerTime, () => {
       room.cancelDeadline = null;
-      closeAtDeadline(room);
+      closeAtDeadline(room, round.questionIndex);
     });
   }
 
-  function closeAtDeadline(room: LiveRoom): void {
+  function closeAtDeadline(room: LiveRoom, questionIndex: number): void {
     const round = findOpenRound(room);
 
-    if (round === null) {
+    if (round === null || round.questionIndex !== questionIndex) {
       return;
     }
 
     // An Answer received at `endsAt` is still on time, so a timer that fires early or exactly
     // at the deadline waits for the first late millisecond.
     if (isAnswerOnTime(round, now())) {
-      scheduleDeadline(room, round.endsAt + 1);
+      scheduleDeadline(room, round, round.endsAt + 1);
       return;
     }
 
@@ -593,6 +707,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     hostLobby,
     join,
     start,
+    advance,
     answer,
     answersFor,
     connect,
@@ -601,6 +716,19 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     onRoundClosed,
     dispose,
   };
+}
+
+/** A refused transition leaves the Room unchanged rather than crashing the handler. */
+function tryTransition(
+  game: GameState,
+  command: GameCommand,
+  serverTime: number,
+): GameState | null {
+  try {
+    return transitionGame(game, command, serverTime).state;
+  } catch {
+    return null;
+  }
 }
 
 /** Nobody connected means nobody can still answer, so only the deadline closes the Round. */

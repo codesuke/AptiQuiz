@@ -1,4 +1,9 @@
-import { createDatabase, markRoomStarted, recordParticipant } from "@aptiquiz/database";
+import {
+  createDatabase,
+  markRoomFinished,
+  markRoomStarted,
+  recordParticipant,
+} from "@aptiquiz/database";
 import type { RoomStore } from "./room-store.js";
 
 export interface DatabaseRoomStore extends RoomStore {
@@ -11,6 +16,7 @@ export function createDatabaseRoomStore(databaseUrl: string): DatabaseRoomStore 
   return {
     recordParticipant: (input) => recordParticipant(db, input),
     markRoomStarted: (roomId) => markRoomStarted(db, roomId),
+    markRoomFinished: (roomId) => markRoomFinished(db, roomId),
     close: () => db.$disconnect(),
   };
 }

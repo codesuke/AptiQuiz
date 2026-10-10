@@ -34,6 +34,7 @@ export {
   EmptyQuestionSetError,
   getHostedRoom,
   type HostedRoom,
+  markRoomFinished,
   markRoomStarted,
   type ParticipantRecord,
   randomJoinCode,

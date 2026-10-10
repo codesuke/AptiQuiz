@@ -1,4 +1,4 @@
-import type { RevealedRound } from "@aptiquiz/contracts";
+import type { LobbySnapshot, RevealedRound } from "@aptiquiz/contracts";
 import type { ReceivedRound } from "@/lib/server-clock";
 
 export const CORRECT_OPTION_LABEL = "Correct answer";
@@ -41,4 +41,9 @@ function isStaleView(current: ReceivedRound, incoming: ReceivedRound): boolean {
 export function nextRound(current: ReceivedRound | null, incoming: ReceivedRound): ReceivedRound {
   if (current !== null && isStaleView(current, incoming)) return current;
   return incoming;
+}
+
+/** The Game Server finished the Room after its last Question. */
+export function isMatchFinished(lobby: Pick<LobbySnapshot, "phase"> | null): boolean {
+  return lobby?.phase === "FINISHED";
 }

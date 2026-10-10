@@ -3,7 +3,9 @@
 import type { RoomError } from "@aptiquiz/contracts";
 import { LobbyDetails } from "@/components/lobby/lobby-details";
 import { RoundQuestion } from "@/components/round/round-question";
+import { isMatchFinished } from "@/components/round/round-view";
 import { describeRoomError } from "@/lib/rooms-client";
+import { AdvanceControl } from "./advance-control";
 import { ShareRoom } from "./share-room";
 import { type HostConnection, type StartState, useHostRoom } from "./use-host-room";
 
@@ -15,7 +17,8 @@ interface HostLobbyProps {
 }
 
 export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }: HostLobbyProps) {
-  const { lobby, round, connection, roomError, start, startMatch } = useHostRoom(roomId);
+  const { lobby, round, connection, roomError, start, startMatch, advance, advanceMatch } =
+    useHostRoom(roomId);
   const inLobby = lobby?.phase === "LOBBY";
   const canStart = inLobby && connection === "online" && !start.pending;
 
@@ -37,7 +40,7 @@ export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }:
           </h2>
           {lobby && !inLobby ? (
             <p className="mt-2 font-medium text-emerald-800" role="status">
-              Match started.
+              {isMatchFinished(lobby) ? "Match finished." : "Match started."}
             </p>
           ) : (
             <>
@@ -65,7 +68,13 @@ export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }:
         {round ? (
           <div className="space-y-4">
             <RoundQuestion round={round} />
-            {/* Host Round controls (#36 adds "Next question" here once the Round is revealed). */}
+            <AdvanceControl
+              advance={advance}
+              lobby={lobby}
+              onAdvance={advanceMatch}
+              online={connection === "online"}
+              round={round.view}
+            />
           </div>
         ) : null}
         {lobby ? (

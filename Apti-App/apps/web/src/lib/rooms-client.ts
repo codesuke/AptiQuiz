@@ -34,6 +34,9 @@ const roomErrorMessages: Record<RoomError, string> = {
   not_room_host: "Only the Host of this Room can do that.",
   join_failed: "The join did not complete. Try again.",
   start_failed: "The match did not start. Try again.",
+  round_not_revealed: "This Question is still open. Wait for the reveal, then try again.",
+  room_finished: "This match has finished.",
+  advance_failed: "The next Question did not open. Try again.",
 };
 
 function isCreateRoomFailure(value: unknown): value is CreateRoomFailure {

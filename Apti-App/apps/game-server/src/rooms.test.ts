@@ -765,6 +765,8 @@ describe("events without an acknowledgement", () => {
     ["room:join", { bad: true }],
     ["room:start", { roomId: roomA.roomId, idempotencyKey: randomUUID() }],
     ["room:start", { bad: true }],
+    ["room:advance", { roomId: roomA.roomId, idempotencyKey: randomUUID() }],
+    ["room:advance", { bad: true }],
     ["time:ping", { clientSentAt: 1 }],
     ["time:ping", { bad: true }],
     [

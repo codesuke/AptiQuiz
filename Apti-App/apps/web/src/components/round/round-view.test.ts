@@ -1,6 +1,12 @@
 import type { RevealedRound, RoundView } from "@aptiquiz/contracts";
 import { describe, expect, it } from "vitest";
-import { countdownLabel, nextRound, revealedOptionLabels, roundResultLabel } from "./round-view";
+import {
+  countdownLabel,
+  isMatchFinished,
+  nextRound,
+  revealedOptionLabels,
+  roundResultLabel,
+} from "./round-view";
 
 const question = {
   text: "What is 2 + 2?",
@@ -106,5 +112,14 @@ describe("nextRound", () => {
   it("keeps the current Question when a late view of an earlier Question arrives", () => {
     const nextOpen = { ...open, questionIndex: open.questionIndex + 1 };
     expect(nextRound(received(nextOpen), received(revealed))).toEqual(received(nextOpen));
+  });
+});
+
+describe("isMatchFinished", () => {
+  it("is true only once the Game Server finished the Room", () => {
+    expect(isMatchFinished({ phase: "FINISHED" })).toBe(true);
+    expect(isMatchFinished({ phase: "QUESTION_REVEAL" })).toBe(false);
+    expect(isMatchFinished({ phase: "LOBBY" })).toBe(false);
+    expect(isMatchFinished(null)).toBe(false);
   });
 });

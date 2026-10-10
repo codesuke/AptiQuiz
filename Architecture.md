@@ -41,12 +41,12 @@ The following functions are available:
 - Start opens the first Round: one server `startsAt` and a deadline 30 seconds later. Each Participant receives `round:state` with the public Question in a stable option order of their own, with option ids that are opaque to them. The Host receives the authored order. Both browsers show a countdown from server timestamps.
 - A joined Participant answers the open Round with `round:answer`. The Game Server accepts the first valid Answer received at or before the deadline, by server receipt time. It scores the Answer with delay compensation from server-initiated `latency:ping` samples. The acknowledgement and later views do not show correctness before the reveal. The Lobby shows the scoring rule and the delay policy from the server values.
 - The Round closes once: at the server deadline, or earlier when every connected Participant has answered. Then each Participant receives the correct option in their own option ids, their result, and the Round scores of all Participants. The Host receives the same reveal with the authored ids.
+- After a reveal, only the Host advances. Each next Question opens with a new server deadline. After the last Question, the Room moves to `FINISHED`, the browsers show "Match finished.", and the Game Server writes the `FINISHED` status to PostgreSQL. A complete Match was played in two headless browsers on 2026-10-10.
 - The simulator opens 50 connections by default.
 - The database package generates a Prisma client.
 
 The following functions are not available:
 
-- The Host cannot advance after a reveal, and the Room does not finish.
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
@@ -169,6 +169,7 @@ The Socket.IO Room commands are:
 
 - `room:host`: only the Host User subscribes to the Lobby.
 - `room:join`: a Guest or a User joins a Room in the Lobby. A User is one Participant in each Room. A Guest is identified by the join idempotency key. The server reserves the slot before the database write, so a Room never has more than 50 Participants. A join that ends after the start is refused.
+- `room:advance`: only the Host advances, and only from `QUESTION_REVEAL`. The Game Engine `ADVANCE` transition opens the next Question through the same path as start, or moves the Room to `FINISHED` after the last Question. A replayed key returns its first result. A new key while a Round is open gets `round_not_revealed`, so no command can skip a Question or open two Rounds. A finished Room refuses with `room_finished`.
 - `room:start`: only the Host starts the Room. The Game Engine `START` transition leaves `LOBBY` and opens Question 0 for the configured Round duration. A retry with the same key returns the first result and never opens another Round or moves the deadline.
 
 `round:state` sends a Round view to one receiver. Each Participant has the channel `participant:<roomId>:<participantId>` and receives their own option order. The order is seeded by a random salt for each Room, the Question index, and the Participant id. Option ids are hashed from the same seed. The Host channel `host:<roomId>` receives the authored order. The `room:host` and `room:join` acknowledgements include the current Round view, or `null` in the Lobby, so a reconnecting browser recovers the Round. The Game Server builds the public Question field by field. It never copies a stored Question, because the stored Question holds `correctOptionId`.
@@ -229,7 +230,8 @@ The package currently defines these interfaces:
 - `roomRegistrationSchema`, `createRoomRequestSchema`, and `lobbySnapshotSchema`
 - `roomHostSchema`, `roomJoinSchema`, `roomStartSchema`, and their response schemas
 - `publicQuestionSchema`, `openRoundSchema`, and `roundViewSchema`
-- `roundScoreSchema` and `revealedRoundSchema`
+- `roundScoreSchema`, `roundResultSchema`, and `revealedRoundSchema`
+- `roomAdvanceSchema` and `roomAdvanceResponseSchema`
 - `roundRulesSchema`, `lockedAnswerSchema`, `roundAnswerSchema`, `answerErrorSchema`, `roundAnswerResponseSchema`, and `latencyPingSchema`
 - `displayNameSchema`
 - `timePingSchema`
@@ -313,7 +315,7 @@ The schema contains these main models:
 
 The unique key on `(roundId, participantId)` prevents two stored Answers for one Participant and one Round.
 
-Room creation uses `College`, `QuestionSet`, `Question`, and `Room`. Room join uses `Participant`, which links to the joining User or to no User for a Guest. The application does not use `Round`, `Answer`, or `MatchResult` at this time.
+Room creation uses `College`, `QuestionSet`, `Question`, and `Room`. Room join uses `Participant`, which links to the joining User or to no User for a Guest. The Game Server writes the Room status `RUNNING` at start and `FINISHED` after the last Question. The application does not use `Round`, `Answer`, or `MatchResult` at this time. Live Answers and scores stay in memory, and #7 persists Match results.
 
 ### Simulator
 
@@ -338,11 +340,11 @@ The current WebSocket data flow is as follows:
 7. The Game Server validates the payload and acknowledges it with `serverReceivedAt`.
 8. The browser shows the returned identity and round-trip time.
 
-The Room handlers call the Game Engine only for the `START` transition at this time.
+The Room registry calls the Game Engine for the `START`, `CLOSE_QUESTION`, and `ADVANCE` transitions and for the timing and score rules.
 
 ## Planned Match Data Flow
 
-This section describes an accepted plan. Steps 1 to 5 are implemented for the Lobby; the other steps are not implemented.
+This section describes an accepted plan. Steps 1 to 7 are implemented, except Resume Tokens in step 4. Step 8 belongs to #7.
 
 1. The Host creates a Room through the web application.
 2. The web server checks the User and the Question Set.
@@ -487,7 +489,7 @@ pnpm simulate
 | The Game Server validates the `time:ping` payload. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` and `Apti-App/apps/game-server/src/server.ts` | Add tests when the event interface changes. | - |
 | The Game Engine controls phase changes and provisional scores. | VERIFIED | `Apti-App/packages/game-engine/src/index.ts` and `index.test.ts` | Keep game rules outside transport handlers. | - |
 | The simulator creates 50 connections by default. | VERIFIED | `Apti-App/apps/simulator/src/index.ts` and `docs/build-memory.yaml` | Repeat the test after transport changes. | - |
-| A complete 50-Participant Match is not implemented. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` contains Room events but no Answer events. | Implement and test the complete flow. | - |
+| A complete Match runs: timed Rounds, server-scored Answers, one-time close and reveal, Host advance, and finish. A 50-Participant Match is not load-tested. | PARTIALLY VERIFIED | `Apti-App/apps/game-server/src/{answers,reveal,advance}.test.ts`, `Apti-App/packages/game-engine/src/scoring.test.ts`, and a two-browser Match on 2026-10-10 | Prove 50-Participant capacity in #10. | #10 |
 | A Host creates a Room, Guests and Users join a live Lobby of at most 50, and only the Host starts it one time. | VERIFIED | `Apti-App/apps/game-server/src/rooms.test.ts`, `Apti-App/packages/database/src/rooms.test.ts`, `Apti-App/apps/web/src/lib/rooms-handler.test.ts`, and a two-browser check on 2026-10-10 | Repeat the browser check when Room handling changes. | - |
 | The Game Server identifies Users and Guests from Socket Tickets. | VERIFIED | `Apti-App/apps/game-server/src/handshake.ts`, `server.test.ts`, and `Apti-App/packages/socket-ticket/src/index.test.ts` | Keep the handshake tests successful. | - |
 | Email/password sign-in and Socket Ticket issue are implemented; the Dokploy health endpoints respond; Redis and Kafka are unused. | PARTIALLY VERIFIED | Auth and handshake source; public HTTPS health responses checked 2026-10-10 | Finish the deployment checks in #11. | - |

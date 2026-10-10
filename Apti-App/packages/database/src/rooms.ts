@@ -173,3 +173,10 @@ export async function recordParticipant(
 export async function markRoomStarted(db: PrismaClient, roomId: string): Promise<void> {
   await db.room.updateMany({ where: { id: roomId, status: "LOBBY" }, data: { status: "RUNNING" } });
 }
+
+export async function markRoomFinished(db: PrismaClient, roomId: string): Promise<void> {
+  await db.room.updateMany({
+    where: { id: roomId, status: "RUNNING" },
+    data: { status: "FINISHED" },
+  });
+}

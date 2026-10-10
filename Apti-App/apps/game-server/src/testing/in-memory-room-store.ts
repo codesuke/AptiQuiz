@@ -3,6 +3,7 @@ import type { ParticipantRecord, RoomStore } from "../room-store.js";
 export interface InMemoryRoomStore extends RoomStore {
   readonly participants: readonly ParticipantRecord[];
   readonly startedRoomIds: readonly string[];
+  readonly finishedRoomIds: readonly string[];
   /** Makes the next participant write reject, as a database outage would. */
   failNextParticipant(): void;
   /** Holds participant writes in flight until the returned release function runs. */
@@ -12,12 +13,14 @@ export interface InMemoryRoomStore extends RoomStore {
 export function createInMemoryRoomStore(): InMemoryRoomStore {
   const participants: ParticipantRecord[] = [];
   const startedRoomIds: string[] = [];
+  const finishedRoomIds: string[] = [];
   let failNext = false;
   let writeGate: Promise<void> = Promise.resolve();
 
   return {
     participants,
     startedRoomIds,
+    finishedRoomIds,
     failNextParticipant: () => {
       failNext = true;
     },
@@ -42,6 +45,9 @@ export function createInMemoryRoomStore(): InMemoryRoomStore {
     },
     markRoomStarted: async (roomId) => {
       startedRoomIds.push(roomId);
+    },
+    markRoomFinished: async (roomId) => {
+      finishedRoomIds.push(roomId);
     },
   };
 }

@@ -6,4 +6,5 @@ export type { ParticipantRecord };
 export interface RoomStore {
   recordParticipant(input: ParticipantRecord): Promise<{ readonly participantId: string }>;
   markRoomStarted(roomId: string): Promise<void>;
+  markRoomFinished(roomId: string): Promise<void>;
 }

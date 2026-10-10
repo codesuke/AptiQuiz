@@ -1,4 +1,5 @@
 import type { LockedAnswer, PublicQuestion, RoundView } from "@aptiquiz/contracts";
+import { keyForScope } from "../../lib/scoped-key";
 
 /**
  * One idempotency key per Room and Question. A retry after a lost acknowledgement reuses it,
@@ -9,13 +10,7 @@ export function answerKeyFor(
   view: Pick<RoundView, "roomId" | "questionIndex">,
   createKey: () => string,
 ): string {
-  const scope = `${view.roomId}:${view.questionIndex}`;
-  const existing = keys.get(scope);
-  if (existing !== undefined) return existing;
-
-  const key = createKey();
-  keys.set(scope, key);
-  return key;
+  return keyForScope(keys, `${view.roomId}:${view.questionIndex}`, createKey);
 }
 
 /** The server's record wins (rejoin, `round:state`); otherwise this tab's accepted Answer. */

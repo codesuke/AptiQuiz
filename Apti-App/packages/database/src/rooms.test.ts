@@ -14,6 +14,7 @@ import {
   createRoom,
   EmptyQuestionSetError,
   getHostedRoom,
+  markRoomFinished,
   markRoomStarted,
   recordParticipant,
 } from "./rooms.js";
@@ -272,6 +273,21 @@ describe.skipIf(!databaseUrl)("Rooms", () => {
       const fresh = await create(starterSetId);
       await markRoomStarted(db, fresh.roomId);
       expect((await getHostedRoom(db, hostId, fresh.roomId))?.status).toBe("RUNNING");
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    "marks only a running Room as finished",
+    async () => {
+      const lobbyRoom = await create(starterSetId);
+      await markRoomFinished(db, lobbyRoom.roomId);
+      expect((await getHostedRoom(db, hostId, lobbyRoom.roomId))?.status).toBe("LOBBY");
+
+      await markRoomStarted(db, lobbyRoom.roomId);
+      await markRoomFinished(db, lobbyRoom.roomId);
+      await markRoomFinished(db, lobbyRoom.roomId);
+      expect((await getHostedRoom(db, hostId, lobbyRoom.roomId))?.status).toBe("FINISHED");
     },
     TEST_TIMEOUT_MS,
   );

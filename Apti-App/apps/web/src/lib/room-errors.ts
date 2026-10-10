@@ -24,6 +24,9 @@ const JOIN_FAILURE_MESSAGES: Record<JoinFailure, string> = {
   not_room_host: "Only the Host of this Room can do that.",
   join_failed: "We couldn't add you to the Room just now. Try again.",
   start_failed: "We couldn't start the match just now. Try again.",
+  round_not_revealed: "Wait for this Question to close before moving on.",
+  room_finished: "This match has finished.",
+  advance_failed: "We couldn't move to the next Question just now. Try again.",
   no_response: "The game server didn't respond. Check your connection and try again.",
 };
 

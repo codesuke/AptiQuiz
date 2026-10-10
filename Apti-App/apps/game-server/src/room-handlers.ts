@@ -2,6 +2,7 @@ import {
   displayNameSchema,
   type LobbySnapshot,
   type RoomError,
+  roomAdvanceSchema,
   roomCodeSchema,
   roomHostSchema,
   roomJoinSchema,
@@ -13,7 +14,13 @@ import { safeAcknowledge } from "./acknowledgement.js";
 import type { GameSocket, GameSocketServer } from "./game-socket.js";
 import type { LatencySampler } from "./latency-sampler.js";
 import type { RoomStore } from "./room-store.js";
-import type { RoomRegistry, RoundClosure, RoundDelivery, ValidJoinRequest } from "./rooms.js";
+import type {
+  AdvancePublication,
+  RoomRegistry,
+  RoundClosure,
+  RoundDelivery,
+  ValidJoinRequest,
+} from "./rooms.js";
 
 type JoinValidation =
   | { readonly ok: true; readonly request: ValidJoinRequest }
@@ -64,6 +71,15 @@ function publishRound(io: GameSocketServer, roomId: string, delivery: RoundDeliv
 export function publishRoundClosure(io: GameSocketServer, { lobby, delivery }: RoundClosure): void {
   publishLobby(io, lobby);
   publishRound(io, lobby.roomId, delivery);
+}
+
+/** A finished Room only changes its phase; a new Round also reaches every receiver. */
+function publishAdvance(io: GameSocketServer, { lobby, delivery }: AdvancePublication): void {
+  publishLobby(io, lobby);
+
+  if (delivery !== null) {
+    publishRound(io, lobby.roomId, delivery);
+  }
 }
 
 export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandlerDependencies) {
@@ -162,7 +178,38 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     if (result.delivery !== null) {
       publishLobby(io, result.lobby);
       publishRound(io, roomId, result.delivery);
-      await persistRoomStart(store, roomId, logger);
+      await persistRoomStatus(() => store.markRoomStarted(roomId), roomId, logger);
+    }
+  });
+
+  socket.on("room:advance", async (payload, callback) => {
+    const acknowledge = safeAcknowledge(callback);
+    const parsed = roomAdvanceSchema.safeParse(payload);
+
+    if (!parsed.success) {
+      acknowledge(INVALID_REQUEST);
+      return;
+    }
+
+    const { roomId, idempotencyKey } = parsed.data;
+    const result = registry.advance(roomId, idempotencyKey, socket.data.identity);
+
+    if (!result.ok) {
+      acknowledge(result);
+      return;
+    }
+
+    socket.join(hostChannels(roomId));
+    acknowledge({ ok: true, lobby: result.lobby, round: result.round });
+
+    if (result.publication !== null) {
+      publishAdvance(io, result.publication);
+    }
+
+    const finishedNow = result.publication !== null && result.round === null;
+
+    if (finishedNow) {
+      await persistRoomStatus(() => store.markRoomFinished(roomId), roomId, logger);
     }
   });
 
@@ -226,10 +273,14 @@ function validateJoin(payload: unknown): JoinValidation {
 }
 
 /** The live transition stays authoritative; a failed write is logged rather than undone. */
-async function persistRoomStart(store: RoomStore, roomId: string, logger: Logger): Promise<void> {
+async function persistRoomStatus(
+  write: () => Promise<void>,
+  roomId: string,
+  logger: Logger,
+): Promise<void> {
   try {
-    await store.markRoomStarted(roomId);
+    await write();
   } catch (error) {
-    logger.error({ roomId, err: error }, "failed to record room start");
+    logger.error({ roomId, err: error }, "failed to record room status");
   }
 }

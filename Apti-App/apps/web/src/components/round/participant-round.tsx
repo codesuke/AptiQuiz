@@ -20,7 +20,15 @@ export function ParticipantRound({ round, online, sendAnswer }: ParticipantRound
   const { view } = round;
   switch (view.phase) {
     case "QUESTION_OPEN":
-      return <OpenParticipantRound online={online} round={round} sendAnswer={sendAnswer} />;
+      // Keyed by Question so nothing from the previous Question's Answer carries over.
+      return (
+        <OpenParticipantRound
+          key={view.questionIndex}
+          online={online}
+          round={round}
+          sendAnswer={sendAnswer}
+        />
+      );
     case "QUESTION_REVEAL":
       return (
         <RevealedQuestion view={view}>

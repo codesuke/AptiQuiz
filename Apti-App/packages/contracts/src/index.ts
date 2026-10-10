@@ -239,6 +239,9 @@ export const roomErrorSchema = z.enum([
   "not_room_host",
   "join_failed",
   "start_failed",
+  "round_not_revealed",
+  "room_finished",
+  "advance_failed",
 ]);
 
 export const roomHostSchema = z.object({ roomId: roomIdSchema });
@@ -250,6 +253,12 @@ export const roomJoinSchema = z.object({
 });
 
 export const roomStartSchema = z.object({
+  roomId: roomIdSchema,
+  idempotencyKey: idempotencyKeySchema,
+});
+
+/** The Host moves a revealed Room to its next Question, or finishes it after the last one. */
+export const roomAdvanceSchema = z.object({
   roomId: roomIdSchema,
   idempotencyKey: idempotencyKeySchema,
 });
@@ -306,6 +315,16 @@ export const roundAnswerResponseSchema = z.discriminatedUnion("ok", [
 /** Server-initiated round-trip sample; the browser acknowledges at once. */
 export const latencyPingSchema = z.object({ serverSentAt: timestampSchema });
 
+export const roomAdvanceResponseSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    lobby: lobbySnapshotSchema,
+    /** The Host's view of the newly opened Round, or null when the Room finished. */
+    round: roundViewSchema.nullable(),
+  }),
+  roomFailureSchema,
+]);
+
 export type RoomQuestion = z.infer<typeof roomQuestionSchema>;
 export type RoomRegistration = z.infer<typeof roomRegistrationSchema>;
 export type RoomRegistrationResponse = z.infer<typeof roomRegistrationResponseSchema>;
@@ -333,6 +352,8 @@ export type RoomStart = z.infer<typeof roomStartSchema>;
 export type RoomHostResponse = z.infer<typeof roomHostResponseSchema>;
 export type RoomJoinResponse = z.infer<typeof roomJoinResponseSchema>;
 export type RoomStartResponse = z.infer<typeof roomStartResponseSchema>;
+export type RoomAdvance = z.infer<typeof roomAdvanceSchema>;
+export type RoomAdvanceResponse = z.infer<typeof roomAdvanceResponseSchema>;
 
 export type TimePing = z.infer<typeof timePingSchema>;
 export type TimePingResponse = z.infer<typeof timePingResponseSchema>;
@@ -349,6 +370,10 @@ export interface ClientToServerEvents {
   "room:host": (payload: RoomHost, acknowledge: (response: RoomHostResponse) => void) => void;
   "room:join": (payload: RoomJoin, acknowledge: (response: RoomJoinResponse) => void) => void;
   "room:start": (payload: RoomStart, acknowledge: (response: RoomStartResponse) => void) => void;
+  "room:advance": (
+    payload: RoomAdvance,
+    acknowledge: (response: RoomAdvanceResponse) => void,
+  ) => void;
   "round:answer": (
     payload: RoundAnswer,
     acknowledge: (response: RoundAnswerResponse) => void,
