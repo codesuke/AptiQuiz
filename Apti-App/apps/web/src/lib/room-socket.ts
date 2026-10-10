@@ -4,7 +4,9 @@ import {
   type LobbySnapshot,
   lobbySnapshotSchema,
   type RoomJoin,
+  type RoundView,
   roomJoinResponseSchema,
+  roundViewSchema,
   type ServerToClientEvents,
   type SocketHandshakeAuth,
 } from "@aptiquiz/contracts";
@@ -23,7 +25,7 @@ interface RoomSocketDependencies {
 }
 
 export type JoinResult =
-  | { ok: true; participant: LobbyParticipant; lobby: LobbySnapshot }
+  | { ok: true; participant: LobbyParticipant; lobby: LobbySnapshot; round: RoundView | null }
   | { ok: false; error: JoinFailure };
 
 export type SendRoomJoin = (payload: RoomJoin, acknowledge: (response: unknown) => void) => void;
@@ -72,5 +74,11 @@ export function emitRoomJoin(
 /** Returns a valid `room:lobby` snapshot for the given Room, or null. */
 export function parseLobbyUpdate(payload: unknown, roomId: string): LobbySnapshot | null {
   const parsed = lobbySnapshotSchema.safeParse(payload);
+  return parsed.success && parsed.data.roomId === roomId ? parsed.data : null;
+}
+
+/** Returns a valid `round:state` view for the given Room, or null. */
+export function parseRoundUpdate(payload: unknown, roomId: string): RoundView | null {
+  const parsed = roundViewSchema.safeParse(payload);
   return parsed.success && parsed.data.roomId === roomId ? parsed.data : null;
 }

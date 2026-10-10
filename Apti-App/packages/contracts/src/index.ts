@@ -153,6 +153,31 @@ export const lobbySnapshotSchema = z.object({
   participants: z.array(lobbyParticipantSchema).max(MAX_ROOM_PARTICIPANTS),
 });
 
+/** A Question as Participants see it before the reveal: no correct option, no explanation. */
+export const publicQuestionSchema = z.object({
+  text: z.string().min(1),
+  options: z.array(z.object({ id: z.string().min(1), text: z.string().min(1) })).min(2),
+  topic: z.string().min(1),
+  difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
+  media: z.record(z.string(), z.unknown()).optional(),
+});
+
+const roundBaseSchema = z.object({
+  roomId: roomIdSchema,
+  questionIndex: z.number().int().nonnegative(),
+  questionCount: z.number().int().positive(),
+  startsAt: timestampSchema,
+  endsAt: timestampSchema,
+  /** Server time when this view was sent; the browser derives its clock offset from it. */
+  serverTime: timestampSchema,
+  /** Options in the order the server assigned to the receiving Participant for this Round. */
+  question: publicQuestionSchema,
+});
+
+export const openRoundSchema = roundBaseSchema.extend({ phase: z.literal("QUESTION_OPEN") });
+
+export const roundViewSchema = z.discriminatedUnion("phase", [openRoundSchema]);
+
 export const roomErrorSchema = z.enum([
   "invalid_request",
   "invalid_join_code",
@@ -181,7 +206,11 @@ export const roomStartSchema = z.object({
 const roomFailureSchema = z.object({ ok: z.literal(false), error: roomErrorSchema });
 
 export const roomHostResponseSchema = z.discriminatedUnion("ok", [
-  z.object({ ok: z.literal(true), lobby: lobbySnapshotSchema }),
+  z.object({
+    ok: z.literal(true),
+    lobby: lobbySnapshotSchema,
+    round: roundViewSchema.nullable(),
+  }),
   roomFailureSchema,
 ]);
 
@@ -190,6 +219,7 @@ export const roomJoinResponseSchema = z.discriminatedUnion("ok", [
     ok: z.literal(true),
     participant: lobbyParticipantSchema,
     lobby: lobbySnapshotSchema,
+    round: roundViewSchema.nullable(),
   }),
   roomFailureSchema,
 ]);
@@ -207,6 +237,9 @@ export type CreateRoomResponse = z.infer<typeof createRoomResponseSchema>;
 export type RoomPhase = z.infer<typeof roomPhaseSchema>;
 export type LobbyParticipant = z.infer<typeof lobbyParticipantSchema>;
 export type LobbySnapshot = z.infer<typeof lobbySnapshotSchema>;
+export type PublicQuestion = z.infer<typeof publicQuestionSchema>;
+export type OpenRound = z.infer<typeof openRoundSchema>;
+export type RoundView = z.infer<typeof roundViewSchema>;
 export type RoomError = z.infer<typeof roomErrorSchema>;
 export type RoomHost = z.infer<typeof roomHostSchema>;
 export type RoomJoin = z.infer<typeof roomJoinSchema>;
@@ -235,6 +268,8 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   "server:ready": (payload: ServerReady) => void;
   "room:lobby": (payload: LobbySnapshot) => void;
+  /** Sent separately to each Participant (own option order) and to the Host. */
+  "round:state": (payload: RoundView) => void;
 }
 
 export type InterServerEvents = Record<never, never>;

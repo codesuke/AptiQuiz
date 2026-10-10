@@ -2,6 +2,7 @@
 
 import type { RoomError } from "@aptiquiz/contracts";
 import { LobbyDetails } from "@/components/lobby/lobby-details";
+import { RoundQuestion } from "@/components/round/round-question";
 import { describeRoomError } from "@/lib/rooms-client";
 import { ShareRoom } from "./share-room";
 import { type HostConnection, type StartState, useHostRoom } from "./use-host-room";
@@ -14,7 +15,7 @@ interface HostLobbyProps {
 }
 
 export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }: HostLobbyProps) {
-  const { lobby, connection, roomError, start, startMatch } = useHostRoom(roomId);
+  const { lobby, round, connection, roomError, start, startMatch } = useHostRoom(roomId);
   const inLobby = lobby?.phase === "LOBBY";
   const canStart = inLobby && connection === "online" && !start.pending;
 
@@ -36,7 +37,7 @@ export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }:
           </h2>
           {lobby && !inLobby ? (
             <p className="mt-2 font-medium text-emerald-800" role="status">
-              Match started. Questions arrive in a later release.
+              Match started.
             </p>
           ) : (
             <>
@@ -61,6 +62,7 @@ export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }:
             ) : null}
           </div>
         </section>
+        {round ? <RoundQuestion round={round} /> : null}
         {lobby ? (
           <LobbyDetails lobby={lobby} />
         ) : (

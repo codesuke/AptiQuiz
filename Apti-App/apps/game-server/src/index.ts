@@ -6,7 +6,7 @@ import { createGameServer } from "./server.js";
 const config = readGameServerConfig(process.env);
 const logger = pino({ level: config.logLevel });
 const roomStore = createDatabaseRoomStore(config.databaseUrl);
-const gameServer = createGameServer(config, logger, roomStore);
+const gameServer = createGameServer(config, { logger, roomStore });
 
 const port = await gameServer.listen();
 logger.info({ port, webOrigin: config.webOrigin }, "AptiQuiz game server ready");

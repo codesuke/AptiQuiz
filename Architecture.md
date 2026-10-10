@@ -38,12 +38,13 @@ The following functions are available:
 - The Host Lobby at `/host/rooms/[roomId]` shows the Join Code, the join link, a QR code, Copy and Share buttons, the live roster, the scoring rule, and Start.
 - A Guest or a User joins at `/join` or `/join/[code]` with a display name. The Lobby roster updates live for each member of that Room.
 - The Game Server keeps a maximum of 50 Participants in each Room. Only the Host can start the Room, and only one time.
+- Start opens the first Round: one server `startsAt` and a deadline 30 seconds later. Each Participant receives `round:state` with the public Question in a stable option order of their own, with option ids that are opaque to them. The Host receives the authored order. Both browsers show a countdown from server timestamps.
 - The simulator opens 50 connections by default.
 - The database package generates a Prisma client.
 
 The following functions are not available:
 
-- A Participant cannot submit an Answer. The Game Server does not deliver timed Questions.
+- A Participant cannot submit an Answer. The Round does not close, and the Host cannot advance.
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
@@ -166,7 +167,11 @@ The Socket.IO Room commands are:
 
 - `room:host`: only the Host User subscribes to the Lobby.
 - `room:join`: a Guest or a User joins a Room in the Lobby. A User is one Participant in each Room. A Guest is identified by the join idempotency key. The server reserves the slot before the database write, so a Room never has more than 50 Participants. A join that ends after the start is refused.
-- `room:start`: only the Host starts the Room. The Game Engine `START` transition leaves `LOBBY`. A retry with the same key returns the first result.
+- `room:start`: only the Host starts the Room. The Game Engine `START` transition leaves `LOBBY` and opens Question 0 for the configured Round duration. A retry with the same key returns the first result and never opens another Round or moves the deadline.
+
+`round:state` sends a Round view to one receiver. Each Participant has the channel `participant:<roomId>:<participantId>` and receives their own option order. The order is seeded by a random salt for each Room, the Question index, and the Participant id. Option ids are hashed from the same seed. The Host channel `host:<roomId>` receives the authored order. The `room:host` and `room:join` acknowledgements include the current Round view, or `null` in the Lobby, so a reconnecting browser recovers the Round. The Game Server builds the public Question field by field. It never copies a stored Question, because the stored Question holds `correctOptionId`.
+
+`createGameServer` accepts an injectable `now` clock. Every game time uses it. Socket Ticket and Room registration expiry use the wall clock, because the web server signs them against real time.
 
 Each command is validated and gets a typed acknowledgement. A command without an acknowledgement callback is ignored. `room:lobby` sends the roster and the phase to the members of one Room only. The Lobby data does not contain `correctOptionId`. The Game Server writes Participants and the `RUNNING` status to PostgreSQL through `@aptiquiz/database`, and needs `DATABASE_URL`.
 
@@ -186,6 +191,7 @@ The Game Server uses these default values:
 | Item | Default value | Source |
 |---|---:|---|
 | HTTP and WebSocket port | `3001` | `src/config.ts` |
+| Round duration | `30000` ms | `src/config.ts` |
 | Allowed web origin | `http://localhost:3000` | `src/config.ts` |
 | Log level | `info` | `src/config.ts` |
 
@@ -200,6 +206,7 @@ The package currently defines these interfaces:
 - `roomCodeSchema`
 - `roomRegistrationSchema`, `createRoomRequestSchema`, and `lobbySnapshotSchema`
 - `roomHostSchema`, `roomJoinSchema`, `roomStartSchema`, and their response schemas
+- `publicQuestionSchema`, `openRoundSchema`, and `roundViewSchema`
 - `displayNameSchema`
 - `timePingSchema`
 - `timePingResponseSchema`
@@ -223,7 +230,10 @@ The public interface contains these functions:
 createGameState(roomId, questionCount): GameState
 transitionGame(state, command, serverTime): TransitionResult
 calculateScore(effectiveElapsedMs, durationMs): number
+orderOptions(options, seed): options
 ```
+
+`orderOptions` is a seeded shuffle. The same seed always gives the same order, and the input is not changed.
 
 The Game Engine supports these phases:
 

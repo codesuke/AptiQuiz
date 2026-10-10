@@ -13,6 +13,10 @@ describe("game server config", () => {
     });
   });
 
+  it("opens 30-second Rounds", () => {
+    expect(readGameServerConfig(validEnvironment).roundDurationMs).toBe(30_000);
+  });
+
   it("refuses to start without GAME_SERVER_SECRET", () => {
     expect(() => readGameServerConfig({ DATABASE_URL: databaseUrl })).toThrow("GAME_SERVER_SECRET");
   });

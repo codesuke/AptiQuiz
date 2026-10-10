@@ -1,6 +1,8 @@
 const DEFAULT_PORT = 3001;
 const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
 const MINIMUM_SECRET_LENGTH = 32;
+/** PRD #5: every Round closes 30 seconds after it opens. */
+export const DEFAULT_ROUND_DURATION_MS = 30_000;
 
 export interface GameServerConfig {
   readonly port: number;
@@ -8,6 +10,7 @@ export interface GameServerConfig {
   readonly logLevel: string;
   readonly gameServerSecret: string;
   readonly databaseUrl: string;
+  readonly roundDurationMs: number;
 }
 
 export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServerConfig {
@@ -24,6 +27,7 @@ export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServer
     logLevel: environment.LOG_LEVEL ?? "info",
     gameServerSecret: readGameServerSecret(environment.GAME_SERVER_SECRET),
     databaseUrl: readDatabaseUrl(environment.DATABASE_URL),
+    roundDurationMs: DEFAULT_ROUND_DURATION_MS,
   };
 }
 

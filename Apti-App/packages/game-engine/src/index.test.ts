@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateScore, createGameState, transitionGame } from "./index.js";
+import { calculateScore, createGameState, orderOptions, transitionGame } from "./index.js";
 
 describe("game engine", () => {
   it("moves a room through one complete question", () => {
@@ -31,5 +31,34 @@ describe("calculateScore", () => {
     expect(calculateScore(0, 10_000)).toBe(1_000);
     expect(calculateScore(5_000, 10_000)).toBe(750);
     expect(calculateScore(20_000, 10_000)).toBe(500);
+  });
+});
+
+describe("orderOptions", () => {
+  const options = ["a", "b", "c", "d", "e", "f"] as const;
+
+  it("returns a permutation of the options without changing the input", () => {
+    const input = [...options];
+    const ordered = orderOptions(input, "room-salt:0:participant-1");
+
+    expect(input).toEqual(options);
+    expect([...ordered].sort()).toEqual([...options]);
+  });
+
+  it("gives the same order for the same seed", () => {
+    expect(orderOptions(options, "seed-1")).toEqual(orderOptions(options, "seed-1"));
+  });
+
+  it("varies the order across seeds", () => {
+    const orders = new Set(
+      Array.from({ length: 20 }, (_, index) => orderOptions(options, `seed-${index}`).join("")),
+    );
+
+    expect(orders.size).toBeGreaterThan(1);
+  });
+
+  it("keeps empty and single-option lists as they are", () => {
+    expect(orderOptions([], "seed")).toEqual([]);
+    expect(orderOptions(["only"], "seed")).toEqual(["only"]);
   });
 });

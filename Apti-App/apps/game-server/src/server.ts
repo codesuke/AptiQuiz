@@ -22,12 +22,24 @@ export interface RunningGameServer {
   close(): Promise<void>;
 }
 
+export interface GameServerDependencies {
+  readonly logger: Logger;
+  readonly roomStore: RoomStore;
+  /** Server clock for every game time; tests replace it to control Round timing. */
+  readonly now?: (() => number) | undefined;
+}
+
 export function createGameServer(
   config: GameServerConfig,
-  logger: Logger,
-  roomStore: RoomStore,
+  dependencies: GameServerDependencies,
 ): RunningGameServer {
-  const registry = createRoomRegistry(roomStore, logger);
+  const { logger, roomStore, now = Date.now } = dependencies;
+  const registry = createRoomRegistry({
+    store: roomStore,
+    logger,
+    roundDurationMs: config.roundDurationMs,
+    now,
+  });
   const httpServer = createServer((request, response) => {
     if (request.method === "POST" && request.url === ROOM_REGISTRATION_PATH) {
       handleRoomRegistration(request, response, {
@@ -43,7 +55,7 @@ export function createGameServer(
 
     if (request.method === "GET" && request.url === "/health") {
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ status: "ok", serverTime: Date.now() }));
+      response.end(JSON.stringify({ status: "ok", serverTime: now() }));
       return;
     }
 
@@ -63,6 +75,7 @@ export function createGameServer(
     },
   });
 
+  // Ticket expiry uses the wall clock: the web server signs tickets against real time.
   io.use(async (socket, next) => {
     const handshake = await identifyConnection(
       socket.handshake.auth,
@@ -84,7 +97,7 @@ export function createGameServer(
     const { identity } = socket.data;
     socket.data.connectionId = socket.id;
     logger.info({ connectionId: socket.id, identity: identity.kind }, "player transport connected");
-    socket.emit("server:ready", { connectionId: socket.id, serverTime: Date.now(), identity });
+    socket.emit("server:ready", { connectionId: socket.id, serverTime: now(), identity });
 
     socket.on("time:ping", (payload, callback) => {
       const acknowledge = safeAcknowledge(callback);
@@ -98,7 +111,7 @@ export function createGameServer(
       acknowledge({
         ok: true,
         clientSentAt: parsed.data.clientSentAt,
-        serverReceivedAt: Date.now(),
+        serverReceivedAt: now(),
       });
     });
 

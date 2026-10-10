@@ -7,6 +7,7 @@ import { createGameServer, type RunningGameServer } from "./server.js";
 import { createInMemoryRoomStore } from "./testing/in-memory-room-store.js";
 
 const ONE_SECOND_MS = 1_000;
+const FIXED_SERVER_TIME = 1_800_000_000_000;
 const gameServerSecret = "test-secret-with-at-least-32-characters";
 const verifiedAdmin = {
   userId: "user_123",
@@ -31,7 +32,7 @@ afterEach(async () => {
   server = undefined;
 });
 
-async function startServer(): Promise<number> {
+async function startServer(now?: () => number): Promise<number> {
   server = createGameServer(
     {
       port: 0,
@@ -39,9 +40,9 @@ async function startServer(): Promise<number> {
       logLevel: "silent",
       gameServerSecret,
       databaseUrl: "postgresql://unused",
+      roundDurationMs: 30_000,
     },
-    pino({ level: "silent" }),
-    createInMemoryRoomStore(),
+    { logger: pino({ level: "silent" }), roomStore: createInMemoryRoomStore(), now },
   );
   return server.listen();
 }
@@ -68,6 +69,16 @@ describe("game server", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({ status: "ok" });
+  });
+
+  it("reports time from the server clock", async () => {
+    const port = await startServer(() => FIXED_SERVER_TIME);
+    const outcome = await connect(port, {});
+    const socket = openSockets.at(-1);
+    const pong = await socket?.emitWithAck("time:ping", { clientSentAt: 1 });
+
+    expect(outcome).toMatchObject({ connected: true, ready: { serverTime: FIXED_SERVER_TIME } });
+    expect(pong).toEqual({ ok: true, clientSentAt: 1, serverReceivedAt: FIXED_SERVER_TIME });
   });
 });
 

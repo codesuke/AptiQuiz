@@ -7,7 +7,13 @@ import {
   roomStartResponseSchema,
 } from "@aptiquiz/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createRoomSocket, parseLobbyUpdate, type RoomSocket } from "@/lib/room-socket";
+import {
+  createRoomSocket,
+  parseLobbyUpdate,
+  parseRoundUpdate,
+  type RoomSocket,
+} from "@/lib/room-socket";
+import { type ReceivedRound, receiveRound } from "@/lib/server-clock";
 
 export type HostConnection = "connecting" | "online" | "offline";
 export interface StartState {
@@ -21,6 +27,7 @@ const START_ACK_TIMEOUT_MS = 10_000;
 /** Connects as the Host, claims the Room's Lobby, and keeps it current until unmount. */
 export function useHostRoom(roomId: string) {
   const [lobby, setLobby] = useState<LobbySnapshot | null>(null);
+  const [round, setRound] = useState<ReceivedRound | null>(null);
   const [connection, setConnection] = useState<HostConnection>("connecting");
   const [roomError, setRoomError] = useState<RoomError | null>(null);
   const [start, setStart] = useState<StartState>({ pending: false, error: null });
@@ -47,11 +54,17 @@ export function useHostRoom(roomId: string) {
         }
         setRoomError(null);
         setLobby(parsed.data.lobby);
+        const current = parsed.data.round;
+        setRound(current === null ? null : receiveRound(current, Date.now()));
       });
     });
     socket.on("room:lobby", (payload) => {
       const update = parseLobbyUpdate(payload, roomId);
       if (update) setLobby(update);
+    });
+    socket.on("round:state", (payload) => {
+      const view = parseRoundUpdate(payload, roomId);
+      if (view) setRound(receiveRound(view, Date.now()));
     });
     socket.on("connect_error", () => setConnection("offline"));
     socket.on("disconnect", () => setConnection("offline"));
@@ -84,5 +97,5 @@ export function useHostRoom(roomId: string) {
       });
   }, [roomId]);
 
-  return { lobby, connection, roomError, start, startMatch };
+  return { lobby, round, connection, roomError, start, startMatch };
 }

@@ -1,6 +1,6 @@
-import type { LobbySnapshot, RoomJoin, RoomJoinResponse } from "@aptiquiz/contracts";
+import type { LobbySnapshot, RoomJoin, RoomJoinResponse, RoundView } from "@aptiquiz/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createRoomSocket, emitRoomJoin, parseLobbyUpdate } from "./room-socket";
+import { createRoomSocket, emitRoomJoin, parseLobbyUpdate, parseRoundUpdate } from "./room-socket";
 
 const lobby: LobbySnapshot = {
   roomId: "room-1",
@@ -10,6 +10,25 @@ const lobby: LobbySnapshot = {
   questionSetTitle: "Quant warm-up",
   questionCount: 10,
   participants: [{ participantId: "p-1", displayName: "Asha", isGuest: true }],
+};
+
+const round: RoundView = {
+  phase: "QUESTION_OPEN",
+  roomId: "room-1",
+  questionIndex: 0,
+  questionCount: 10,
+  startsAt: 1_000,
+  endsAt: 31_000,
+  serverTime: 1_200,
+  question: {
+    text: "What is 2 + 2?",
+    options: [
+      { id: "opt-b", text: "4" },
+      { id: "opt-a", text: "3" },
+    ],
+    topic: "Arithmetic",
+    difficulty: "EASY",
+  },
 };
 
 const attempt: RoomJoin = {
@@ -50,6 +69,7 @@ describe("emitRoomJoin", () => {
       ok: true,
       participant: { participantId: "p-1", displayName: "Asha", isGuest: true },
       lobby,
+      round: null,
     };
     const send = vi.fn((_payload: RoomJoin, acknowledge: (value: unknown) => void) =>
       acknowledge(response),
@@ -57,6 +77,19 @@ describe("emitRoomJoin", () => {
 
     await expect(emitRoomJoin(send, attempt)).resolves.toEqual(response);
     expect(send).toHaveBeenCalledWith(attempt, expect.any(Function));
+  });
+
+  it("carries the current Round so a rejoin restores the Question", async () => {
+    const response: RoomJoinResponse = {
+      ok: true,
+      participant: { participantId: "p-1", displayName: "Asha", isGuest: true },
+      lobby: { ...lobby, phase: "QUESTION_OPEN" },
+      round,
+    };
+    const send = (_payload: RoomJoin, acknowledge: (value: unknown) => void) =>
+      acknowledge(response);
+
+    await expect(emitRoomJoin(send, attempt)).resolves.toMatchObject({ ok: true, round });
   });
 
   it("passes Room errors through", async () => {
@@ -95,5 +128,20 @@ describe("parseLobbyUpdate", () => {
   it("ignores malformed payloads and other Rooms", () => {
     expect(parseLobbyUpdate({ roomId: "room-1" }, "room-1")).toBeNull();
     expect(parseLobbyUpdate({ ...lobby, roomId: "room-2" }, "room-1")).toBeNull();
+  });
+});
+
+describe("parseRoundUpdate", () => {
+  it("accepts a Round view for the joined Room and keeps the option order", () => {
+    expect(parseRoundUpdate(round, "room-1")?.question.options.map((option) => option.id)).toEqual([
+      "opt-b",
+      "opt-a",
+    ]);
+  });
+
+  it("ignores malformed payloads and other Rooms", () => {
+    expect(parseRoundUpdate({ ...round, endsAt: "soon" }, "room-1")).toBeNull();
+    expect(parseRoundUpdate({ ...round, phase: "LOBBY" }, "room-1")).toBeNull();
+    expect(parseRoundUpdate({ ...round, roomId: "room-2" }, "room-1")).toBeNull();
   });
 });

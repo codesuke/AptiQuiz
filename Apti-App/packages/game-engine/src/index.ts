@@ -103,6 +103,57 @@ export function calculateScore(effectiveElapsedMs: number, durationMs: number): 
   return 500 + Math.floor(500 * (1 - elapsedRatio));
 }
 
+/**
+ * Deterministic shuffle: the same seed always gives the same order, so a Participant keeps
+ * one option order for a Round across reconnects without the server storing it.
+ */
+export function orderOptions<T>(options: readonly T[], seed: string): T[] {
+  const ordered = [...options];
+  const nextRandom = seededRandom(hashSeed(seed));
+
+  for (let index = ordered.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(nextRandom() * (index + 1));
+    const current = ordered[index];
+    const swapped = ordered[swapIndex];
+
+    if (current !== undefined && swapped !== undefined) {
+      ordered[index] = swapped;
+      ordered[swapIndex] = current;
+    }
+  }
+
+  return ordered;
+}
+
+const FNV_OFFSET_BASIS = 0x811c9dc5;
+const FNV_PRIME = 0x01000193;
+const MULBERRY_INCREMENT = 0x6d2b79f5;
+const UINT32_RANGE = 2 ** 32;
+
+/** 32-bit FNV-1a hash of the seed text. */
+function hashSeed(seed: string): number {
+  let hash = FNV_OFFSET_BASIS;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, FNV_PRIME);
+  }
+
+  return hash >>> 0;
+}
+
+/** Mulberry32: a small PRNG that returns values in [0, 1). */
+function seededRandom(seed: number): () => number {
+  let state = seed;
+
+  return () => {
+    state = (state + MULBERRY_INCREMENT) >>> 0;
+    let mixed = Math.imul(state ^ (state >>> 15), state | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / UINT32_RANGE;
+  };
+}
+
 function openQuestion(
   state: GameState,
   questionIndex: number,

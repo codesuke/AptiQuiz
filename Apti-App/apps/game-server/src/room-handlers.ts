@@ -15,7 +15,7 @@ import type { Logger } from "pino";
 import type { Server, Socket } from "socket.io";
 import { safeAcknowledge } from "./acknowledgement.js";
 import type { RoomStore } from "./room-store.js";
-import type { RoomRegistry, ValidJoinRequest } from "./rooms.js";
+import type { RoomRegistry, RoundDelivery, ValidJoinRequest } from "./rooms.js";
 
 type GameSocketServer = Server<
   ClientToServerEvents,
@@ -42,10 +42,31 @@ export function lobbyChannel(roomId: string): string {
   return `room:${roomId}`;
 }
 
+/** Every socket of one Participant, so each receives that Participant's own option order. */
+function participantChannel(roomId: string, participantId: string): string {
+  return `participant:${roomId}:${participantId}`;
+}
+
+function hostChannel(roomId: string): string {
+  return `host:${roomId}`;
+}
+
+/** The Host follows both the Lobby and the Host's own Round view. */
+function hostChannels(roomId: string): string[] {
+  return [lobbyChannel(roomId), hostChannel(roomId)];
+}
+
 export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandlerDependencies) {
   const { io, registry, store, logger } = dependencies;
   const publishLobby = (lobby: LobbySnapshot) =>
     io.to(lobbyChannel(lobby.roomId)).emit("room:lobby", lobby);
+  const publishRound = (roomId: string, delivery: RoundDelivery) => {
+    io.to(hostChannel(roomId)).emit("round:state", delivery.host);
+
+    for (const { participantId, round } of delivery.participants) {
+      io.to(participantChannel(roomId, participantId)).emit("round:state", round);
+    }
+  };
 
   socket.on("room:host", (payload, callback) => {
     const acknowledge = safeAcknowledge(callback);
@@ -59,7 +80,7 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     const result = registry.hostLobby(parsed.data.roomId, socket.data.identity);
 
     if (result.ok) {
-      socket.join(lobbyChannel(result.lobby.roomId));
+      socket.join(hostChannels(result.lobby.roomId));
     }
 
     acknowledge(result);
@@ -81,8 +102,12 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
       return;
     }
 
-    socket.join(lobbyChannel(result.lobby.roomId));
-    acknowledge({ ok: true, participant: result.participant, lobby: result.lobby });
+    const { participant, lobby, round } = result;
+    socket.join([
+      lobbyChannel(lobby.roomId),
+      participantChannel(lobby.roomId, participant.participantId),
+    ]);
+    acknowledge({ ok: true, participant, lobby, round });
 
     if (result.rosterChanged) {
       publishLobby(result.lobby);
@@ -99,18 +124,19 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
     }
 
     const { roomId, idempotencyKey } = parsed.data;
-    const result = registry.start(roomId, idempotencyKey, socket.data.identity, Date.now());
+    const result = registry.start(roomId, idempotencyKey, socket.data.identity);
 
     if (!result.ok) {
       acknowledge(result);
       return;
     }
 
-    socket.join(lobbyChannel(roomId));
+    socket.join(hostChannels(roomId));
     acknowledge({ ok: true, lobby: result.lobby });
 
-    if (result.transitioned) {
+    if (result.delivery !== null) {
       publishLobby(result.lobby);
+      publishRound(roomId, result.delivery);
       await persistRoomStart(store, roomId, logger);
     }
   });

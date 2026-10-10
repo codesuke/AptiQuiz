@@ -3,14 +3,18 @@
 import type { LobbyParticipant, LobbySnapshot, RoomJoin } from "@aptiquiz/contracts";
 import { CircleCheck, Hourglass, Play, Radio } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
+import { RoundQuestion } from "@/components/round/round-question";
 import { joinFailureMessage, parseDisplayNameInput } from "@/lib/room-errors";
 import {
   createRoomSocket,
   emitRoomJoin,
+  type JoinResult,
   parseLobbyUpdate,
+  parseRoundUpdate,
   type RoomSocket,
   type SendRoomJoin,
 } from "@/lib/room-socket";
+import { type ReceivedRound, receiveRound } from "@/lib/server-clock";
 import { fieldErrorClass, primaryButtonClass, textInputClass } from "./form-styles";
 import {
   createIdempotencyKey,
@@ -28,6 +32,13 @@ type ConnectionStatus = "connecting" | "online" | "offline";
 interface JoinedRoom {
   readonly participant: LobbyParticipant;
   readonly lobby: LobbySnapshot;
+  readonly round: ReceivedRound | null;
+}
+
+type JoinSuccess = Extract<JoinResult, { ok: true }>;
+
+function toJoinedRoom({ participant, lobby, round }: JoinSuccess): JoinedRoom {
+  return { participant, lobby, round: round === null ? null : receiveRound(round, Date.now()) };
 }
 
 interface JoinRoomProps {
@@ -66,7 +77,7 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
 
     if (result.ok) {
       joinedAttemptRef.current = attempt;
-      setJoined({ participant: result.participant, lobby: result.lobby });
+      setJoined(toJoinedRoom(result));
       setError(null);
       return;
     }
@@ -95,6 +106,14 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
         if (current === null) return current;
         const lobby = parseLobbyUpdate(payload, current.lobby.roomId);
         return lobby === null ? current : { ...current, lobby };
+      });
+    });
+    socket.on("round:state", (payload) => {
+      const receivedAt = Date.now();
+      setJoined((current) => {
+        if (current === null) return current;
+        const view = parseRoundUpdate(payload, current.lobby.roomId);
+        return view === null ? current : { ...current, round: receiveRound(view, receivedAt) };
       });
     });
 
@@ -185,7 +204,7 @@ function DisplayNameForm({
 
     if (result.ok) {
       failedRef.current = null;
-      onJoined(attempt, { participant: result.participant, lobby: result.lobby });
+      onJoined(attempt, toJoinedRoom(result));
       return;
     }
 
@@ -276,7 +295,7 @@ interface JoinedLobbyProps {
 }
 
 function JoinedLobby({ connection, error, joined }: JoinedLobbyProps) {
-  const { participant, lobby } = joined;
+  const { participant, lobby, round } = joined;
   const hasStarted = lobby.phase !== "LOBBY";
 
   return (
@@ -301,19 +320,23 @@ function JoinedLobby({ connection, error, joined }: JoinedLobbyProps) {
         </p>
       </div>
 
-      <div aria-live="polite" role="status">
-        {hasStarted ? (
-          <p className="flex items-center gap-3 rounded-xl border-l-2 border-[#e65c00] bg-[#fff3ea] px-4 py-3 font-semibold text-[#172823]">
-            <Play aria-hidden="true" className="size-4 shrink-0 text-[#b84700]" />
-            The Host started the match. Questions will appear here.
-          </p>
-        ) : (
-          <p className="flex items-center gap-3 px-1 text-[#526159]">
-            <Hourglass aria-hidden="true" className="size-4 shrink-0 text-[#627169]" />
-            Waiting for the Host to start the match.
-          </p>
-        )}
-      </div>
+      {round === null ? (
+        <div aria-live="polite" role="status">
+          {hasStarted ? (
+            <p className="flex items-center gap-3 rounded-xl border-l-2 border-[#e65c00] bg-[#fff3ea] px-4 py-3 font-semibold text-[#172823]">
+              <Play aria-hidden="true" className="size-4 shrink-0 text-[#b84700]" />
+              The Host started the match. Questions will appear here.
+            </p>
+          ) : (
+            <p className="flex items-center gap-3 px-1 text-[#526159]">
+              <Hourglass aria-hidden="true" className="size-4 shrink-0 text-[#627169]" />
+              Waiting for the Host to start the match.
+            </p>
+          )}
+        </div>
+      ) : (
+        <RoundQuestion round={round} />
+      )}
 
       {error === null ? null : (
         <p className={`${fieldErrorClass} rounded-xl bg-[#fdecea] px-4 py-3`} role="alert">

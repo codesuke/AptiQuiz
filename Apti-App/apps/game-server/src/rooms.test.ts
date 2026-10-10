@@ -7,6 +7,7 @@ import {
   MAX_ROOM_PARTICIPANTS,
   ROOM_REGISTRATION_PATH,
   type RoomRegistration,
+  type RoundView,
   type ServerToClientEvents,
   type SocketTicketSubject,
 } from "@aptiquiz/contracts";
@@ -24,6 +25,10 @@ import { createInMemoryRoomStore, type InMemoryRoomStore } from "./testing/in-me
 const gameServerSecret = "test-secret-with-at-least-32-characters";
 const SILENCE_WINDOW_MS = 150;
 const OVERSIZED_BODY_BYTES = 3 * 1024 * 1024;
+const TEST_ROUND_DURATION_MS = 5_000;
+const ROUND_OPENED_AT = 1_800_000_000_000;
+const CLOCK_ADVANCE_MS = 1_234;
+const PRE_REVEAL_FIELDS = ["correctOptionId", "explanation"] as const;
 
 const hostUser: SocketTicketSubject = {
   userId: "host_user",
@@ -63,12 +68,51 @@ const roomA: RoomRegistration = {
   ],
 };
 const roomB: RoomRegistration = { ...roomA, roomId: "room_b", joinCode: "XYZ789" };
+const sixOptionQuestion = {
+  text: "Which number is prime?",
+  options: [
+    { id: "opt_1", text: "4" },
+    { id: "opt_2", text: "6" },
+    { id: "opt_3", text: "7" },
+    { id: "opt_4", text: "8" },
+    { id: "opt_5", text: "9" },
+    { id: "opt_6", text: "10" },
+  ],
+  correctOptionId: "opt_3",
+  topic: "Numbers",
+  difficulty: "MEDIUM",
+  media: { kind: "none" },
+} as const satisfies RoomRegistration["questions"][number];
+const roundRoom: RoomRegistration = {
+  ...roomA,
+  roomId: "room_round",
+  joinCode: "RND234",
+  questions: [sixOptionQuestion, ...roomA.questions],
+};
+const sixOptionIds: readonly string[] = sixOptionQuestion.options.map((option) => option.id);
+const sixOptionTexts = sixOptionQuestion.options.map((option) => option.text);
 
 type TestSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 interface TestServer {
   readonly port: number;
   readonly store: InMemoryRoomStore;
+  readonly clock: TestClock;
+}
+
+interface TestClock {
+  readonly now: () => number;
+  advance(milliseconds: number): void;
+}
+
+function createTestClock(start: number): TestClock {
+  let current = start;
+  return {
+    now: () => current,
+    advance: (milliseconds) => {
+      current += milliseconds;
+    },
+  };
 }
 
 let server: RunningGameServer | undefined;
@@ -83,7 +127,8 @@ afterEach(async () => {
 });
 
 async function startServer(logger = pino({ level: "silent" })): Promise<TestServer> {
-  const store = createInMemoryRoomStore();
+  const roomStore = createInMemoryRoomStore();
+  const clock = createTestClock(ROUND_OPENED_AT);
   server = createGameServer(
     {
       port: 0,
@@ -91,11 +136,11 @@ async function startServer(logger = pino({ level: "silent" })): Promise<TestServ
       logLevel: "silent",
       gameServerSecret,
       databaseUrl: "postgresql://unused",
+      roundDurationMs: TEST_ROUND_DURATION_MS,
     },
-    logger,
-    store,
+    { logger, roomStore, now: clock.now },
   );
-  return { port: await server.listen(), store };
+  return { port: await server.listen(), store: roomStore, clock };
 }
 
 function postRegistration(port: number, body: string): Promise<Response> {
@@ -161,6 +206,56 @@ function nextLobby(socket: TestSocket, matches: (lobby: LobbySnapshot) => boolea
     };
     socket.on("room:lobby", listener);
   });
+}
+
+function nextRound(socket: TestSocket): Promise<RoundView> {
+  return new Promise((resolve) => socket.once("round:state", resolve));
+}
+
+function collectRounds(socket: TestSocket): RoundView[] {
+  const received: RoundView[] = [];
+  socket.on("round:state", (round) => received.push(round));
+  return received;
+}
+
+/** Records every server event the sockets receive into one list, for leak checks. */
+function recordEveryEvent(sockets: readonly TestSocket[], received: unknown[]): void {
+  for (const socket of sockets) {
+    socket.onAny((_event, ...payload) => received.push(payload));
+  }
+}
+
+function findFieldPaths(value: unknown, fields: readonly string[], path = "$"): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => findFieldPaths(item, fields, `${path}[${index}]`));
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return [];
+  }
+
+  return Object.entries(value).flatMap(([key, child]) => [
+    ...(fields.includes(key) ? [`${path}.${key}`] : []),
+    ...findFieldPaths(child, fields, `${path}.${key}`),
+  ]);
+}
+
+function optionIds(round: RoundView): string[] {
+  return round.question.options.map((option) => option.id);
+}
+
+function optionTexts(round: RoundView): string[] {
+  return round.question.options.map((option) => option.text);
+}
+
+function startRoom(host: TestSocket, roomId = roomA.roomId, key = randomUUID()) {
+  return host.emitWithAck("room:start", { roomId, idempotencyKey: key });
+}
+
+async function hostRoom(port: number, roomId: string): Promise<TestSocket> {
+  const host = await connectAs(port, hostUser);
+  await expect(host.emitWithAck("room:host", { roomId })).resolves.toMatchObject({ ok: true });
+  return host;
 }
 
 function collectLobbies(socket: TestSocket): LobbySnapshot[] {
@@ -312,6 +407,7 @@ describe("room:host", () => {
         questionCount: 1,
         participants: [],
       },
+      round: null,
     });
     expect(JSON.stringify(response)).not.toContain("correctOptionId");
   });
@@ -636,6 +732,212 @@ describe("room:start", () => {
       error: "room_not_in_lobby",
     });
     expect(store.participants).toEqual([]);
+  });
+});
+
+describe("round:state", () => {
+  it("opens one server-timed Round with the same Question and deadline for each Participant", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const asha = await connectAs(port);
+    const ravi = await connectAs(port, otherUser);
+    await join(asha, "Asha", roundRoom.joinCode);
+    await join(ravi, "Ravi", roundRoom.joinCode);
+    const rounds = Promise.all([nextRound(asha), nextRound(ravi)]);
+
+    await startRoom(host, roundRoom.roomId);
+
+    for (const round of await rounds) {
+      expect(round).toMatchObject({
+        phase: "QUESTION_OPEN",
+        roomId: roundRoom.roomId,
+        questionIndex: 0,
+        questionCount: 2,
+        startsAt: ROUND_OPENED_AT,
+        endsAt: ROUND_OPENED_AT + TEST_ROUND_DURATION_MS,
+        serverTime: ROUND_OPENED_AT,
+        question: {
+          text: sixOptionQuestion.text,
+          topic: sixOptionQuestion.topic,
+          difficulty: sixOptionQuestion.difficulty,
+          media: sixOptionQuestion.media,
+        },
+      });
+      expect([...optionTexts(round)].sort()).toEqual([...sixOptionTexts].sort());
+    }
+  });
+
+  it("gives each Participant opaque option ids of their own", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const asha = await connectAs(port);
+    const ravi = await connectAs(port);
+    await join(asha, "Asha", roundRoom.joinCode);
+    await join(ravi, "Ravi", roundRoom.joinCode);
+    const rounds = Promise.all([nextRound(asha), nextRound(ravi)]);
+
+    await startRoom(host, roundRoom.roomId);
+
+    const [ashaIds, raviIds] = (await rounds).map(optionIds);
+    const allIds = [...(ashaIds ?? []), ...(raviIds ?? [])];
+    expect(new Set(allIds).size).toBe(sixOptionIds.length * 2);
+    expect(allIds.filter((id) => sixOptionIds.includes(id))).toEqual([]);
+  });
+
+  it("assigns option orders per Participant", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const participants = await Promise.all(Array.from({ length: 6 }, () => connectAs(port)));
+    for (const [index, participant] of participants.entries()) {
+      await join(participant, `Player ${index}`, roundRoom.joinCode);
+    }
+    const rounds = Promise.all(participants.map(nextRound));
+
+    await startRoom(host, roundRoom.roomId);
+
+    const orders = new Set((await rounds).map((round) => optionTexts(round).join(",")));
+    expect(orders.size).toBeGreaterThan(1);
+  });
+
+  it("keeps a Participant's option order and deadline when they rejoin", async () => {
+    const { port, clock } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const guest = await connectAs(port);
+    const user = await connectAs(port, otherUser);
+    const guestKey = randomUUID();
+    await join(guest, "Asha", roundRoom.joinCode, guestKey);
+    await join(user, "Ravi", roundRoom.joinCode);
+    const firstRounds = Promise.all([nextRound(guest), nextRound(user)]);
+    await startRoom(host, roundRoom.roomId);
+    const [guestRound, userRound] = await firstRounds;
+    clock.advance(CLOCK_ADVANCE_MS);
+
+    const guestRejoin = await join(await connectAs(port), "Asha", roundRoom.joinCode, guestKey);
+    const userRejoin = await join(await connectAs(port, otherUser), "Ravi", roundRoom.joinCode);
+
+    expect(guestRejoin).toMatchObject({
+      ok: true,
+      round: { ...guestRound, serverTime: ROUND_OPENED_AT + CLOCK_ADVANCE_MS },
+    });
+    expect(userRejoin).toMatchObject({
+      ok: true,
+      round: { ...userRound, serverTime: ROUND_OPENED_AT + CLOCK_ADVANCE_MS },
+    });
+  });
+
+  it("delivers to every socket of a rejoined Participant", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const key = randomUUID();
+    const first = await connectAs(port);
+    const second = await connectAs(port);
+    await join(first, "Asha", roundRoom.joinCode, key);
+    await join(second, "Asha", roundRoom.joinCode, key);
+    const rounds = Promise.all([nextRound(first), nextRound(second)]);
+
+    await startRoom(host, roundRoom.roomId);
+
+    const [firstRound, secondRound] = await rounds;
+    expect(secondRound).toEqual(firstRound);
+  });
+
+  it("gives the Host the canonical option order", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const hostRound = nextRound(host);
+
+    await startRoom(host, roundRoom.roomId);
+
+    expect(optionIds(await hostRound)).toEqual(sixOptionIds);
+    const hosted = await host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+    expect(hosted.ok && hosted.round).toMatchObject({
+      endsAt: ROUND_OPENED_AT + TEST_ROUND_DURATION_MS,
+      question: { text: sixOptionQuestion.text },
+    });
+  });
+
+  it("subscribes a Host who only starts the Room to the Round", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const host = await connectAs(port, hostUser);
+    const hostRound = nextRound(host);
+
+    await startRoom(host, roundRoom.roomId);
+
+    await expect(hostRound).resolves.toMatchObject({ questionIndex: 0 });
+  });
+
+  it("sends no Round to Participants of another Room", async () => {
+    const { port } = await startWithRooms(roundRoom, roomB);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const outsider = await connectAs(port);
+    await join(outsider, "Bina", roomB.joinCode);
+    const received = collectRounds(outsider);
+
+    await startRoom(host, roundRoom.roomId);
+    await settle();
+
+    expect(received).toEqual([]);
+  });
+
+  it("answers a Lobby join and Lobby host with no Round", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const hosted = await (await connectAs(port, hostUser)).emitWithAck("room:host", {
+      roomId: roundRoom.roomId,
+    });
+
+    expect(hosted).toMatchObject({ ok: true, round: null });
+    await expect(join(await connectAs(port), "Asha", roundRoom.joinCode)).resolves.toMatchObject({
+      ok: true,
+      round: null,
+    });
+  });
+
+  it("sends no correct option or explanation before the reveal", async () => {
+    const { port } = await startWithRooms(roundRoom);
+    const host = await connectAs(port, hostUser);
+    const guest = await connectAs(port);
+    const user = await connectAs(port, otherUser);
+    const received: unknown[] = [];
+    recordEveryEvent([host, guest, user], received);
+    const guestKey = randomUUID();
+
+    received.push(await host.emitWithAck("room:host", { roomId: roundRoom.roomId }));
+    received.push(await join(guest, "Asha", roundRoom.joinCode, guestKey));
+    received.push(await join(user, "Ravi", roundRoom.joinCode));
+    const guestRound = nextRound(guest);
+    received.push(await startRoom(host, roundRoom.roomId));
+    await guestRound;
+    received.push(await host.emitWithAck("room:host", { roomId: roundRoom.roomId }));
+    received.push(await join(await connectAs(port), "Asha", roundRoom.joinCode, guestKey));
+    received.push(await join(await connectAs(port, otherUser), "Ravi", roundRoom.joinCode));
+    await settle();
+
+    expect(received.length).toBeGreaterThan(0);
+    expect(findFieldPaths(received, PRE_REVEAL_FIELDS)).toEqual([]);
+  });
+
+  it("never opens another Round or moves the deadline on a repeated start", async () => {
+    const { port, clock } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const guest = await connectAs(port);
+    await join(guest, "Asha", roundRoom.joinCode);
+    const received = collectRounds(guest);
+    const key = randomUUID();
+    await startRoom(host, roundRoom.roomId, key);
+    await settle();
+    clock.advance(CLOCK_ADVANCE_MS);
+
+    await startRoom(host, roundRoom.roomId, key);
+    await startRoom(host, roundRoom.roomId);
+    await settle();
+
+    expect(received).toHaveLength(1);
+    const hosted = await host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+    expect(hosted.ok && hosted.round).toMatchObject({
+      startsAt: ROUND_OPENED_AT,
+      endsAt: ROUND_OPENED_AT + TEST_ROUND_DURATION_MS,
+      serverTime: ROUND_OPENED_AT + CLOCK_ADVANCE_MS,
+    });
   });
 });
 
