@@ -3,7 +3,9 @@ import { createDatabase, type PrismaClient } from "@aptiquiz/database";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { buildVerificationEmail, VERIFICATION_LINK_LIFETIME_SECONDS } from "./email-verification";
 import { readSocialProviders } from "./google-sign-in";
+import { createGmailMailSender, type MailSender } from "./mail-sender";
 
 function readRequiredUrl(name: "BETTER_AUTH_URL" | "DATABASE_URL") {
   const value = process.env[name];
@@ -32,11 +34,37 @@ const database =
   globalForDatabase.aptiquizDatabase ?? createDatabase(readRequiredUrl("DATABASE_URL"));
 if (process.env.NODE_ENV !== "production") globalForDatabase.aptiquizDatabase = database;
 
+let mailSender: MailSender | undefined;
+// Created on first send so a build or route without mail never needs Gmail credentials.
+function getMailSender() {
+  mailSender ??= createGmailMailSender({
+    environment: process.env.NODE_ENV,
+    gmailAppPassword: process.env.GMAIL_APP_PASSWORD,
+    gmailUser: process.env.GMAIL_USER,
+    log: console.info,
+  });
+  return mailSender;
+}
+
 export const auth = betterAuth({
   baseURL: readRequiredUrl("BETTER_AUTH_URL"),
   database: prismaAdapter(database, { provider: "postgresql" }),
   emailAndPassword: { enabled: true, maxPasswordLength: 128, minPasswordLength: 8 },
-  rateLimit: { enabled: true, max: 5, window: 60 },
+  emailVerification: {
+    expiresIn: VERIFICATION_LINK_LIFETIME_SECONDS,
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await getMailSender().send(
+        buildVerificationEmail({ email: user.email, name: user.name, url }),
+      );
+    },
+  },
+  rateLimit: {
+    enabled: true,
+    max: 5,
+    window: 60,
+    customRules: { "/send-verification-email": { max: 3, window: 300 } },
+  },
   secret: readRequiredSecret(),
   socialProviders: readSocialProviders(),
   // Google sign-in links to an existing User with the same email. Better Auth still requires the

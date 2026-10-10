@@ -22,6 +22,20 @@ describe("createMailSender", () => {
     );
   });
 
+  it("logs mail in automated tests when Gmail credentials are absent", async () => {
+    const log = vi.fn();
+    const sender = createMailSender({
+      environment: "test",
+      gmailAppPassword: undefined,
+      gmailUser: undefined,
+      log,
+    });
+
+    await sender.send({ subject: "Subject", text: "Body", to: "student@example.com" });
+
+    expect(log).toHaveBeenCalledWith("Auth email for student@example.com: Subject\nBody");
+  });
+
   it("rejects missing Gmail credentials outside development", () => {
     expect(() =>
       createMailSender({

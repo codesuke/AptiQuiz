@@ -2,8 +2,10 @@ import { ArrowRight, Gauge, ShieldCheck, Users } from "lucide-react";
 import { headers } from "next/headers";
 import Image from "next/image";
 import { AccountMenu } from "@/components/auth/account-menu";
+import { EmailVerificationNotice } from "@/components/auth/verification-resend";
 import { GameServerStatus } from "@/components/game-server-status";
 import { getActiveSession } from "@/lib/auth";
+import { needsEmailVerification } from "@/lib/email-verification";
 
 const foundations = [
   {
@@ -50,6 +52,9 @@ export default async function HomePage() {
             <AccountMenu name={session?.user.name ?? null} />
           </div>
         </header>
+        {needsEmailVerification(session) ? (
+          <EmailVerificationNotice email={session.user.email} />
+        ) : null}
 
         <div className="grid flex-1 items-center gap-14 py-20 lg:grid-cols-[1.2fr_0.8fr]">
           <div>

@@ -20,9 +20,11 @@ interface MailSenderOptions {
   transport?: MailTransport;
 }
 
+const consoleMailEnvironments = new Set(["development", "test"]);
+
 export function createMailSender(options: MailSenderOptions): MailSender {
   if (!options.gmailUser || !options.gmailAppPassword) {
-    if (options.environment === "development") {
+    if (consoleMailEnvironments.has(options.environment ?? "")) {
       return {
         async send(message) {
           options.log(`Auth email for ${message.to}: ${message.subject}\n${message.text}`);
