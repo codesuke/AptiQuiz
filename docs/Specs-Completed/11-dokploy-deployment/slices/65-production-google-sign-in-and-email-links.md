@@ -21,9 +21,9 @@ Production auth verified on the deployed web app: Google sign-in works and auth 
 
 ## Acceptance criteria
 
-- [ ] BETTER_AUTH_URL is the production web URL.
-- [ ] Google sign-in completes on https://aptiquiz.codesuke.in using the production redirect URI.
-- [ ] Verification and password-reset emails link to the production domain.
+- [x] BETTER_AUTH_URL is the production web URL.
+- [x] Google sign-in completes on https://aptiquiz.codesuke.in using the production redirect URI.
+- [x] Verification and password-reset emails link to the production domain.
 
 ## Test seam
 

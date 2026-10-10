@@ -23,7 +23,8 @@
 
 - Deployed probes and evidence comments on #63, #64, #65.
 - Web tests `google-sign-in.integration.test.ts` and `mail-sender.test.ts` pass after the fix (9 tests).
-- Formal `code-review` was not run; the code change is five lines of test config and the rest is documentation.
+- `code-review` ran on `c5f6e8f...8a443e2`; its Standards findings were fixed in a follow-up commit.
+- A headless Chrome page load of `https://aptiquiz.codesuke.in` showed 'Game server online · Guest' after the diagnostics disclosure opened.
 
 ## Known limitations
 

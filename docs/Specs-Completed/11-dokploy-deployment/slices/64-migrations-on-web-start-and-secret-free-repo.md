@@ -21,9 +21,9 @@ Evidence that a new schema migration applies when the web container starts, that
 
 ## Acceptance criteria
 
-- [ ] Logs from a deployment, or a container run against a scratch database, show a new migration applied at web container start.
-- [ ] The Game Server container does not run migrations.
-- [ ] A secret scan of tracked files and git history finds no secret value.
+- [x] Logs from a deployment, or a container run against a scratch database, show a new migration applied at web container start.
+- [x] The Game Server container does not run migrations.
+- [x] A secret scan of tracked files and git history finds no secret value.
 
 ## Test seam
 

@@ -231,7 +231,7 @@ AptiQuiz runs on Dokploy as two applications built from `Apti-App/Dockerfile` (s
 - **Restarts:** live Rooms are held in memory and are lost when the Game Server restarts. Avoid a redeploy during a live demo.
 - **Result of the 50-Participant run:** see the [50-Participant proof](#50-participant-proof).
 
-Verified on 2026-10-10: both health endpoints respond over HTTPS; a WebSocket-only handshake from the web origin connects; the Game Server CORS policy only ever grants the web origin; all migrations apply to an empty schema with the web start command; the repository holds no secret value; production Google sign-in and email links were checked by the owner.
+Checked on 2026-10-10: both health endpoints respond over HTTPS; a WebSocket-only handshake from the web origin connects, and a headless Chrome page load shows the Game Server online; the Game Server CORS policy only ever grants the web origin, so browsers on other origins block responses; the web start migration command applies all migrations to an empty schema (run by hand on a scratch schema, not observed in a Dokploy deploy); a pattern scan of tracked files and history found no secret value; the owner reported that production Google sign-in and email links work. Details and limits: [PRD #11 archive](docs/Specs-Completed/11-dokploy-deployment/PRD.md).
 
 ## Architecture
 
@@ -307,7 +307,7 @@ The values are configured in [`Apti-App/apps/game-server/src/config.ts`](Apti-Ap
 | Persistence | PostgreSQL, Prisma ORM 7 |
 | Monorepo & quality | pnpm 11, Turborepo, Biome, Vitest |
 
-Better Auth integration and the Dokploy deployment are present and verified (see [Deployment](#deployment)). Exact dependency versions are recorded in [the workspace](Apti-App/package.json) and [lockfile](Apti-App/pnpm-lock.yaml).
+Better Auth integration and the Dokploy deployment are present (see [Deployment](#deployment) for what was checked). Exact dependency versions are recorded in [the workspace](Apti-App/package.json) and [lockfile](Apti-App/pnpm-lock.yaml).
 
 ## Roadmap
 

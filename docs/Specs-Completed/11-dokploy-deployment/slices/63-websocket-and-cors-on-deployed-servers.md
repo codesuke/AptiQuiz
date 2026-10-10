@@ -21,9 +21,9 @@ Evidence that a browser on the deployed web origin connects to the deployed Game
 
 ## Acceptance criteria
 
-- [ ] A Socket.IO handshake from origin https://aptiquiz.codesuke.in connects to https://game.aptiquiz.codesuke.in over WebSocket.
-- [ ] A request and handshake from a different origin are refused by the Game Server CORS policy.
-- [ ] Evidence is posted on this issue.
+- [x] A Socket.IO handshake from origin https://aptiquiz.codesuke.in connects to https://game.aptiquiz.codesuke.in over WebSocket.
+- [x] A request and handshake from a different origin are refused by the Game Server CORS policy.
+- [x] Evidence is posted on this issue.
 
 ## Test seam
 

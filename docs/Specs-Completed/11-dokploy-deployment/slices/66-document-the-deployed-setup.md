@@ -21,12 +21,12 @@ README and Architecture.md describe the verified deployed setup.
 
 ## Acceptance criteria
 
-- [ ] README covers service domains, deployment, migration, seed, configuration variable names, and the 50-Participant result.
-- [ ] Architecture.md deployment status and claims ledger match the verified evidence.
+- [x] README covers service domains, deployment, migration, seed, configuration variable names, and the 50-Participant result.
+- [x] Architecture.md deployment status and claims ledger match the verified evidence.
 
 ## Test seam
 
-Documentation review against the PRD requirements.
+Commit `8496c5a` changes `README.md` and `Architecture.md`. Each PRD requirement for the README (domains, deployment, migration, seed, configuration names, 50-Participant result) maps to a line in the new Deployment section. Verified by reading the diff; no automated test applies.
 
 ## Implementation summary
 
@@ -34,7 +34,7 @@ README Deployment section added, stale email and status statements corrected, Ar
 
 ## Verification evidence
 
-Documentation review against the PRD requirements.
+Commit `8496c5a` changes `README.md` and `Architecture.md`. Each PRD requirement for the README (domains, deployment, migration, seed, configuration names, 50-Participant result) maps to a line in the new Deployment section. Verified by reading the diff; no automated test applies.
 
 ## Authorship
 

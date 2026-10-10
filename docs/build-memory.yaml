@@ -15,7 +15,7 @@ changes:
       - "A WebSocket-only Socket.IO handshake from the web origin connects to https://game.aptiquiz.codesuke.in."
       - "The Game Server CORS policy grants only https://aptiquiz.codesuke.in."
       - "The web start command applies all migrations to an empty schema; the Game Server never migrates."
-      - "The repository holds no secret value; only placeholders exist."
+      - "A pattern scan of tracked files and history found only placeholders (no general scanner such as gitleaks was run)."
       - "Production Google sign-in and verification/reset email links were confirmed by the owner."
       - "README has a Deployment section; web tests blank GMAIL_USER and GMAIL_APP_PASSWORD so no test sends real mail."
     limitations:
@@ -47,9 +47,16 @@ changes:
       name: "Codesuke"
       handle: "codesuke"
       type: "human"
-    verification:
-      - "Evidence comments on issues #63, #64, #65."
-      - "Web google-sign-in.integration and mail-sender tests: 9 passed after the test-config fix."
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "b955b73"
+        - "8496c5a"
+        - "8a443e2"
+      tests:
+        - "Probe evidence comments on issues #63, #64, #65 (2026-10-10)."
+          - "Headless Chrome on https://aptiquiz.codesuke.in showed 'Game server online' as a Guest."
     archive:
       prd: "docs/Specs-Completed/11-dokploy-deployment/PRD.md"
       slices:
