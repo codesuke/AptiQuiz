@@ -4,7 +4,6 @@ import { Copy, Share2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { buildJoinLink, buildRoomInvite } from "@/lib/rooms-client";
-import { cn } from "@/lib/utils";
 
 interface ShareRoomProps {
   readonly joinCode: string;
@@ -13,7 +12,7 @@ interface ShareRoomProps {
 }
 
 // Large enough to scan from a phone held at arm's length across a desk.
-const QR_CODE_SIZE_PX = 256;
+const QR_CODE_SIZE_PX = 208;
 const QR_QUIET_ZONE_MODULES = 4;
 
 const buttonClass =
@@ -61,7 +60,7 @@ export function ShareRoom({ joinCode, collegeName, compact = false }: ShareRoomP
   return (
     <section
       aria-labelledby="share-room-heading"
-      className="overflow-hidden rounded-xl bg-[var(--aq-ink)] p-5 text-white shadow-[0_24px_45px_-34px_rgba(16,46,38,0.7)] sm:p-8"
+      className={`overflow-hidden rounded-xl bg-[var(--aq-ink)] p-5 text-white shadow-[0_24px_45px_-34px_rgba(16,46,38,0.7)] sm:p-8 ${compact ? "" : "h-full"}`}
     >
       <p
         className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--aq-text-on-dark)]"
@@ -71,7 +70,7 @@ export function ShareRoom({ joinCode, collegeName, compact = false }: ShareRoomP
       </p>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p
-          className={`min-w-0 break-all font-mono font-semibold tracking-[0.13em] text-white ${compact ? "text-3xl sm:text-4xl" : "text-[clamp(2.6rem,6vw,5.6rem)] leading-none"}`}
+          className={`min-w-0 break-all font-mono font-semibold text-white ${compact ? "text-[clamp(2.1rem,3.8vw,3.3rem)] leading-none tracking-[0.08em]" : "text-[clamp(2.6rem,7vw,7rem)] leading-none tracking-[0.06em]"}`}
         >
           {joinCode}
         </p>
@@ -132,15 +131,7 @@ export function ShareRoom({ joinCode, collegeName, compact = false }: ShareRoomP
                 <Copy aria-hidden="true" className="size-4" />
                 Copy link
               </button>
-              <button
-                className={cn(
-                  buttonClass,
-                  "border-[var(--aq-action-prominent)] bg-[var(--aq-action-prominent)] hover:bg-[var(--aq-action-prominent-hover)]",
-                )}
-                disabled={!joinLink}
-                onClick={share}
-                type="button"
-              >
+              <button className={buttonClass} disabled={!joinLink} onClick={share} type="button">
                 <Share2 aria-hidden="true" className="size-4" />
                 Share
               </button>
@@ -155,6 +146,11 @@ export function ShareRoom({ joinCode, collegeName, compact = false }: ShareRoomP
       >
         {notice}
       </p>
+      {!compact ? (
+        <p className="mt-5 border-t border-white/20 pt-5 text-center font-[family-name:var(--aq-font-display)] text-lg italic text-[#d0ddd5]">
+          A little knowledge goes a long way.
+        </p>
+      ) : null}
     </section>
   );
 }

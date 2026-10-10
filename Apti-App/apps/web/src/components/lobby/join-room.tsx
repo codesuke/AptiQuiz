@@ -1,7 +1,7 @@
 "use client";
 
 import type { LobbyParticipant, LobbySnapshot, RoomJoin } from "@aptiquiz/contracts";
-import { CircleCheck, Hourglass, Play, Radio } from "lucide-react";
+import { Hourglass, Lightbulb, Play, Radio } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { FinalResults } from "@/components/results/final-results";
 import { ParticipantRound } from "@/components/round/participant-round";
@@ -32,7 +32,9 @@ import {
   rememberJoin,
   settleStoredJoin,
 } from "./join-key";
-import { LobbyDetails } from "./lobby-details";
+import { JoinShell } from "./join-shell";
+import { joinedRoomHeading } from "./lobby-copy";
+import { LobbyDetails, RoomFactsCard, ScoringRuleCard } from "./lobby-details";
 import { scoreAfter } from "./participant-score";
 import {
   forgetResumeToken,
@@ -266,22 +268,48 @@ export function JoinRoom({ joinCode, defaultDisplayName }: JoinRoomProps) {
     [keepResumeToken],
   );
 
-  if (joined === null) {
-    return (
-      <DisplayNameForm
-        connection={connection}
-        defaultDisplayName={defaultDisplayName}
-        joinCode={joinCode}
-        onJoined={handleJoined}
-        restoreError={error}
-        restoring={restoring}
-        socketRef={socketRef}
-      />
-    );
-  }
-
   return (
-    <JoinedLobby connection={connection} error={error} joined={joined} sendAnswer={sendAnswer} />
+    <JoinShell
+      eyebrow="Join a Room"
+      headingAside={
+        joined ? (
+          <div className="rounded-lg border border-[var(--aq-rule)] bg-white px-5 py-3 text-right">
+            <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-[var(--aq-text-muted)]">
+              Room code
+            </p>
+            <p className="font-mono text-xl font-semibold tracking-[0.12em] text-[var(--aq-action)]">
+              {joinCode}
+            </p>
+          </div>
+        ) : undefined
+      }
+      intro={
+        joined
+          ? `${joined.lobby.questionSetTitle} · ${joined.lobby.college.name}`
+          : "Pick the name other players will see. Guests play without an account."
+      }
+      joined={joined !== null}
+      title={joinedRoomHeading(joined !== null)}
+    >
+      {joined === null ? (
+        <DisplayNameForm
+          connection={connection}
+          defaultDisplayName={defaultDisplayName}
+          joinCode={joinCode}
+          onJoined={handleJoined}
+          restoreError={error}
+          restoring={restoring}
+          socketRef={socketRef}
+        />
+      ) : (
+        <JoinedLobby
+          connection={connection}
+          error={error}
+          joined={joined}
+          sendAnswer={sendAnswer}
+        />
+      )}
+    </JoinShell>
   );
 }
 
@@ -450,10 +478,22 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
   return (
     <div className="grid gap-5">
       <div className="flex flex-col gap-3 rounded-xl bg-[var(--aq-ink)] px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between sm:px-7">
-        <p className="flex min-w-0 items-center gap-3 text-lg font-semibold">
-          <CircleCheck aria-hidden="true" className="size-5 shrink-0 text-[#ffb380]" />
-          <span className="min-w-0 truncate">You're in as {participant.displayName}</span>
-        </p>
+        <div className="flex min-w-0 items-center gap-4">
+          <span
+            aria-hidden="true"
+            className="grid size-14 shrink-0 place-items-center rounded-full bg-[#e65c00] font-[family-name:var(--aq-font-display)] text-2xl"
+          >
+            {participant.displayName.charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <p className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-[#d0ddd5]">
+              Joined as
+            </p>
+            <p className="truncate font-[family-name:var(--aq-font-display)] text-3xl">
+              {participant.displayName}
+            </p>
+          </div>
+        </div>
         <p className="font-mono text-sm text-[#fdfbf7]">Score: {score}</p>
         <p
           aria-live="polite"
@@ -466,7 +506,7 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
               connection === "online" ? "size-4 text-emerald-300" : "size-4 text-amber-300"
             }
           />
-          {connection === "online" ? "Live" : "Reconnecting…"}
+          {connection === "online" ? "Connected · Ready to play" : "Reconnecting…"}
         </p>
       </div>
 
@@ -474,7 +514,7 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
         <FinalResults results={lobby.results} viewerId={participant.participantId} />
       ) : null}
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.6fr)]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(30rem,1fr)]">
         <div className="min-w-0 space-y-5">
           {round !== null ? (
             <ParticipantRound
@@ -491,7 +531,7 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
                   The Host started the match. Questions will appear here.
                 </p>
               ) : (
-                <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-xl border border-[var(--aq-rule)] bg-white px-6 py-12 text-center sm:min-h-[27rem]">
+                <div className="flex min-h-[28rem] flex-col items-center justify-center rounded-xl border border-[var(--aq-rule)] bg-white px-6 py-12 text-center sm:min-h-[34rem]">
                   <Hourglass aria-hidden="true" className="size-14 text-[var(--aq-action)]" />
                   <h2 className="mt-5 font-[family-name:var(--aq-font-display)] text-3xl tracking-[-0.04em] text-[var(--aq-ink)] sm:text-4xl">
                     Waiting for the Host to start
@@ -499,6 +539,13 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
                   <p className="mt-3 max-w-md leading-7 text-[var(--aq-text-muted)]">
                     You’re all set. Keep this page open and stay connected; the first Question will
                     appear here.
+                  </p>
+                  <p className="mt-10 flex items-center gap-3 rounded-lg bg-[var(--aq-surface)] px-5 py-4 text-left text-sm text-[var(--aq-text-muted)]">
+                    <Lightbulb
+                      aria-hidden="true"
+                      className="size-5 shrink-0 text-[var(--aq-action)]"
+                    />{" "}
+                    Get ready to answer quickly when the first Question appears.
                   </p>
                 </div>
               )}
@@ -511,7 +558,11 @@ function JoinedLobby({ connection, error, joined, sendAnswer }: JoinedLobbyProps
             </p>
           )}
         </div>
-        <LobbyDetails lobby={lobby} />
+        <div className="grid gap-5">
+          <LobbyDetails lobby={lobby} compact />
+          <ScoringRuleCard lobby={lobby} />
+          <RoomFactsCard lobby={lobby} />
+        </div>
       </div>
     </div>
   );

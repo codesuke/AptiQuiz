@@ -91,8 +91,8 @@ export default async function HostPage({
         </div>
       </header>
 
-      <section className="relative mx-auto grid max-w-[1720px] items-center gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:min-h-[calc(100vh-4.75rem)] lg:grid-cols-[minmax(0,0.95fr)_minmax(35rem,1.05fr)] lg:gap-12 lg:px-12 lg:py-12">
-        <div className="relative max-w-2xl pb-10 pt-3 lg:min-h-[42rem] lg:pb-20 lg:pt-8">
+      <section className="relative mx-auto grid max-w-[1720px] items-start gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:min-h-[calc(100vh-4.75rem)] lg:grid-cols-[minmax(0,0.95fr)_minmax(35rem,1.05fr)] lg:gap-12 lg:px-12 lg:py-5">
+        <div className="relative max-w-2xl pb-10 pt-3 lg:min-h-[42rem] lg:pb-20 lg:pt-14">
           <p className="relative z-10 flex items-center gap-3 font-mono text-xs font-semibold uppercase tracking-[0.24em] text-[#627169]">
             <span aria-hidden="true" className="h-px w-9 bg-[#e65c00]" />
             Host a Room
@@ -113,7 +113,7 @@ export default async function HostPage({
           </div>
           <Image
             alt=""
-            className="pointer-events-none absolute -bottom-6 -left-10 hidden h-auto w-[calc(100%+90px)] max-w-none opacity-20 grayscale lg:block"
+            className="pointer-events-none absolute -bottom-6 -left-10 hidden h-auto w-[calc(100%+240px)] max-w-none opacity-40 grayscale lg:block"
             height={724}
             src="/images/college-campus-engraving.png"
             width={2172}
@@ -125,7 +125,7 @@ export default async function HostPage({
 
         <section
           aria-labelledby="room-setup-title"
-          className="relative overflow-hidden rounded-xl bg-[#15372d] px-5 py-7 text-[#fdfbf7] shadow-[0_28px_60px_-32px_rgba(18,42,34,0.72)] sm:px-8 sm:py-9"
+          className="relative overflow-hidden rounded-xl bg-[#15372d] px-5 py-7 text-[#fdfbf7] shadow-[0_28px_60px_-32px_rgba(18,42,34,0.72)] sm:px-8 sm:py-7"
         >
           <div
             aria-hidden="true"
@@ -136,19 +136,12 @@ export default async function HostPage({
               <span>Create Room</span>
               <span className="hidden sm:block">AptiQuiz</span>
             </div>
-            <div className="mx-auto mt-4 flex max-w-xl flex-col items-center text-center sm:mt-6">
-              <div className="relative grid size-24 place-items-center rounded-full border-[11px] border-[#ec6b12] sm:size-28">
-                <Check
-                  aria-hidden="true"
-                  className="size-10 stroke-[3] text-[#ec6b12] sm:size-12"
-                />
-                <span
-                  aria-hidden="true"
-                  className="absolute -bottom-3 -right-1 h-8 w-5 rotate-[-45deg] bg-[#15372d]"
-                />
+            <div className="mx-auto mt-4 flex max-w-xl flex-col items-center text-center">
+              <div className="relative grid size-20 place-items-center rounded-full bg-[#ec6b12]">
+                <Check aria-hidden="true" className="size-10 stroke-[3] text-white" />
               </div>
               <h2
-                className="mt-5 text-balance font-[family-name:var(--aq-font-display)] text-3xl font-normal tracking-[-0.035em] sm:text-4xl"
+                className="mt-3 text-balance font-[family-name:var(--aq-font-display)] text-3xl font-normal tracking-[-0.035em] sm:text-4xl"
                 id="room-setup-title"
               >
                 Create a live Room.
@@ -158,7 +151,7 @@ export default async function HostPage({
               </p>
             </div>
 
-            <div className="mt-5 border-t border-white/20 pt-5 sm:mt-6">
+            <div className="mt-4 border-t border-white/20 pt-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-4">
                   <div className="grid size-11 shrink-0 place-items-center rounded-full bg-[#fdfbf7] text-[#19352d]">

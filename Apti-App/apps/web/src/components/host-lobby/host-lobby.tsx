@@ -1,7 +1,7 @@
 "use client";
 
 import type { RoomError } from "@aptiquiz/contracts";
-import { LobbyDetails } from "@/components/lobby/lobby-details";
+import { LobbyDetails, ScoringRuleCard } from "@/components/lobby/lobby-details";
 import { FinalResults } from "@/components/results/final-results";
 import { RoundQuestion } from "@/components/round/round-question";
 import { isMatchFinished } from "@/components/round/round-view";
@@ -36,10 +36,10 @@ export function HostLobby({
     <>
       <div className="mb-7 flex flex-wrap items-end justify-between gap-5 sm:mb-9">
         <div>
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-[var(--aq-action)]">
+          <p className="sr-only">
             {!lobby ? "Opening Room" : inLobby ? "Your live lobby" : "Host view"}
           </p>
-          <h1 className="mt-3 font-[family-name:var(--aq-font-display)] text-[clamp(2.9rem,5vw,5.3rem)] leading-[1.05] tracking-[-0.055em]">
+          <h1 className="font-[family-name:var(--aq-font-display)] text-[clamp(2.9rem,4.5vw,4.4rem)] leading-[1.05] tracking-[-0.055em]">
             {!lobby
               ? "Getting your Room ready."
               : inLobby
@@ -62,8 +62,8 @@ export function HostLobby({
       <div
         className={
           inLobby
-            ? "grid items-start gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-7"
-            : "grid items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.5fr)] lg:gap-7"
+            ? "grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-7"
+            : "grid items-start gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(22rem,0.6fr)] lg:gap-7"
         }
       >
         {round ? (
@@ -80,7 +80,7 @@ export function HostLobby({
         ) : (
           <ShareRoom collegeName={collegeName} joinCode={joinCode} />
         )}
-        <div className="min-w-0 space-y-5">
+        <div className={`min-w-0 ${inLobby ? "" : "space-y-5"}`}>
           {lobby && matchFinished ? <FinalResults results={lobby.results} viewerId={null} /> : null}
           {round ? <ShareRoom collegeName={collegeName} joinCode={joinCode} compact /> : null}
           {lobby ? (
@@ -91,6 +91,8 @@ export function HostLobby({
                 ) : undefined
               }
               lobby={lobby}
+              compact={!inLobby}
+              hostLobby={inLobby}
             />
           ) : (
             <p
@@ -100,6 +102,11 @@ export function HostLobby({
               Opening the Lobby…
             </p>
           )}
+          {round && lobby ? (
+            <div className="mt-5">
+              <ScoringRuleCard lobby={lobby} />
+            </div>
+          ) : null}
         </div>
       </div>
     </>

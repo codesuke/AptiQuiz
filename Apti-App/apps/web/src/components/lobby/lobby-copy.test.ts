@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { participantCountLabel, questionCountLabel, scoringRuleText } from "./lobby-copy";
+import {
+  joinedRoomHeading,
+  participantCountLabel,
+  questionCountLabel,
+  scoringRuleText,
+  scoringSummaryText,
+} from "./lobby-copy";
 
 describe("Lobby copy", () => {
+  it("names the joined state accurately and summarizes scoring", () => {
+    expect(joinedRoomHeading(false)).toBe("Join the Lobby");
+    expect(joinedRoomHeading(true)).toBe("You’re in the Room");
+    expect(scoringSummaryText()).toContain("500–1000 points");
+    expect(scoringSummaryText()).toContain("Faster");
+  });
   it("states the scoring and timing rules from the Game Server's values", () => {
     expect(
       scoringRuleText({ roundDurationMs: 30_000, maxDelayCompensationMs: 100, scoreBucketMs: 100 }),

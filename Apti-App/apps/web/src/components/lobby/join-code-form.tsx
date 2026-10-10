@@ -30,15 +30,15 @@ export function JoinCodeForm() {
 
   return (
     <form
-      className="w-full max-w-xl rounded-xl bg-[var(--aq-ink)] p-6 text-white shadow-[0_28px_60px_-32px_rgba(18,42,34,0.6)] sm:p-10"
+      className="w-full max-w-[40.5rem] rounded-xl bg-[var(--aq-ink)] p-7 text-white shadow-[0_28px_60px_-32px_rgba(18,42,34,0.6)] sm:p-12 lg:min-h-[41rem] lg:p-16"
       noValidate
       onSubmit={handleSubmit}
     >
-      <p className="mb-8 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-[var(--aq-text-on-dark)]">
+      <p className="mb-10 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-[var(--aq-text-on-dark)]">
         Join a live quiz
       </p>
       <label
-        className="block font-[family-name:var(--aq-font-display)] text-3xl text-white"
+        className="block font-[family-name:var(--aq-font-display)] text-4xl text-white"
         htmlFor={inputId}
       >
         Join Code
@@ -52,7 +52,7 @@ export function JoinCodeForm() {
         autoCapitalize="characters"
         autoComplete="off"
         autoCorrect="off"
-        className={`${textInputClass} mt-5 min-h-16 border-white/20 font-mono text-2xl uppercase tracking-[0.3em] sm:text-3xl`}
+        className={`${textInputClass} mt-5 min-h-20 border-white/20 font-mono text-2xl uppercase tracking-[0.3em] sm:text-3xl`}
         id={inputId}
         inputMode="text"
         maxLength={JOIN_CODE_LENGTH}
@@ -68,11 +68,11 @@ export function JoinCodeForm() {
       >
         {error}
       </p>
-      <button className={`${primaryButtonClass} mt-3 min-h-14 w-full`} type="submit">
+      <button className={`${primaryButtonClass} mt-5 min-h-18 w-full text-lg`} type="submit">
         Find Room
         <ArrowRight aria-hidden="true" className="size-4" />
       </button>
-      <p className="mt-7 border-t border-white/20 pt-6 text-center text-sm text-[var(--aq-text-on-dark)]">
+      <p className="mt-10 border-t border-white/20 pt-9 text-center text-base text-[var(--aq-text-on-dark)]">
         No account needed. Just a code and you’re in.
       </p>
     </form>

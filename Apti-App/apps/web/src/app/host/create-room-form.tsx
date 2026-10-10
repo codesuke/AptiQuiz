@@ -50,18 +50,18 @@ export function CreateRoomForm({
   }
 
   return (
-    <form className="mt-5" onSubmit={createRoom}>
+    <form className="mt-4" onSubmit={createRoom}>
       <fieldset>
         <legend className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[#d0ddd5]">
           Choose a Question Set
         </legend>
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3 space-y-1.5">
           {questionSets.map((set) => {
             const empty = set.questionCount === 0;
             return (
               <li key={set.id}>
                 <label
-                  className={`flex min-h-[4.45rem] cursor-pointer items-center gap-4 rounded-xl border bg-white/[0.07] px-5 py-3 transition-colors has-[:checked]:border-[#ffb380] has-[:checked]:bg-white/[0.12] has-[:checked]:ring-2 has-[:checked]:ring-[#ffb380]/30 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#ffb380] ${empty ? "cursor-not-allowed border-white/10 opacity-50" : "border-white/15 hover:border-[#ffb380]/70"}`}
+                  className={`flex min-h-[3.8rem] cursor-pointer items-center gap-4 rounded-xl border bg-white/[0.07] px-5 py-2 transition-colors has-[:checked]:border-[#ffb380] has-[:checked]:bg-white/[0.12] has-[:checked]:ring-2 has-[:checked]:ring-[#ffb380]/30 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#ffb380] ${empty ? "cursor-not-allowed border-white/10 opacity-50" : "border-white/15 hover:border-[#ffb380]/70"}`}
                 >
                   <input
                     checked={questionSetId === set.id}

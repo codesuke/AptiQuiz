@@ -28,6 +28,12 @@ export function advancePendingLabel(round: QuestionPosition): string {
   return isLastQuestion(round) ? "Finishing…" : "Opening…";
 }
 
+export function advancePrompt(round: RoundView): string {
+  return round.phase === "QUESTION_OPEN"
+    ? "Answers will be revealed after the timer ends."
+    : "The results are visible. Continue when your players are ready.";
+}
+
 /** The Host may advance only from a revealed Round of a Room that has not finished. */
 export function canAdvance(lobby: LobbySnapshot | null, round: RoundView | null): boolean {
   return round?.phase === "QUESTION_REVEAL" && !isMatchFinished(lobby);

@@ -23,6 +23,14 @@ export function scoringRuleText(rules: RoundRules): string {
   ].join(" ");
 }
 
+export function scoringSummaryText(): string {
+  return "Correct answers earn 500–1000 points. Faster answers score more; wrong or missing answers earn 0.";
+}
+
+export function joinedRoomHeading(joined: boolean): string {
+  return joined ? "You’re in the Room" : "Join the Lobby";
+}
+
 export function participantCountLabel(count: number): string {
   return `${count} / ${MAX_ROOM_PARTICIPANTS}`;
 }

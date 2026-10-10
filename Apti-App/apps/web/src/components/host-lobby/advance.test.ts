@@ -4,6 +4,7 @@ import {
   advanceKeyFor,
   advanceLabel,
   advancePendingLabel,
+  advancePrompt,
   canAdvance,
   currentAdvance,
   NO_ADVANCE,
@@ -54,6 +55,12 @@ const lobby = (phase: LobbySnapshot["phase"]): LobbySnapshot => ({
 });
 
 describe("advanceLabel", () => {
+  it("explains when the next question becomes available", () => {
+    expect(advancePrompt(open)).toBe("Answers will be revealed after the timer ends.");
+    expect(advancePrompt(revealed)).toBe(
+      "The results are visible. Continue when your players are ready.",
+    );
+  });
   it("offers the next Question until the last one, then finishing the match", () => {
     expect(advanceLabel({ questionIndex: 0, questionCount: 3 })).toBe("Next question");
     expect(advanceLabel({ questionIndex: 1, questionCount: 3 })).toBe("Next question");

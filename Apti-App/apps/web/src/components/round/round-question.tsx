@@ -11,11 +11,12 @@ interface RoundFrameProps {
   readonly view: RoundView;
   /** Countdown while open, "Round closed" after the reveal. */
   readonly status: string;
+  readonly hostSecondsLeft?: number;
   readonly children: ReactNode;
 }
 
 /** The Question's header, text, and status line; the options go in `children`. */
-export function RoundFrame({ view, status, children }: RoundFrameProps) {
+export function RoundFrame({ view, status, hostSecondsLeft, children }: RoundFrameProps) {
   const { question, questionIndex, questionCount } = view;
 
   return (
@@ -23,7 +24,7 @@ export function RoundFrame({ view, status, children }: RoundFrameProps) {
       aria-labelledby="round-question"
       className="rounded-xl border border-[var(--aq-rule)] bg-white p-5 sm:p-8"
     >
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--aq-rule)] pb-5 text-sm text-[var(--aq-text-muted)]">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--aq-rule)] pb-5 text-sm text-[var(--aq-text-muted)]">
         <p className="font-[family-name:var(--aq-font-display)] text-2xl text-[var(--aq-ink)] sm:text-3xl">
           Question{" "}
           <span className="text-[var(--aq-action)]">
@@ -31,9 +32,27 @@ export function RoundFrame({ view, status, children }: RoundFrameProps) {
           </span>{" "}
           of {questionCount}
         </p>
-        <p className="font-mono text-base font-semibold tabular-nums text-[var(--aq-action)] sm:text-xl">
-          {status}
-        </p>
+        {hostSecondsLeft === undefined ? (
+          <p className="font-mono text-base font-semibold tabular-nums text-[var(--aq-action)] sm:text-xl">
+            {status}
+          </p>
+        ) : (
+          <div className="text-right">
+            <p className="font-mono text-[0.65rem] font-bold uppercase tracking-[0.2em] text-[var(--aq-text-muted)]">
+              Live round
+            </p>
+            <div
+              aria-label={status}
+              className="font-mono text-[clamp(3.2rem,5vw,5rem)] font-bold leading-none tabular-nums text-[var(--aq-action)]"
+              role="timer"
+            >
+              00:{String(hostSecondsLeft).padStart(2, "0")}
+            </div>
+            <p className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-[var(--aq-text-muted)]">
+              Time remaining
+            </p>
+          </div>
+        )}
       </div>
       <h2
         className="mt-6 text-balance font-[family-name:var(--aq-font-display)] text-2xl leading-snug text-[var(--aq-ink)] sm:text-3xl"
@@ -91,16 +110,20 @@ function OpenHostQuestion({ round }: OpenHostQuestionProps) {
   const secondsLeft = useCountdown(round);
 
   return (
-    <RoundFrame status={countdownLabel(secondsLeft)} view={round.view}>
-      <ol className="mt-6 grid gap-2">
+    <RoundFrame
+      hostSecondsLeft={secondsLeft}
+      status={countdownLabel(secondsLeft)}
+      view={round.view}
+    >
+      <ol className="mt-7 grid gap-5">
         {round.view.question.options.map((option, index) => (
           <li
-            className="flex min-h-14 items-center gap-4 rounded-lg border border-[var(--aq-rule)] px-4 py-3 text-[var(--aq-ink)]"
+            className="flex min-h-14 items-center gap-4 text-lg text-[var(--aq-ink)]"
             key={option.id}
           >
             <span
               aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--aq-rule)] font-mono text-xs"
+              className="grid size-11 shrink-0 place-items-center rounded-full border border-[var(--aq-rule)] font-mono text-sm"
             >
               {index + 1}
             </span>

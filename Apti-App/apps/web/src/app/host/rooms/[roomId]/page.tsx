@@ -25,7 +25,7 @@ export default async function HostRoomPage({ params }: { params: Promise<{ roomI
   return (
     <main className="min-h-screen bg-[var(--aq-canvas)] text-[var(--aq-ink)]">
       <header className="border-b border-[var(--aq-rule)]">
-        <div className="mx-auto flex min-h-20 max-w-[1510px] items-center justify-between gap-4 px-5 sm:px-10">
+        <div className="mx-auto flex min-h-20 max-w-[1672px] items-center justify-between gap-4 px-5 sm:px-10">
           <div className="flex min-w-0 items-center gap-4 sm:gap-8">
             <Link
               aria-label="AptiQuiz home"
@@ -53,7 +53,7 @@ export default async function HostRoomPage({ params }: { params: Promise<{ roomI
           </span>
         </div>
       </header>
-      <div className="mx-auto max-w-[1510px] px-5 pb-16 pt-9 sm:px-10 sm:pt-12">
+      <div className="mx-auto max-w-[1672px] px-5 pb-16 pt-9 sm:px-10 sm:pt-12">
         <HostLobby
           collegeName={room.registration.college.name}
           joinCode={room.joinCode}

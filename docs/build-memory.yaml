@@ -1,6 +1,38 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-host-room-reference-alignment"
+    changed_at: "2026-10-10"
+    kind: "improvement"
+    title: "Host and Join screens aligned with saved visual references"
+    status: "working_with_limitations"
+    summary: "Adjusted the Host setup, Host Lobby, live Round, Join entry, and joined player Lobby to follow the five saved reference layouts more closely."
+    areas:
+      - "hosting"
+      - "live Room"
+      - "joining"
+      - "web interface"
+    working:
+      - "The Host setup aligns its editorial heading and Room form near the top of the desktop viewport."
+      - "The Host Lobby gives the Join Code and QR the main column, with roster, accurate scoring summary, and Start action together in the side panel."
+      - "The live Host Round shows a prominent countdown and unboxed read-only answers; the next-Question control explains why it is disabled before reveal."
+      - "The Join entry form and campus image follow the saved split layout while retaining one accessible code input."
+      - "After joining, the page names the joined state, shows the player's identity, and separates waiting, roster, scoring, and Room facts. Results and reconnection behavior remain present."
+      - "The full Game Server scoring and timing policy remains available in a disclosure on the scoring card."
+    limitations:
+      - "Host and joined-player states were visually reviewed with temporary component previews rather than an authenticated live Room browser session."
+      - "The saved references include sample social sharing and scoring details that the product does not provide; the UI uses native sharing and actual scoring rules."
+    author:
+      name: "OpenAI Codex"
+      type: "agent"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "Web: 196 tests, TypeScript typecheck, Biome on 16 changed source files, and Next.js production build passed."
+        - "Chromium screenshots compared at 1672 px with all five references through the real Join route and temporary previews using the actual Room components; Join and Lobby also inspected at 390 px."
+        - "Impeccable detector reported no findings on the final changed UI files; git diff --check passed."
   - id: "2026-10-10-github-prd-8"
     changed_at: "2026-10-10"
     kind: "feature"

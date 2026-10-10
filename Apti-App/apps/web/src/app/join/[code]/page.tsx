@@ -37,15 +37,7 @@ export default async function JoinRoomPage({ params }: JoinRoomPageProps) {
     );
   }
 
-  return (
-    <JoinShell
-      eyebrow="Join a Room"
-      intro="Pick the name other players will see. Guests play without an account."
-      title="Join the Lobby"
-    >
-      <JoinRoom defaultDisplayName={await signedInDisplayName()} joinCode={joinCode.data} />
-    </JoinShell>
-  );
+  return <JoinRoom defaultDisplayName={await signedInDisplayName()} joinCode={joinCode.data} />;
 }
 
 /** Prefills the form for a signed-in User whose account name is a valid display name. */

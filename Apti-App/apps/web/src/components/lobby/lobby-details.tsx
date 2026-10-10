@@ -1,34 +1,40 @@
 import type { LobbyParticipant, LobbySnapshot } from "@aptiquiz/contracts";
 import { Building2, Gauge, Hash, ListChecks, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { participantCountLabel, questionCountLabel, scoringRuleText } from "./lobby-copy";
+import {
+  participantCountLabel,
+  questionCountLabel,
+  scoringRuleText,
+  scoringSummaryText,
+} from "./lobby-copy";
 
 interface LobbyDetailsProps {
   readonly lobby: LobbySnapshot;
   readonly action?: ReactNode;
+  readonly compact?: boolean;
+  readonly hostLobby?: boolean;
 }
 
 /** Room facts, live roster, and scoring rule. Presentational and safe to render on the server. */
-export function LobbyDetails({ lobby, action }: LobbyDetailsProps) {
+export function LobbyDetails({
+  lobby,
+  action,
+  compact = false,
+  hostLobby = false,
+}: LobbyDetailsProps) {
   return (
     <section
       aria-labelledby="lobby-title"
-      className="rounded-xl border border-[var(--aq-rule)] bg-white p-5 text-[var(--aq-ink)] sm:p-7"
+      className={`rounded-xl border border-[var(--aq-rule)] bg-white p-5 text-[var(--aq-ink)] sm:p-7 ${hostLobby ? "flex h-full flex-col" : ""}`}
     >
-      <p className="font-mono text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-[var(--aq-text-muted)]">
+      <h2 className="sr-only" id="lobby-title">
         Room details
-      </p>
-      <h2
-        className="mt-2 text-balance font-[family-name:var(--aq-font-display)] text-3xl font-normal tracking-[-0.04em] text-[var(--aq-ink)] sm:text-4xl"
-        id="lobby-title"
-      >
-        {lobby.questionSetTitle}
       </h2>
 
-      <div className="mt-6 border-t border-[var(--aq-rule)] pt-5">
+      <div>
         <div className="flex items-center justify-between gap-3">
-          <h3 className="flex items-center gap-2 font-[family-name:var(--aq-font-display)] text-3xl tracking-[-0.04em] text-[var(--aq-ink)]">
-            <Users aria-hidden="true" className="size-4 text-[#627169]" />
+          <h3 className="flex items-center gap-2 font-[family-name:var(--aq-font-display)] text-[2.4rem] tracking-[-0.04em] text-[var(--aq-ink)]">
+            <Users aria-hidden="true" className="size-5 text-[#627169]" />
             Players
           </h3>
           <p
@@ -43,14 +49,47 @@ export function LobbyDetails({ lobby, action }: LobbyDetailsProps) {
         <ParticipantRoster participants={lobby.participants} />
       </div>
 
-      {action ? <div className="mt-5 border-t border-[var(--aq-rule)] pt-5">{action}</div> : null}
+      {hostLobby ? (
+        <div className="mt-auto pt-6">
+          <ScoringRuleCard lobby={lobby} embedded />
+        </div>
+      ) : null}
+      {action ? <div className="mt-6 border-t border-[var(--aq-rule)] pt-5">{action}</div> : null}
+      {!compact && !hostLobby ? <RoomFactsCard lobby={lobby} embedded /> : null}
+      {!compact && !hostLobby ? (
+        <div className="mt-5">
+          <ScoringRuleCard lobby={lobby} embedded />
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
-      <dl className="mt-6 grid gap-3 border-t border-[var(--aq-rule)] pt-5 sm:grid-cols-3">
+export function RoomFactsCard({
+  lobby,
+  embedded = false,
+}: {
+  readonly lobby: LobbySnapshot;
+  readonly embedded?: boolean;
+}) {
+  return (
+    <section
+      aria-label="Room facts"
+      className={
+        embedded
+          ? "mt-6 border-t border-[var(--aq-rule)] pt-5"
+          : "rounded-xl border border-[var(--aq-rule)] bg-white p-5 sm:p-7"
+      }
+    >
+      <h2 className="font-[family-name:var(--aq-font-display)] text-2xl text-[var(--aq-ink)]">
+        Room details
+      </h2>
+      <dl className="mt-4 grid gap-4 sm:grid-cols-3">
         <LobbyFact icon={<Building2 aria-hidden="true" className="size-4" />} label="College">
           {lobby.college.name}
         </LobbyFact>
         <LobbyFact icon={<Hash aria-hidden="true" className="size-4" />} label="Join Code">
-          <span className="font-mono text-lg tracking-[0.1em] text-[var(--aq-action)]">
+          <span className="font-mono tracking-[0.1em] text-[var(--aq-action)]">
             {lobby.joinCode}
           </span>
         </LobbyFact>
@@ -58,14 +97,32 @@ export function LobbyDetails({ lobby, action }: LobbyDetailsProps) {
           {questionCountLabel(lobby.questionCount)}
         </LobbyFact>
       </dl>
+    </section>
+  );
+}
 
-      <div className="mt-5 flex items-start gap-3 border-l-2 border-[var(--aq-brand-orange)] bg-[var(--aq-surface)] px-4 py-3 text-sm leading-6 text-[var(--aq-text-muted)]">
-        <Gauge aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[#b84700]" />
-        <p>
-          <span className="font-semibold text-[#172823]">Scoring. </span>
-          {scoringRuleText(lobby.rules)}
-        </p>
-      </div>
+export function ScoringRuleCard({
+  lobby,
+  embedded = false,
+}: {
+  readonly lobby: LobbySnapshot;
+  readonly embedded?: boolean;
+}) {
+  return (
+    <section
+      aria-label="Scoring rules"
+      className={embedded ? "" : "rounded-xl border border-[var(--aq-rule)] bg-white p-5 sm:p-7"}
+    >
+      <h2 className="flex items-center gap-2 font-[family-name:var(--aq-font-display)] text-2xl text-[var(--aq-ink)]">
+        <Gauge aria-hidden="true" className="size-5 text-[var(--aq-action)]" /> Scoring
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-[var(--aq-text-muted)]">{scoringSummaryText()}</p>
+      <details className="mt-3 text-sm text-[var(--aq-text-muted)]">
+        <summary className="cursor-pointer font-semibold text-[var(--aq-action)]">
+          Full scoring and timing rules
+        </summary>
+        <p className="mt-2 leading-6">{scoringRuleText(lobby.rules)}</p>
+      </details>
     </section>
   );
 }
@@ -103,7 +160,7 @@ function ParticipantRoster({ participants }: { readonly participants: LobbyParti
     <ul className="mt-3 divide-y divide-[var(--aq-rule)]">
       {participants.map((participant) => (
         <li
-          className="flex min-h-14 min-w-0 items-center gap-3 py-2"
+          className="flex min-h-16 min-w-0 items-center gap-3 py-2"
           key={participant.participantId}
         >
           <span
