@@ -1,6 +1,48 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-67"
+    changed_at: "2026-10-10"
+    kind: "change"
+    title: "Refined completed Room Results experience"
+    status: "working_with_limitations"
+    summary: "Completed Room Results now foreground a Participant's score and rank, compact the Room Leaderboard, distinguish the podium, and provide post-Match destinations."
+    areas:
+      - "results"
+      - "live Room web UI"
+      - "accessibility"
+    working:
+      - "A Participant sees total score, rank, accuracy, Average Effective Response Time, and Topic strengths in a dedicated personal summary."
+      - "The top three preserve saved server order and show distinct first, second, and third presentation; a non-consecutive saved rank remains visible as its actual place."
+      - "The full Leaderboard presents compact rank, display-name, and score rows, while the Participant's row remains visually and semantically identified."
+      - "Participants can continue to the College League or AptiQuiz home after a completed Room; Hosts retain their existing return-to-hosting navigation and receive no fabricated Participant result."
+    limitations:
+      - "The browser review rendered saved Results fixture data at desktop and 390px widths; it did not execute a complete authenticated live-Room session."
+    prd:
+      issue: 67
+      url: "https://github.com/codesuke/AptiQuiz/issues/67"
+    slices:
+      - issue: 68
+        title: "Refine the completed Room Results presentation"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/68"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "0cf545f"
+      tests:
+        - "Web suite: 200 tests passed."
+        - "Web TypeScript typecheck, targeted Biome check, and production build passed."
+        - "Isolated browser previews were reviewed at desktop and 390px widths."
+    archive:
+      prd: "docs/Specs-Completed/67-refine-completed-room-results-experience/PRD.md"
+      slices:
+        - "docs/Specs-Completed/67-refine-completed-room-results-experience/slices/68-refine-completed-room-results-presentation.md"
   - id: "2026-10-10-github-prd-57"
     changed_at: "2026-10-10"
     kind: "feature"
