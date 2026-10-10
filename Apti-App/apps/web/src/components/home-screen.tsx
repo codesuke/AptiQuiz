@@ -1,85 +1,201 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BookOpen, MoveUpRight, UsersRound } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { getHomeDestinations } from "./home-destinations";
+import styles from "./home-screen.module.css";
 
 export function HomeScreen({ signedIn }: Readonly<{ signedIn: boolean }>) {
-  const destinations = getHomeDestinations(signedIn);
-
+  const paths = getHomeDestinations(signedIn);
   return (
-    <div className="mx-auto w-full max-w-6xl pb-12 pt-10 sm:pt-14">
-      <div className="max-w-3xl">
-        <h1 className="text-balance text-[2.65rem] font-semibold leading-[1.08] tracking-[-0.035em] text-[#1d2522] sm:text-[3.7rem]">
-          Start with a Question Set.
-        </h1>
-        <p className="mt-4 max-w-2xl text-pretty text-lg leading-8 text-[#45514a]">
-          Create and edit the Questions you’ll use when live Rooms open.
-        </p>
-      </div>
-
-      <div className="mt-9 grid gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,1fr)] lg:gap-12">
-        <section
-          aria-labelledby="question-sets-title"
-          className="relative flex min-h-[315px] flex-col justify-between overflow-hidden rounded-2xl bg-[#1d2925] p-7 text-[#fdfbf7] sm:p-9"
-        >
-          <div className="relative z-10">
-            <h2
-              className="max-w-lg text-balance text-3xl font-semibold tracking-[-0.025em] sm:text-4xl"
-              id="question-sets-title"
-            >
-              Build your next Question Set
-            </h2>
-            <p className="mt-4 max-w-md leading-7 text-[#d2dfd5]">
-              Add Questions from scratch, or open the starter set to see how one is structured.
+    <>
+      <section className={styles.hero} aria-labelledby="home-title">
+        <div className={styles.heroImage} aria-hidden="true" />
+        <div className={styles.heroInner}>
+          <div className={styles.heroCopy}>
+            <p className={styles.eyebrow}>
+              <span className={styles.eyebrowRule} /> Better practice. Brighter people.
             </p>
+            <h1 id="home-title">
+              Practice with purpose<span className={styles.orange}>.</span> Play for progress
+              <span className={styles.orange}>.</span>
+            </h1>
+            <p className={styles.heroLead}>
+              Build a Question Set, host a live Room, or join your peers for a better kind of
+              aptitude practice.
+            </p>
+            <div className={styles.actions}>
+              <Link className={styles.primaryButton} href={paths.hosting}>
+                Host a Room <ArrowRight aria-hidden="true" size={20} />
+              </Link>
+              <Link className={styles.textLink} href={paths.joining}>
+                Join a Room <MoveUpRight aria-hidden="true" size={17} />
+              </Link>
+            </div>
           </div>
-          <div className="relative z-10 mt-9">
-            <Link
-              className="inline-flex min-h-12 items-center gap-3 rounded-lg bg-[#fdfbf7] px-5 font-semibold text-[#1d2925] transition-colors hover:bg-[#f7dfcf] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#fdfbf7]"
-              href={destinations.questionSets}
-            >
-              {signedIn ? "Open Question Sets" : "Sign in to build a Question Set"}
-              <ArrowRight aria-hidden="true" className="size-4" />
-            </Link>
-          </div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -bottom-24 -right-24 size-72 rounded-full border-[38px] border-[#344d3c] opacity-70 sm:size-80"
-          />
-        </section>
-
-        <div className="divide-y divide-[#d8d9cf] border-y border-[#d8d9cf]">
-          <section aria-labelledby="hosting-title" className="py-7 first:pt-2 lg:first:pt-6">
-            <h2
-              className="text-2xl font-semibold tracking-[-0.025em] text-[#1d2522]"
-              id="hosting-title"
-            >
-              Set up hosting
-            </h2>
-            <p className="mt-3 leading-7 text-[#45514a]">
-              Choose your Home College and see where your future Room will belong.
-            </p>
-            <p className="mt-3 text-sm font-medium text-[#724b30]">Room creation is coming soon.</p>
-            <Link
-              className="mt-5 inline-flex min-h-11 w-fit items-center gap-2 font-semibold text-[#9b4209] underline decoration-[#d5a786] underline-offset-4 hover:text-[#6e2e05] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#9b4209]"
-              href={destinations.hosting}
-            >
-              Open hosting setup <ArrowRight aria-hidden="true" className="size-4" />
-            </Link>
-          </section>
-          <section aria-labelledby="joining-title" className="py-7">
-            <h2 className="text-xl font-semibold text-[#1d2522]" id="joining-title">
-              Join a Room
-            </h2>
-            <p className="mt-3 leading-7 text-[#45514a]">
-              Joining a Room is coming soon. You’ll enter a Join Code here when it opens.
-            </p>
-          </section>
+          <p className={styles.heroNote}>
+            Sharper minds.
+            <br />A brighter tomorrow.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <div className="mt-10 border-t border-[#deded4] pt-6 text-sm text-[#58645c]">
-        AptiQuiz helps students prepare for placements through shared aptitude practice.
-      </div>
-    </div>
+      <section className={styles.ways} aria-labelledby="ways-title">
+        <div className={styles.wrap}>
+          <p className={styles.eyebrow}>AptiQuiz / Study together, go further</p>
+          <h2 id="ways-title" className={styles.sectionTitle}>
+            One place to prepare together<span className={styles.orange}>.</span>
+          </h2>
+          <p className={styles.sectionIntro}>
+            Create, host, or join. Choose the way that moves your practice forward.
+          </p>
+          <div className={styles.waysGrid}>
+            <article className={styles.way}>
+              <span className={styles.wayNumber}>01</span>
+              <BookOpen aria-hidden="true" className={styles.wayIcon} strokeWidth={1.2} />
+              <h3>Build a Question Set</h3>
+              <p>Turn your questions into focused practice for your next Room.</p>
+              <Link href={paths.questionSets}>
+                {signedIn ? "Create a set" : "Sign in to create"}{" "}
+                <ArrowRight aria-hidden="true" size={19} />
+              </Link>
+            </article>
+            <article className={`${styles.way} ${styles.wayFeatured}`}>
+              <span className={styles.wayNumber}>02</span>
+              <UsersRound aria-hidden="true" className={styles.wayIcon} strokeWidth={1.2} />
+              <h3>Host a Room</h3>
+              <p>Bring people together in a Room for focused practice.</p>
+              <Link href={paths.hosting}>
+                Host a Room <ArrowRight aria-hidden="true" size={19} />
+              </Link>
+            </article>
+            <article className={styles.way}>
+              <span className={styles.wayNumber}>03</span>
+              <MoveUpRight aria-hidden="true" className={styles.wayIcon} strokeWidth={1.2} />
+              <h3>Join a Room</h3>
+              <p>Enter a Join Code and practice alongside your peers.</p>
+              <Link href={paths.joining}>
+                Join a Room <ArrowRight aria-hidden="true" size={19} />
+              </Link>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.questionFeature} aria-labelledby="question-title">
+        <div className={styles.questionVisual}>
+          <Image
+            src="/images/home/question-cards.webp"
+            alt="Question cards and a pencil arranged on a green desk"
+            fill
+            loading="eager"
+            sizes="(max-width: 800px) 100vw, 52vw"
+          />
+        </div>
+        <div className={styles.questionCopy}>
+          <p className={styles.eyebrow}>The starting point</p>
+          <h2 id="question-title">
+            A better question starts everything<span className={styles.orange}>.</span>
+          </h2>
+          <p>
+            Create your own Question Set or start with the shared set. Make every Room worth showing
+            up for.
+          </p>
+          <Link className={styles.featureLink} href={paths.questionSets}>
+            Explore Question Sets <ArrowRight aria-hidden="true" size={20} />
+          </Link>
+        </div>
+      </section>
+
+      <section className={styles.process} id="how-it-works" aria-labelledby="process-title">
+        <div className={styles.wrap}>
+          <p className={styles.eyebrow}>How it works</p>
+          <h2 id="process-title" className={styles.sectionTitle}>
+            From a Question Set to a live Room<span className={styles.orange}>.</span>
+          </h2>
+          <p className={styles.sectionIntro}>
+            A simple path from your first question to shared practice.
+          </p>
+          <div className={styles.steps}>
+            <article>
+              <span>01</span>
+              <h3>Build your set</h3>
+              <p>Write your Questions or choose the starter set.</p>
+            </article>
+            <article>
+              <span>02</span>
+              <h3>Share a Join Code</h3>
+              <p>Create a Room and invite your peers.</p>
+            </article>
+            <article>
+              <span>03</span>
+              <h3>Practice together</h3>
+              <p>Enter the Lobby and get ready to play.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.college} aria-labelledby="college-title">
+        <div className={styles.collegeImage}>
+          <Image
+            src="/images/home/students-library.webp"
+            alt="Students preparing together at a library table"
+            fill
+            loading="eager"
+            sizes="(max-width: 800px) 100vw, 53vw"
+          />
+        </div>
+        <div className={styles.collegeCopy}>
+          <p className={styles.eyebrow}>Better together</p>
+          <h2 id="college-title">
+            Practice is better with your people<span className={styles.orange}>.</span>
+          </h2>
+          <p>Host a Room for your peers. Bring your Home College into every match.</p>
+          <Link className={styles.collegeLink} href="/college">
+            Choose your College <ArrowRight aria-hidden="true" size={20} />
+          </Link>
+        </div>
+      </section>
+
+      <section className={styles.closing} aria-labelledby="closing-title">
+        <div className={styles.wrap}>
+          <h2 id="closing-title">
+            Ready for the <br />
+            next round?
+          </h2>
+          <p>Your next good question can bring a whole Room together.</p>
+          <div className={styles.actions}>
+            <Link className={styles.lightButton} href={paths.hosting}>
+              Host a Room <ArrowRight aria-hidden="true" size={20} />
+            </Link>
+            <Link className={styles.darkLink} href={paths.joining}>
+              Join a Room <MoveUpRight aria-hidden="true" size={17} />
+            </Link>
+          </div>
+        </div>
+      </section>
+      <footer className={styles.footer}>
+        <div className={styles.wrap}>
+          <div>
+            <span className={styles.footerLogo}>
+              <Image
+                src="/brand/aptiquiz-logo.png"
+                alt="AptiQuiz"
+                width={2172}
+                height={724}
+                loading="eager"
+                sizes="176px"
+              />
+            </span>
+            <p>Practice today. Place tomorrow.</p>
+          </div>
+          <nav aria-label="Footer">
+            <Link href={paths.questionSets}>Question Sets</Link>
+            <Link href={paths.hosting}>Host</Link>
+            <Link href={paths.joining}>Join</Link>
+          </nav>
+        </div>
+      </footer>
+    </>
   );
 }

@@ -6,6 +6,7 @@ describe("home destinations", () => {
     expect(getHomeDestinations(true)).toEqual({
       questionSets: "/question-sets",
       hosting: "/host",
+      joining: "/join",
     });
   });
 
@@ -13,6 +14,7 @@ describe("home destinations", () => {
     expect(getHomeDestinations(false)).toEqual({
       questionSets: "/sign-in",
       hosting: "/host",
+      joining: "/join",
     });
   });
 });

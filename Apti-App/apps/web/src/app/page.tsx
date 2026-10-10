@@ -17,9 +17,9 @@ export default async function HomePage() {
   const homeCollege = session ? await getHomeCollege(database, session.user.id) : null;
 
   return (
-    <main className="min-h-screen bg-[#fdfbf7] px-5 text-[#1d2522] sm:px-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-wrap items-center justify-between gap-5 border-b border-[#deded4] py-5">
+    <main className="min-h-screen bg-[#fdfbf7] text-[#15372d]">
+      <div className="relative z-10 bg-[#fdfbf7]">
+        <header className="mx-auto flex min-h-[82px] max-w-[1600px] flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8 lg:px-12">
           <Link
             aria-label="AptiQuiz home"
             className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
@@ -30,16 +30,23 @@ export default async function HomePage() {
               className="h-auto w-36 sm:w-40"
               height={724}
               preload
+              sizes="160px"
               src="/brand/aptiquiz-logo.png"
               width={2172}
             />
           </Link>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-5">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6">
             <Link
-              className="inline-flex min-h-11 items-center text-sm font-semibold text-[#344039] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-[#344039] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]"
               href="/question-sets"
             >
               Question Sets
+            </Link>
+            <Link
+              className="hidden min-h-11 items-center text-sm font-medium text-[#344039] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700] sm:inline-flex"
+              href="#how-it-works"
+            >
+              How it works
             </Link>
             <AccountMenu
               collegeName={homeCollege?.name ?? null}
@@ -47,13 +54,17 @@ export default async function HomePage() {
             />
           </div>
         </header>
-        {needsEmailVerification(session) ? (
+      </div>
+      {needsEmailVerification(session) ? (
+        <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <EmailVerificationNotice email={session.user.email} />
-        ) : null}
-        <HomeScreen signedIn={Boolean(session)} />
-        <div className="border-t border-[#deded4] py-5">
+        </div>
+      ) : null}
+      <HomeScreen signedIn={Boolean(session)} />
+      <div className="bg-[#123b2e] px-5 text-[#d2dfd5] sm:px-8">
+        <div className="mx-auto max-w-[1420px] border-t border-white/20 py-5">
           <details className="text-sm text-[#58645c]">
-            <summary className="w-fit cursor-pointer font-medium hover:text-[#1d2522] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b84700]">
+            <summary className="w-fit cursor-pointer font-medium hover:text-white focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffb380]">
               Connection details
             </summary>
             <div className="mt-3">
