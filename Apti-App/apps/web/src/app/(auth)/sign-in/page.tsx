@@ -1,7 +1,14 @@
 import { AuthShell } from "@/components/auth/auth-shell";
 import { EmailAuthForm } from "@/components/auth/email-auth-form";
+import { GoogleSignIn } from "@/components/auth/google-sign-in";
 
-export default function SignInPage() {
+interface SignInPageProps {
+  searchParams: Promise<{ error?: string | string[] }>;
+}
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+  const { error } = await searchParams;
+
   return (
     <AuthShell
       alternateAction="Create account"
@@ -12,6 +19,7 @@ export default function SignInPage() {
       title="Welcome back."
     >
       <EmailAuthForm mode="sign-in" />
+      <GoogleSignIn errorCode={error} errorPath="/sign-in" />
     </AuthShell>
   );
 }

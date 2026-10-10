@@ -3,6 +3,7 @@ import { createDatabase, type PrismaClient } from "@aptiquiz/database";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { readSocialProviders } from "./google-sign-in";
 
 function readRequiredUrl(name: "BETTER_AUTH_URL" | "DATABASE_URL") {
   const value = process.env[name];
@@ -37,6 +38,10 @@ export const auth = betterAuth({
   emailAndPassword: { enabled: true, maxPasswordLength: 128, minPasswordLength: 8 },
   rateLimit: { enabled: true, max: 5, window: 60 },
   secret: readRequiredSecret(),
+  socialProviders: readSocialProviders(),
+  // Google sign-in links to an existing User with the same email. Better Auth still requires the
+  // existing User's email to be verified first, so an unverified pre-registration cannot capture it.
+  account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
   databaseHooks: {
     session: {
       create: {

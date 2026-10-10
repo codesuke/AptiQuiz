@@ -19,6 +19,7 @@ The following functions are available:
 - The web application serves the foundation page.
 - The web application supplies `GET /api/health`.
 - The web application supports email and password sign-up, sign-in, and sign-out.
+- The web application supports Google sign-in when Google credentials are configured.
 - A verified User in `ADMIN_EMAILS` can open the placeholder `/admin` area.
 - A suspended User cannot create a session or use an existing session on the next request.
 - The web application issues short-lived Socket Tickets to signed-in Users.
@@ -39,7 +40,7 @@ The following functions are not available:
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
-- Google sign-in, email verification, and password reset are not available.
+- Email verification and password reset are not available.
 - The application does not use Redis or Kafka.
 - The application is not deployed.
 
@@ -124,6 +125,8 @@ Location: `Apti-App/apps/web`
 The web application uses Next.js and React. Server Components are the default component type.
 
 The foundation page shows the product direction. The Join and Host buttons do not start product flows. Its account menu reflects the current active session.
+
+The sign-in and sign-up pages show "Continue with Google" only when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are both set. Without them, Better Auth has no Google provider and the pages show only the email form. A new Google User gets the email-verified status from the Google `email_verified` claim. A Google sign-in links to an existing User with the same email only when that User's email is verified. Otherwise the sign-in page explains that the User must sign in with the password and verify the email first. This rule prevents an unverified pre-registration from capturing a Google identity.
 
 The `/admin` placeholder reads the User's current verification and suspension state. It derives Admin access from the current `ADMIN_EMAILS` setting for each request. Guests are redirected to sign in; other Users see a not-allowed page.
 
@@ -317,13 +320,15 @@ ADR 0007 accepts Better Auth and short-lived Socket Tickets. The web application
 | `GAME_SERVER_SECRET` | Web and Game Server | Implemented | Signs and verifies Socket Tickets. |
 | `BETTER_AUTH_SECRET` | Web | Implemented | Signs Better Auth data. |
 | `BETTER_AUTH_URL` | Web | Implemented | Selects the Better Auth URL. |
-| `GOOGLE_CLIENT_ID` | Web | Planned | Identifies the Google OAuth client. |
-| `GOOGLE_CLIENT_SECRET` | Web | Planned | Authenticates the Google OAuth client. |
+| `GOOGLE_CLIENT_ID` | Web | Implemented, optional | Identifies the Google OAuth client. |
+| `GOOGLE_CLIENT_SECRET` | Web server only | Implemented, optional | Authenticates the Google OAuth client. Never sent to the browser. |
 | `ADMIN_EMAILS` | Web | Implemented | Contains the Admin email allow-list. |
 | `GMAIL_USER` | Web | Planned | Identifies the Gmail account. |
 | `GMAIL_APP_PASSWORD` | Web | Planned | Authenticates the Gmail SMTP connection. |
 
 Do not commit an `.env` file or a real secret.
+
+The Google OAuth client for local development must list `http://localhost:3000/api/auth/callback/google` as an authorized redirect URI. The general form is `${BETTER_AUTH_URL}/api/auth/callback/google`. The Dokploy Deployment PRD (#11) configures the production redirect URIs.
 
 ## Scale Plan
 
@@ -417,5 +422,6 @@ pnpm simulate
 | A complete 50-Participant Match is not implemented. | VERIFIED | `Apti-App/packages/contracts/src/index.ts` contains no Room or Answer events. | Implement and test the complete flow. | - |
 | The Game Server identifies Users and Guests from Socket Tickets. | VERIFIED | `Apti-App/apps/game-server/src/handshake.ts`, `server.test.ts`, and `Apti-App/packages/socket-ticket/src/index.test.ts` | Keep the handshake tests successful. | - |
 | Email/password sign-in and Socket Ticket issue are implemented; Dokploy deployment, Redis, and Kafka are not. | VERIFIED | `Apti-App/apps/web/src/lib/auth.ts`, `app/api/socket-ticket/route.ts`, and `apps/game-server/src/handshake.ts` | Keep the web and Game Server ticket contracts synchronized. | - |
+| Google sign-in creates a User, links only to a verified User with the same email, and keeps `GOOGLE_CLIENT_SECRET` on the server. | VERIFIED | `Apti-App/apps/web/src/lib/google-sign-in.ts`, `google-sign-in.integration.test.ts`, and the production build output | Repeat the manual Google round trip when real credentials are available. | - |
 | Admin access is derived from the verified email and current allow-list, and suspended Users lose access. | VERIFIED | `Apti-App/apps/web/src/lib/roles.ts`, `auth.ts`, `app/admin/page.tsx`, and their tests | Keep role and suspension checks at server request boundaries. | - |
 | A signed-in browser requests a new ticket for each connection and shows the User identity from `server:ready`; a Guest browser shows Guest. | VERIFIED | `Apti-App/apps/web/src/components/game-server-status.tsx`, `lib/socket-auth.ts`, route and auth tests, and browser verification | Repeat the restart test when connection handling changes. | - |
