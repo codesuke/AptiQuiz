@@ -20,6 +20,8 @@ The following functions are available:
 - The web application supplies `GET /api/health`.
 - The web application supports email and password sign-up, sign-in, and sign-out.
 - The web application supports Google sign-in when Google credentials are configured.
+- The web application sends a verification email after email sign-up. The home page shows a notice with a resend button to an unverified User. The `/verify-email` page shows the result of a verification link and lets the User request a new link.
+- The web application supports password reset. A User requests a one-time reset link at `/forgot-password` and sets a new password at `/reset-password`.
 - A verified User in `ADMIN_EMAILS` can open the placeholder `/admin` area.
 - A suspended User cannot create a session or use an existing session on the next request.
 - The web application issues short-lived Socket Tickets to signed-in Users.
@@ -40,7 +42,6 @@ The following functions are not available:
 - The application does not calculate a live Leaderboard.
 - The application does not save a completed Match.
 - The application does not implement reconnect tokens.
-- Email verification and password reset are not available.
 - The application does not use Redis or Kafka.
 - The application is not deployed.
 
@@ -126,7 +127,13 @@ The web application uses Next.js and React. Server Components are the default co
 
 The foundation page shows the product direction. The Join and Host buttons do not start product flows. Its account menu reflects the current active session.
 
-The sign-in and sign-up pages show "Continue with Google" only when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are both set. Without them, Better Auth has no Google provider and the pages show only the email form. A new Google User gets the email-verified status from the Google `email_verified` claim. A Google sign-in links to an existing User with the same email only when that User's email is verified. Otherwise the sign-in page explains that the User must sign in with the password and verify the email first. This rule prevents an unverified pre-registration from capturing a Google identity.
+The sign-in and sign-up pages show "Continue with Google" only when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are both set. Without them, Better Auth has no Google provider and the pages show only the email form. A new Google User gets the email-verified status from the Google `email_verified` claim. A Google sign-in links to an existing User with the same email only when that User's email is verified. Otherwise the sign-in page tells the User to use "Forgot password?". A completed password reset verifies the email, because the User opened the reset link from that inbox. After the reset, Google sign-in opens the same User. This rule prevents an unverified pre-registration from capturing a Google identity, and it gives the real owner of the email a recovery path. The web application does not set the email-verified status of a new Google User to true by force. An unverified Google address must not satisfy the Admin check.
+
+After email sign-up, Better Auth sends a verification email. The link expires after 1 hour. The link returns to `/verify-email`. That page reads the current session and the User row. It shows "Email verified." only when the signed-in User is verified. Without a session, it asks the visitor to sign in. For an unverified User or a failed link, it shows a form to request a new link.
+
+`/forgot-password` requests a reset link. The response is the same for a known and an unknown email. The link works one time and expires after 60 minutes. A successful reset ends all sessions of the User and sets the email-verified status to true. Better Auth limits the resend and reset requests to 3 for each client in 5 minutes.
+
+The web application sends auth email through Gmail SMTP when `GMAIL_USER` and `GMAIL_APP_PASSWORD` are set. Without them, development and test write the email to the server log, and other environments refuse to send.
 
 The `/admin` placeholder reads the User's current verification and suspension state. It derives Admin access from the current `ADMIN_EMAILS` setting for each request. Guests are redirected to sign in; other Users see a not-allowed page.
 
@@ -300,6 +307,9 @@ The following rules apply to new product code:
 - Do not send `DATABASE_URL` or server secrets to the browser.
 - A suspended User cannot create a new session. The web application checks the current User row before accepting an existing session on a page request, and Better Auth rejects suspended sessions on its HTTP endpoints.
 - Admin access requires a verified email in the current `ADMIN_EMAILS` allow-list. The role is not stored in the database.
+- Google sign-in links only to an existing User whose email is verified. A completed password reset verifies the email. A new Google User is verified only when the Google `email_verified` claim is true.
+- Password reset and resend responses must not show if an account exists for an email.
+- Keep the auth email builders and the mail sender in server-only modules.
 - Keep `GAME_SERVER_SECRET` and Socket Ticket signing in server-only modules. Issue a new ticket for each connection attempt and never cache the ticket response.
 - Use an explicit Cross-Origin Resource Sharing origin outside local development.
 
@@ -323,8 +333,8 @@ ADR 0007 accepts Better Auth and short-lived Socket Tickets. The web application
 | `GOOGLE_CLIENT_ID` | Web | Implemented, optional | Identifies the Google OAuth client. |
 | `GOOGLE_CLIENT_SECRET` | Web server only | Implemented, optional | Authenticates the Google OAuth client. Never sent to the browser. |
 | `ADMIN_EMAILS` | Web | Implemented | Contains the Admin email allow-list. |
-| `GMAIL_USER` | Web | Planned | Identifies the Gmail account. |
-| `GMAIL_APP_PASSWORD` | Web | Planned | Authenticates the Gmail SMTP connection. |
+| `GMAIL_USER` | Web server only | Implemented | Identifies the Gmail account that sends auth email. Set it together with `GMAIL_APP_PASSWORD`. |
+| `GMAIL_APP_PASSWORD` | Web server only | Implemented | Authenticates the Gmail SMTP connection. Never sent to the browser. |
 
 Do not commit an `.env` file or a real secret.
 
@@ -423,5 +433,7 @@ pnpm simulate
 | The Game Server identifies Users and Guests from Socket Tickets. | VERIFIED | `Apti-App/apps/game-server/src/handshake.ts`, `server.test.ts`, and `Apti-App/packages/socket-ticket/src/index.test.ts` | Keep the handshake tests successful. | - |
 | Email/password sign-in and Socket Ticket issue are implemented; Dokploy deployment, Redis, and Kafka are not. | VERIFIED | `Apti-App/apps/web/src/lib/auth.ts`, `app/api/socket-ticket/route.ts`, and `apps/game-server/src/handshake.ts` | Keep the web and Game Server ticket contracts synchronized. | - |
 | Google sign-in creates a User, links only to a verified User with the same email, and keeps `GOOGLE_CLIENT_SECRET` on the server. | VERIFIED | `Apti-App/apps/web/src/lib/google-sign-in.ts`, `google-sign-in.integration.test.ts`, and the production build output | Repeat the manual Google round trip when real credentials are available. | - |
+| Email sign-up sends a verification email; `/verify-email` shows success only for a verified signed-in User and lets a User request a new link. | VERIFIED | `Apti-App/apps/web/src/lib/email-verification.ts`, `auth-emails.ts`, `app/(auth)/verify-email/page.tsx`, and their tests | Keep the resend endpoint rate-limited. | - |
+| Password reset uses a one-time 60-minute link, does not show if an account exists, ends all sessions, and verifies the email. | VERIFIED | `Apti-App/apps/web/src/lib/auth.ts`, `password-reset.ts`, and `auth-password-reset.test.ts` | Repeat the Gmail delivery check when mail credentials change. | - |
 | Admin access is derived from the verified email and current allow-list, and suspended Users lose access. | VERIFIED | `Apti-App/apps/web/src/lib/roles.ts`, `auth.ts`, `app/admin/page.tsx`, and their tests | Keep role and suspension checks at server request boundaries. | - |
 | A signed-in browser requests a new ticket for each connection and shows the User identity from `server:ready`; a Guest browser shows Guest. | VERIFIED | `Apti-App/apps/web/src/components/game-server-status.tsx`, `lib/socket-auth.ts`, route and auth tests, and browser verification | Repeat the restart test when connection handling changes. | - |
