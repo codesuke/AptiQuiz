@@ -1,6 +1,64 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-7"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Leaderboard & Final Results"
+    status: "working_with_limitations"
+    summary: "After each revealed Round the Host and Participants see the same server-ranked Leaderboard with rank movement; after the last Round the Game Server saves one MatchResult per Participant in one transaction and then shows final results."
+    areas:
+      - "Game Server"
+      - "Game Engine"
+      - "database schema"
+      - "web interface"
+    working:
+      - "Revealed Rounds carry cumulative standings with rank and movement (neutral after Round 1), ordered by score, correct-Answer response time, join time, then Participant ID."
+      - "Returning Host and Participants receive the current standings and, after the Match, the final results from the host and join acknowledgements."
+      - "The final advance commits one MatchResult per joined Participant, with the Room completion time, atomically; the Room is announced FINISHED only after the commit and a failed commit is retryable."
+      - "Results record rank, score, accuracy over all Room Questions, mean Effective Response Time over accepted Answers (null when none), per-Topic correct/total, User id, verification at completion, and the Participant's College."
+      - "Guests have a null User id and see their results; the Host has no result row."
+    limitations:
+      - "The Leaderboard rides inside the revealed round view; the engine LEADERBOARD phase is unused on the wire."
+      - "The UI is deliberately minimal and was not checked in a browser; no end-to-end Match was run for this PRD."
+      - "MatchResult.totalAnswers holds the Room Question count; markRoomFinished is now unused by the Game Server."
+      - "Live Rooms stay in memory; a Game Server restart loses an active Match. A 50-Participant Match is not load-tested (PRD #10)."
+    prd:
+      issue: 7
+      url: "https://github.com/codesuke/AptiQuiz/issues/7"
+    slices:
+      - issue: 40
+        title: "Show the Leaderboard after each Round"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/40"
+      - issue: 42
+        title: "Save completed Room results once"
+        type: "horizontal"
+        url: "https://github.com/codesuke/AptiQuiz/issues/42"
+      - issue: 43
+        title: "Show final results to the Room"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/43"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "7be6167"
+        - "694f0c0"
+        - "9d101b9"
+      tests:
+        - "game-server 157, database 48 against the configured PostgreSQL, game-engine 36, contracts 2, web components and lib 181; workspace typecheck and Biome on touched packages pass"
+        - "Web commit verified in an isolated export of the staged tree: typecheck, Biome, 181 web tests"
+    archive:
+      prd: "docs/Specs-Completed/7-leaderboard-and-final-results/PRD.md"
+      slices:
+        - "docs/Specs-Completed/7-leaderboard-and-final-results/slices/40-show-the-leaderboard-after-each-round.md"
+        - "docs/Specs-Completed/7-leaderboard-and-final-results/slices/42-save-completed-room-results-once.md"
+        - "docs/Specs-Completed/7-leaderboard-and-final-results/slices/43-show-final-results-to-the-room.md"
   - id: "2026-10-10-question-set-workspace-design"
     changed_at: "2026-10-10"
     kind: "improvement"
