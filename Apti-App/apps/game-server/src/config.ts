@@ -1,3 +1,4 @@
+import type { EventRateLimitPolicy } from "./event-rate-limit.js";
 import type { LatencySamplingPolicy } from "./latency-sampler.js";
 
 const DEFAULT_PORT = 3001;
@@ -21,6 +22,15 @@ export const DEFAULT_LATENCY_SAMPLING: LatencySamplingPolicy = {
   timeoutMs: 2_000,
 };
 
+/**
+ * A player sends a few events per Question; a socket that exceeds this budget is flooding the
+ * server and is disconnected. Its Participant can still resume with the Resume Token.
+ */
+export const DEFAULT_EVENT_RATE_LIMIT: EventRateLimitPolicy = {
+  burst: 30,
+  refillPerSecond: 10,
+};
+
 export interface GameServerConfig {
   readonly port: number;
   readonly webOrigin: string;
@@ -32,6 +42,7 @@ export interface GameServerConfig {
   readonly scoreBucketMs: number;
   readonly latencySampling: LatencySamplingPolicy;
   readonly reconnectGraceMs: number;
+  readonly eventRateLimit: EventRateLimitPolicy;
 }
 
 export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServerConfig {
@@ -53,6 +64,7 @@ export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServer
     scoreBucketMs: DEFAULT_SCORE_BUCKET_MS,
     latencySampling: DEFAULT_LATENCY_SAMPLING,
     reconnectGraceMs: DEFAULT_RECONNECT_GRACE_MS,
+    eventRateLimit: DEFAULT_EVENT_RATE_LIMIT,
   };
 }
 

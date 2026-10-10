@@ -10,6 +10,7 @@ import type { Logger } from "pino";
 import { Server as SocketServer } from "socket.io";
 import { safeAcknowledge } from "./acknowledgement.js";
 import type { GameServerConfig } from "./config.js";
+import { createEventRateLimit } from "./event-rate-limit.js";
 import { identifyConnection } from "./handshake.js";
 import { createLatencySampler } from "./latency-sampler.js";
 import { publishAdvance, publishRoundClosure, registerRoomHandlers } from "./room-handlers.js";
@@ -137,6 +138,17 @@ export function createGameServer(
     socket.data.connectionId = socket.id;
     logger.info({ connectionId: socket.id, identity: identity.kind }, "player transport connected");
     socket.emit("server:ready", { connectionId: socket.id, serverTime: now(), identity });
+
+    const withinRateLimit = createEventRateLimit(config.eventRateLimit, now);
+    socket.use(([event], next) => {
+      if (withinRateLimit()) {
+        next();
+        return;
+      }
+
+      logger.warn({ connectionId: socket.id, event }, "event flood: socket disconnected");
+      socket.disconnect(true);
+    });
 
     socket.on("time:ping", (payload, callback) => {
       const acknowledge = safeAcknowledge(callback);

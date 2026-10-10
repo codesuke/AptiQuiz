@@ -161,6 +161,8 @@ export async function stopTestServer(): Promise<void> {
   activeDeadlines = undefined;
 }
 
+const HARNESS_EVENT_BURST = 10_000;
+
 function testConfig(overrides: Partial<GameServerConfig> = {}): GameServerConfig {
   const defaults = readGameServerConfig({
     GAME_SERVER_SECRET: gameServerSecret,
@@ -176,6 +178,9 @@ function testConfig(overrides: Partial<GameServerConfig> = {}): GameServerConfig
       intervalMs: TEST_LATENCY_INTERVAL_MS,
       timeoutMs: TEST_LATENCY_TIMEOUT_MS,
     },
+    // One harness socket often acts for a whole roster on a frozen clock; server.test.ts
+    // covers the production limit.
+    eventRateLimit: { burst: HARNESS_EVENT_BURST, refillPerSecond: HARNESS_EVENT_BURST },
     ...overrides,
   };
 }

@@ -3,7 +3,7 @@ import { issueSocketTicket, SOCKET_TICKET_LIFETIME_MS } from "@aptiquiz/socket-t
 import pino from "pino";
 import { io, type Socket } from "socket.io-client";
 import { afterEach, describe, expect, it } from "vitest";
-import { readGameServerConfig } from "./config.js";
+import { DEFAULT_EVENT_RATE_LIMIT, readGameServerConfig } from "./config.js";
 import { createGameServer, type RunningGameServer } from "./server.js";
 import { createInMemoryRoomStore } from "./testing/in-memory-room-store.js";
 
@@ -77,6 +77,19 @@ describe("game server", () => {
 
     expect(outcome).toMatchObject({ connected: true, ready: { serverTime: FIXED_SERVER_TIME } });
     expect(pong).toEqual({ ok: true, clientSentAt: 1, serverReceivedAt: FIXED_SERVER_TIME });
+  });
+
+  it("disconnects a socket that floods events faster than the rate limit", async () => {
+    const port = await startServer(() => FIXED_SERVER_TIME);
+    await connect(port, {});
+    const socket = openSockets.at(-1);
+    const disconnected = new Promise<string>((resolve) => socket?.once("disconnect", resolve));
+
+    for (let event = 0; event <= DEFAULT_EVENT_RATE_LIMIT.burst; event += 1) {
+      socket?.emit("time:ping", { clientSentAt: event }, () => {});
+    }
+
+    await expect(disconnected).resolves.toBe("io server disconnect");
   });
 });
 
