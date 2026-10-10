@@ -1,6 +1,58 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-6"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Reconnection & Resume"
+    status: "working_with_limitations"
+    summary: "A Guest or signed-in Participant who refreshes or loses the connection resumes the same Participant with a Resume Token, in the Lobby or during a Round, without changing the Room for anyone else."
+    areas:
+      - "Game Server"
+      - "contracts"
+      - "web interface"
+      - "database"
+    working:
+      - "Joining returns an opaque Resume Token only to the joiner; the server keeps only its SHA-256 hash (memory and Participant.resumeTokenHash); the browser keeps it in localStorage per Join Code."
+      - "room:resume reclaims the same Participant on a new connection and returns the phase, roster, current Round in the Participant's own option order with their locked Answer, the server deadline, and the revealed score; it adds no Participant, uses no place, and broadcasts nothing."
+      - "A User's token works only for that User; malformed, unknown, and other-Room tokens get invalid_resume_token without disclosure; a display name or Join Code cannot reclaim a Participant; repeated resumes change nothing."
+      - "A Participant whose last socket drops during an open Round counts as connected for early closure for 5 s, so a refresh does not end the Question for everyone; the deadline never moves."
+      - "The browser resumes on every connect before going online, retries a lost acknowledgement at most 5 times, and shows a live Score from each reveal."
+    limitations:
+      - "A signed-in Participant whose session lapses reconnects as a Guest, is refused, and loses the token."
+      - "Tokens stay in localStorage after the Room finishes."
+      - "Live Rooms are memory-only; a Game Server restart loses them and the stored token hash is not yet used for recovery."
+      - "The reconnect grace covers only the Question during which the drop happened."
+    prd:
+      issue: 6
+      url: "https://github.com/codesuke/AptiQuiz/issues/6"
+    slices:
+      - issue: 28
+        title: "Resume a Participant in the Lobby"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/28"
+      - issue: 29
+        title: "Restore a Participant during a Round"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/29"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "95ff9ec"
+        - "332acd1"
+      tests:
+        - "game-server 167 (3 runs), engine 36, web 185, database recordParticipant id/hash test; typecheck, Biome, and production build on an isolated export of the committed tree"
+        - "Puppeteer resume run 11/11: Guest and signed-in refresh in the Lobby and during an open Round keep identity, locked Answer, option order, deadline, and score; no extra Participant rows"
+    archive:
+      prd: "docs/Specs-Completed/6-reconnection-and-resume/PRD.md"
+      slices:
+        - "docs/Specs-Completed/6-reconnection-and-resume/slices/28-resume-a-participant-in-the-lobby.md"
+        - "docs/Specs-Completed/6-reconnection-and-resume/slices/29-restore-a-participant-during-a-round.md"
   - id: "2026-10-10-github-prd-7"
     changed_at: "2026-10-10"
     kind: "feature"
