@@ -1,10 +1,16 @@
-import type { LobbyStageResult } from "./lobby-run.js";
+import { InvariantFailure } from "./invariants.js";
+import type { MatchStageResult } from "./match-run.js";
+import type { LobbyStageResult } from "./session.js";
+import type { LatencySummary } from "./stats.js";
 
 export interface SimulatorReport {
   ok: boolean;
   target: string;
   requestedParticipants: number;
   lobby: LobbyStageResult | null;
+  match: Omit<MatchStageResult, "roundPoints"> | null;
+  /** Client-observed durations in this process, in milliseconds, labelled by what was measured. */
+  latencyMs: Record<string, LatencySummary>;
   errors: string[];
   durationMs: number;
 }
@@ -20,4 +26,9 @@ export function scrubSecrets(text: string, secrets: readonly string[]): string {
 
 export function formatReport(report: SimulatorReport, secrets: readonly string[]): string {
   return scrubSecrets(JSON.stringify(report, null, 2), secrets);
+}
+
+export function describeFailure(error: unknown): string[] {
+  if (error instanceof InvariantFailure) return [...error.details];
+  return [error instanceof Error ? error.message : "Unknown error"];
 }

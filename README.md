@@ -120,7 +120,7 @@ This runs formatting/lint checks, TypeScript checks, behavior tests, and product
 | `pnpm typecheck` | Strict TypeScript checks |
 | `pnpm test` | Vitest behavior tests |
 | `pnpm build` | Production builds for apps and packages |
-| `pnpm simulate` | Creates a starter Room and joins up to 50 virtual Participants into its Lobby |
+| `pnpm simulate` | Plays a starter Room with up to 50 virtual Participants through every Question |
 
 Run `pnpm simulate` in another terminal while `pnpm dev` is running.
 
@@ -134,7 +134,9 @@ The simulator needs a signed-in Host with a Home College. Pass that Host's sessi
 | `SIMULATED_PLAYERS` | `50` | Participants to join, 1 to 50. A larger value fails before any connection. |
 | `SIMULATOR_ROOM_ID`, `SIMULATOR_HOST_TICKET` | none | Alternative to the cookie: a fresh starter Room and a Host ticket made beforehand. Set both. A ticket lives 60 seconds. |
 
-The report is JSON. `connectedSockets` counts open sockets and `joinedParticipants` counts accepted joins; `lobbyParticipants` is read back from the public Lobby. `latencyMs` metrics are client-observed acknowledgement round trips in milliseconds (`timePingAck`, `roomJoinAck`, `roomHostAck`) with sample counts, p50, p95, and max. The process exits nonzero when any setup, connection, join, or Lobby check fails or times out. This stage stops at the Lobby: it does not start the match.
+The report is JSON. `connectedSockets` counts open sockets and `joinedParticipants` counts accepted joins; `lobbyParticipants` is read back from the public Lobby. `latencyMs` metrics are client-observed acknowledgement round trips in milliseconds (`timePingAck`, `roomJoinAck`, `roomHostAck`) with sample counts, p50, p95, and max. The `match` block counts accepted Answers, deliberate new-key duplicates rejected, exact-key replays, late Answers rejected (by error code), Questions completed, payloads scanned for pre-reveal disclosure, and the Game Server timing constants. A late Answer sent at the deadline is rejected as `answer_too_late` or, when the deadline timer has already closed the Round, as `round_not_open`; both count as rejected. `hostCommandToRoundState` is the time from a Host start or advance command until each viewer receives the open Round. `lastAnswerAckToReveal` is the time from the last Answer acknowledgement to the reveal, for early-closed Rounds. A full run lasts about one Round duration, because the first Round stays open for the late Answer check.
+
+The process exits nonzero when any setup, connection, join, Lobby, scoring, secrecy, or timeout check fails; `errors` names each broken check. Resume and Leaderboard convergence are not checked yet.
 
 ### Database commands
 

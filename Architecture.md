@@ -43,7 +43,7 @@ The following functions are available:
 - The Round closes once: at the server deadline, or earlier when every connected Participant has answered. Then each Participant receives the correct option in their own option ids, their result, and the Round scores of all Participants. The Host receives the same reveal with the authored ids.
 - After a reveal, only the Host advances. Each next Question opens with a new server deadline. After the last Question, the Room moves to `FINISHED`, the browsers show "Match finished.", and the Game Server saves one `MatchResult` for each joined Participant and writes the `FINISHED` status and completion time to PostgreSQL in one transaction. The Room moves to `FINISHED` only after that commit. If the commit fails, the advance returns `advance_failed` and the Host can send it again. A complete Match was played in two headless browsers on 2026-10-10.
 - A Participant who refreshes or reconnects resumes the same Participant with a Resume Token. They get the Room phase, the roster, the current Round in their own option order with their locked Answer, the server deadline, and their score from revealed Rounds. A resume adds no Participant and broadcasts no join. Guest and signed-in refreshes in the Lobby and during an open Round were checked in headless browsers on 2026-10-10.
-- The simulator creates a starter Room through the web application as a signed-in Host, joins 50 virtual Guests into its Lobby by default, and checks that the public Lobby holds that many distinct Participants.
+- The simulator creates a starter Room through the web application as a signed-in Host, joins 50 virtual Guests into its Lobby by default, checks that the public Lobby holds that many distinct Participants, and plays every starter Question.
 - The database package generates a Prisma client.
 
 The following functions are not available:
@@ -330,9 +330,9 @@ Location: `Apti-App/apps/simulator`
 
 The simulator uses the public Socket.IO interface and the web Room and Socket Ticket routes. It creates a fresh starter Room with a Host session, or uses a supplied Room and Host ticket. It joins 50 independent Guests by default, up to the Room limit of 50.
 
-Each simulated player connects, sends one `time:ping` event, and joins the Lobby. The Host reads the Lobby back and the simulator checks that it holds the requested number of distinct Participants. The JSON report separates connected sockets from joined Participants, includes labelled client-observed acknowledgement latency, and never prints the Host session or ticket. Any failure or timeout exits nonzero.
+Each simulated player connects, sends one `time:ping` event, and joins the Lobby. The Host reads the Lobby back and the simulator checks that it holds the requested number of distinct Participants. The Host then starts the Room and advances after each reveal. Fixed cohorts submit correct, wrong, duplicate (new key), exact-key replay, and deliberately late Answers, and one cohort stays silent in the first Round. The simulator scans every pre-reveal payload for correctness, explanation, or points, and checks revealed Round points against the starter fixture. The JSON report separates connected sockets from joined Participants, includes labelled client-observed acknowledgement latency, and never prints the Host session or ticket. Any failure or timeout exits nonzero.
 
-The simulator does not start or play a Match yet. Do not use its result as proof of complete Match capacity.
+The simulator does not yet disconnect and resume Participants, compare Leaderboards, or check final results, and no deployed run is recorded. Do not use its result as proof of complete Match capacity.
 
 ## Implemented Data Flow
 

@@ -21,6 +21,8 @@ describe("formatReport", () => {
         target: "http://localhost:3001",
         requestedParticipants: 2,
         lobby: null,
+        match: null,
+        latencyMs: {},
         errors: ["failed with cookie session=abc"],
         durationMs: 1,
       },

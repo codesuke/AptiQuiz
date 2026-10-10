@@ -1,9 +1,11 @@
 import { ConfigError, readConfig, secretsOf } from "./config.js";
-import { runLobbyStage } from "./lobby-run.js";
-import { formatReport, type SimulatorReport, scrubSecrets } from "./report.js";
+import { playMatch } from "./match-run.js";
+import { describeFailure, formatReport, type SimulatorReport, scrubSecrets } from "./report.js";
+import { openLobby, type RoomSession, summarizeLobby } from "./session.js";
 import { obtainHostAccess } from "./setup.js";
+import { LatencyRecorder } from "./stats.js";
 
-const OVERALL_TIMEOUT_MS = 120_000;
+const OVERALL_TIMEOUT_MS = 300_000;
 
 async function main(): Promise<number> {
   const startedAt = performance.now();
@@ -18,35 +20,45 @@ async function main(): Promise<number> {
   }
 
   const secrets = secretsOf(config);
+  const recorder = new LatencyRecorder();
   const report: SimulatorReport = {
     ok: false,
     target: config.gameServerUrl,
     requestedParticipants: config.participantCount,
     lobby: null,
+    match: null,
+    latencyMs: {},
     errors: [],
     durationMs: 0,
   };
-  const watchdog = setTimeout(() => {
-    report.errors.push(`Run exceeded ${OVERALL_TIMEOUT_MS}ms`);
+  let session: RoomSession | null = null;
+  const finish = () => {
+    report.latencyMs = recorder.summaries();
     report.durationMs = Math.round(performance.now() - startedAt);
     console.log(formatReport(report, secrets));
+  };
+  const watchdog = setTimeout(() => {
+    report.errors.push(`Run exceeded ${OVERALL_TIMEOUT_MS}ms`);
+    session?.close();
+    finish();
     process.exit(1);
   }, OVERALL_TIMEOUT_MS);
 
   try {
     const access = await obtainHostAccess(config.setup);
-    report.lobby = await runLobbyStage(config, access);
+    session = await openLobby(config, access, recorder);
+    report.lobby = summarizeLobby(session, config.participantCount);
+    const { roundPoints: _roundPoints, ...match } = await playMatch(session);
+    report.match = match;
     report.ok = true;
   } catch (error) {
-    report.errors.push(
-      scrubSecrets(error instanceof Error ? error.message : "Unknown error", secrets),
-    );
+    report.errors.push(...describeFailure(error).map((line) => scrubSecrets(line, secrets)));
   } finally {
     clearTimeout(watchdog);
+    session?.close();
   }
 
-  report.durationMs = Math.round(performance.now() - startedAt);
-  console.log(formatReport(report, secrets));
+  finish();
   return report.ok ? 0 : 1;
 }
 
