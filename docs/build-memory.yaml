@@ -1,6 +1,75 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-github-prd-5"
+    changed_at: "2026-10-10"
+    kind: "feature"
+    title: "Live Rounds & Server-Authoritative Scoring"
+    status: "working_with_limitations"
+    summary: "A started Room plays its Question Set as server-timed Rounds: Participants answer once, the Game Server scores by server receipt time with bounded delay compensation, closes and reveals each Round once, and the Host advances until the Room finishes."
+    areas:
+      - "Game Server"
+      - "Game Engine"
+      - "contracts"
+      - "web interface"
+      - "database"
+    working:
+      - "Start opens Question 0 with an immutable server startsAt and a deadline 30 s later; every Participant gets the same Question and deadline over round:state, each with a stable option order and opaque option ids of their own; the Host sees the authored order."
+      - "Browsers count down from server timestamps; join and host acknowledgements return the current Round so a reconnecting browser recovers it."
+      - "round:answer accepts only a joined Participant's first valid Answer received at or before endsAt by server time (no grace); same-key retries return the original result; duplicate, late, malformed, wrong-Round, foreign-option, and non-Participant Answers get typed refusals and change nothing."
+      - "Server-initiated latency:ping samples feed a 5-sample rolling median; scoring subtracts min(median/2, 100 ms) (0 without samples), clamps, floors to 100 ms, and awards 500 + floor(500 x (1 - ERT/duration)) for a correct Answer and 0 for a wrong or missing one."
+      - "The Lobby shows the scoring and delay rules from server config; README documents the values."
+      - "A Round closes once at the deadline or when every connected Participant has answered; each receiver then sees the correct option in their own ids, their result, and all Participants' Round points; later Answers cannot change anything."
+      - "Only the Host advances after a reveal; each next Question gets a fresh deadline; repeated or retried advances cannot skip a Question or open two Rounds; after the last Question the Room is FINISHED (persisted) and every browser shows Match finished."
+    limitations:
+      - "Rounds, Answers, and scores live in Game Server memory and are lost on restart; Answers and Match results are not persisted (PRD #7)."
+      - "No leaderboard, rank movement, final standings, or explanation in the reveal (PRD #7); after FINISHED, acknowledgements return round null."
+      - "A client can inflate its own RTT by delaying ping acknowledgements; the 100 ms cap bounds the gain."
+      - "Reconnect during a Round relies on rejoining with the same join key; Resume Tokens belong to PRD #6."
+      - "A 50-Participant Match is not load-tested (PRD #10)."
+      - "apps/web/.env holds production URLs and secrets; a local run must start the web app with the Apti-App/.env values or Room registration is refused as tampered."
+    prd:
+      issue: 5
+      url: "https://github.com/codesuke/AptiQuiz/issues/5"
+    slices:
+      - issue: 33
+        title: "Open a timed Round"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/33"
+      - issue: 34
+        title: "Accept and score Answers"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/34"
+      - issue: 35
+        title: "Close and reveal a Round"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/35"
+      - issue: 36
+        title: "Advance through the Question Set"
+        type: "vertical"
+        url: "https://github.com/codesuke/AptiQuiz/issues/36"
+    author:
+      name: "Codesuke"
+      handle: "codesuke"
+      type: "human"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits:
+        - "ffca687"
+        - "146d03e"
+        - "defe31e"
+        - "3c7dd72"
+      tests:
+        - "game-engine 26, game-server 130 (3 runs), database 42 against the configured PostgreSQL, web 156; typecheck, Biome on slice paths, and production build pass"
+        - "Puppeteer end-to-end Match: signed-in Host plus two Guests, 3 Questions, 12/12 checks including shared countdown, early and deadline closure, 1000/0 points, advance, finish, and no correct option outside a reveal across 334 captured WebSocket frames"
+    archive:
+      prd: "docs/Specs-Completed/5-live-rounds-and-scoring/PRD.md"
+      slices:
+        - "docs/Specs-Completed/5-live-rounds-and-scoring/slices/33-open-a-timed-round.md"
+        - "docs/Specs-Completed/5-live-rounds-and-scoring/slices/34-accept-and-score-answers.md"
+        - "docs/Specs-Completed/5-live-rounds-and-scoring/slices/35-close-and-reveal-a-round.md"
+        - "docs/Specs-Completed/5-live-rounds-and-scoring/slices/36-advance-through-the-question-set.md"
   - id: "2026-10-10-github-prd-4"
     changed_at: "2026-10-10"
     kind: "feature"
