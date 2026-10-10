@@ -6,6 +6,8 @@ import {
   createQuestionSetSchema,
   QUESTION_OPTION_NUMBERS,
   questionInputSchema,
+  reorderQuestions,
+  updateQuestion,
 } from "@aptiquiz/database";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -74,4 +76,28 @@ export async function addQuestionAction(formData: FormData) {
     question: parsed.data,
   });
   redirect(`/question-sets/${setId}`);
+}
+
+export async function updateQuestionAction(formData: FormData) {
+  const session = await getActiveSession(await headers());
+  if (!session) redirect("/sign-in");
+  const setId = String(formData.get("setId") ?? "");
+  const questionId = String(formData.get("questionId") ?? "");
+  const editPath = `/question-sets/${encodeURIComponent(setId)}/questions/${encodeURIComponent(questionId)}`;
+  const parsed = questionInputSchema.safeParse(readQuestion(formData));
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Check the Question fields.";
+    redirect(`${editPath}?error=${encodeURIComponent(message)}`);
+  }
+  await updateQuestion(database, session.user.id, { setId, questionId, question: parsed.data });
+  redirect(`/question-sets/${encodeURIComponent(setId)}`);
+}
+
+export async function reorderQuestionsAction(formData: FormData) {
+  const session = await getActiveSession(await headers());
+  if (!session) redirect("/sign-in");
+  const setId = String(formData.get("setId") ?? "");
+  const questionIds = formData.getAll("questionId").map(String);
+  await reorderQuestions(database, session.user.id, { setId, questionIds });
+  redirect(`/question-sets/${encodeURIComponent(setId)}`);
 }

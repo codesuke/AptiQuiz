@@ -1,12 +1,35 @@
-import { QUESTION_OPTION_NUMBERS } from "@aptiquiz/database";
+import {
+  QUESTION_OPTION_NUMBERS,
+  questionMediaSchema,
+  questionOptionsSchema,
+} from "@aptiquiz/database";
 
-export function QuestionFields() {
+export type StoredQuestion = {
+  text: string;
+  options: unknown;
+  correctOptionId: string;
+  topic: string;
+  difficulty: string;
+  media: unknown;
+};
+
+function tableToText(table: { headers: string[]; rows: string[][] } | undefined) {
+  if (!table) return "";
+  return [table.headers, ...table.rows].map((row) => row.join(",")).join("\n");
+}
+
+export function QuestionFields({ question }: { question?: StoredQuestion }) {
+  const optionTexts = new Map(
+    question ? questionOptionsSchema.parse(question.options).map((o) => [o.id, o.text]) : [],
+  );
+  const media = question?.media ? questionMediaSchema.parse(question.media) : undefined;
   return (
     <>
       <label className="block text-sm font-medium">
         Question text
         <textarea
           className="mt-1 min-h-24 w-full rounded-lg border border-stone-300 p-3"
+          defaultValue={question?.text}
           maxLength={4000}
           name="text"
           required
@@ -21,6 +44,7 @@ export function QuestionFields() {
               <span className="w-5">{number}.</span>
               <input
                 className="w-full rounded-lg border border-stone-300 p-2"
+                defaultValue={optionTexts.get(String(number))}
                 maxLength={500}
                 name={`option-${number}`}
                 required={number <= 2}
@@ -33,6 +57,7 @@ export function QuestionFields() {
         Correct option
         <select
           className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+          defaultValue={question?.correctOptionId ?? ""}
           name="correctOptionId"
           required
         >
@@ -49,6 +74,7 @@ export function QuestionFields() {
           Topic
           <input
             className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+            defaultValue={question?.topic}
             maxLength={100}
             name="topic"
             required
@@ -58,6 +84,7 @@ export function QuestionFields() {
           Difficulty
           <select
             className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+            defaultValue={question?.difficulty ?? ""}
             name="difficulty"
             required
           >
@@ -72,6 +99,7 @@ export function QuestionFields() {
         Image URL (optional)
         <input
           className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+          defaultValue={media?.imageUrl}
           name="imageUrl"
           placeholder="https://example.com/image.png"
           type="url"
@@ -81,6 +109,7 @@ export function QuestionFields() {
         Table (optional)
         <textarea
           className="mt-1 min-h-24 w-full rounded-lg border border-stone-300 p-3"
+          defaultValue={tableToText(media?.table)}
           name="table"
           placeholder={"Year,Applicants\n2025,40\n2026,50"}
         />

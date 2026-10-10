@@ -7,7 +7,9 @@ import {
   createQuestionSet,
   getQuestionSet,
   listQuestionSets,
+  reorderQuestions,
   seedStarterQuestionSet,
+  updateQuestion,
 } from "./question-sets.js";
 
 const envFile = new URL("../../../.env", import.meta.url);
@@ -269,4 +271,152 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
       }),
     ).rejects.toThrow();
   }, 30_000);
+
+  describe("editing and reordering", () => {
+    const question = (text: string) => ({
+      text,
+      options: [
+        { id: "a", text: "Yes" },
+        { id: "b", text: "No" },
+      ],
+      correctOptionId: "a",
+      topic: "Logic",
+      difficulty: "EASY",
+    });
+    const createSet = (title: string) =>
+      createQuestionSet(db, ownerId, {
+        idempotencyKey: randomUUID(),
+        title,
+        questions: [question("One"), question("Two"), question("Three")],
+      });
+
+    it("saves an edited Question and reads it back on reopening", async () => {
+      const set = await createSet("Editable");
+      const target = set.questions[1];
+      if (!target) throw new Error("missing seeded Question");
+      await updateQuestion(db, ownerId, {
+        setId: set.id,
+        questionId: target.id,
+        question: {
+          ...question("Two, revised"),
+          correctOptionId: "b",
+          difficulty: "HARD",
+          media: { imageUrl: "https://example.test/two.png" },
+        },
+      });
+      const reopened = await getQuestionSet(db, ownerId, set.id);
+      expect(reopened?.questions.map((q) => q.text)).toEqual(["One", "Two, revised", "Three"]);
+      expect(reopened?.questions[1]).toMatchObject({
+        id: target.id,
+        position: 1,
+        correctOptionId: "b",
+        difficulty: "HARD",
+        media: { imageUrl: "https://example.test/two.png" },
+      });
+    });
+
+    it("clears media when an edit omits it", async () => {
+      const set = await createQuestionSet(db, ownerId, {
+        idempotencyKey: randomUUID(),
+        title: "Media removal",
+        questions: [{ ...question("Pic"), media: { imageUrl: "https://example.test/p.png" } }],
+      });
+      const target = set.questions[0];
+      if (!target) throw new Error("missing seeded Question");
+      await updateQuestion(db, ownerId, {
+        setId: set.id,
+        questionId: target.id,
+        question: question("Pic"),
+      });
+      expect((await getQuestionSet(db, ownerId, set.id))?.questions[0]?.media).toBeNull();
+    });
+
+    it("reorders Questions and reads them back in the chosen order", async () => {
+      const set = await createSet("Reorderable");
+      const [one, two, three] = set.questions.map((q) => q.id);
+      if (!one || !two || !three) throw new Error("missing seeded Questions");
+      await reorderQuestions(db, ownerId, { setId: set.id, questionIds: [three, one, two] });
+      const reopened = await getQuestionSet(db, ownerId, set.id);
+      expect(reopened?.questions.map((q) => q.text)).toEqual(["Three", "One", "Two"]);
+      expect(reopened?.questions.map((q) => q.position)).toEqual([0, 1, 2]);
+    });
+
+    it("rejects invalid edits and reorders without changing the set", async () => {
+      const set = await createSet("Protected");
+      const [one, two, three] = set.questions.map((q) => q.id);
+      if (!one || !two || !three) throw new Error("missing seeded Questions");
+      const invalidEdit = { ...question("Bad"), correctOptionId: "missing" };
+      await expect(
+        updateQuestion(db, ownerId, { setId: set.id, questionId: one, question: invalidEdit }),
+      ).rejects.toThrow();
+      for (const questionIds of [
+        [one, two],
+        [one, two, two],
+        [one, two, "foreign"],
+        [],
+        [one, two, three, one],
+      ]) {
+        await expect(
+          reorderQuestions(db, ownerId, { setId: set.id, questionIds }),
+        ).rejects.toThrow();
+      }
+      const unchanged = await getQuestionSet(db, ownerId, set.id);
+      expect(unchanged?.questions.map((q) => q.text)).toEqual(["One", "Two", "Three"]);
+      expect(unchanged?.questions.map((q) => q.position)).toEqual([0, 1, 2]);
+    });
+
+    it("refuses another User, a Guest, a foreign Question, and the starter set", async () => {
+      const set = await createSet("Private");
+      const other = await createQuestionSet(db, otherId, {
+        idempotencyKey: randomUUID(),
+        title: "Other's",
+        questions: [question("Theirs")],
+      });
+      const [one, two, three] = set.questions.map((q) => q.id);
+      const theirs = other.questions[0]?.id;
+      if (!one || !two || !three || !theirs) throw new Error("missing seeded Questions");
+      await expect(
+        updateQuestion(db, otherId, {
+          setId: set.id,
+          questionId: one,
+          question: question("Hacked"),
+        }),
+      ).rejects.toThrow();
+      await expect(
+        updateQuestion(db, null, { setId: set.id, questionId: one, question: question("Hacked") }),
+      ).rejects.toThrow();
+      await expect(
+        updateQuestion(db, ownerId, {
+          setId: set.id,
+          questionId: theirs,
+          question: question("Hacked"),
+        }),
+      ).rejects.toThrow();
+      await expect(
+        reorderQuestions(db, otherId, { setId: set.id, questionIds: [three, two, one] }),
+      ).rejects.toThrow();
+      const starter = await seedStarterQuestionSet(db);
+      const starterIds = starter.questions.map((q) => q.id);
+      const firstStarter = starterIds[0];
+      if (!firstStarter) throw new Error("missing starter Questions");
+      await expect(
+        updateQuestion(db, ownerId, {
+          setId: starter.id,
+          questionId: firstStarter,
+          question: question("Hacked"),
+        }),
+      ).rejects.toThrow();
+      await expect(
+        reorderQuestions(db, ownerId, {
+          setId: starter.id,
+          questionIds: [...starterIds].reverse(),
+        }),
+      ).rejects.toThrow();
+      const unchanged = await getQuestionSet(db, ownerId, set.id);
+      expect(unchanged?.questions.map((q) => q.text)).toEqual(["One", "Two", "Three"]);
+      expect((await getQuestionSet(db, ownerId, starter.id))?.questions.map((q) => q.id)).toEqual(
+        starterIds,
+      );
+    });
+  }, 60_000);
 });

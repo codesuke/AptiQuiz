@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PrismaClient } from "./index.js";
+import { Prisma, type PrismaClient } from "./index.js";
 
 const optionSchema = z.object({
   id: z.string().trim().min(1).max(40),
@@ -65,14 +65,20 @@ export const createQuestionSetSchema = z.object({
 
 type ValidQuestion = z.infer<typeof questionInputSchema>;
 
-function questionCreateData(question: ValidQuestion, position: number) {
+function questionFields(question: ValidQuestion) {
   return {
-    position,
     text: question.text,
     options: question.options,
     correctOptionId: question.correctOptionId,
     topic: question.topic,
     difficulty: question.difficulty,
+  };
+}
+
+function questionCreateData(question: ValidQuestion, position: number) {
+  return {
+    position,
+    ...questionFields(question),
     ...(question.media ? { media: question.media } : {}),
   };
 }
@@ -122,6 +128,14 @@ export async function getQuestionSet(db: PrismaClient, hostId: string | null, se
   });
 }
 
+type Transaction = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
+
+async function requireEditableSet(tx: Transaction, ownerId: string, setId: string) {
+  const set = await tx.questionSet.findFirst({ where: { id: setId, ownerId, isStarter: false } });
+  if (!set) throw new Error("Question Set not found.");
+  return set;
+}
+
 const addQuestionSchema = z.object({
   setId: z.string().min(1),
   idempotencyKey: z.uuid(),
@@ -132,10 +146,7 @@ export async function addQuestion(db: PrismaClient, hostId: string | null, input
   const ownerId = requireHostId(hostId);
   const data = addQuestionSchema.parse(input);
   return db.$transaction(async (tx) => {
-    const set = await tx.questionSet.findFirst({
-      where: { id: data.setId, ownerId, isStarter: false },
-    });
-    if (!set) throw new Error("Question Set not found.");
+    const set = await requireEditableSet(tx, ownerId, data.setId);
     const existing = await tx.question.findUnique({
       where: {
         questionSetId_idempotencyKey: {
@@ -158,6 +169,61 @@ export async function addQuestion(db: PrismaClient, hostId: string | null, input
     });
     await tx.questionSet.update({ where: { id: set.id }, data: { updatedAt: new Date() } });
     return question;
+  });
+}
+
+const updateQuestionSchema = z.object({
+  setId: z.string().min(1),
+  questionId: z.string().min(1),
+  question: questionInputSchema,
+});
+
+export async function updateQuestion(db: PrismaClient, hostId: string | null, input: unknown) {
+  const ownerId = requireHostId(hostId);
+  const data = updateQuestionSchema.parse(input);
+  return db.$transaction(async (tx) => {
+    const set = await requireEditableSet(tx, ownerId, data.setId);
+    const existing = await tx.question.findFirst({
+      where: { id: data.questionId, questionSetId: set.id },
+    });
+    if (!existing) throw new Error("Question not found.");
+    const question = await tx.question.update({
+      where: { id: existing.id },
+      data: { ...questionFields(data.question), media: data.question.media ?? Prisma.DbNull },
+    });
+    await tx.questionSet.update({ where: { id: set.id }, data: { updatedAt: new Date() } });
+    return question;
+  });
+}
+
+const reorderQuestionsSchema = z.object({
+  setId: z.string().min(1),
+  questionIds: z.array(z.string().min(1)).min(1).max(100),
+});
+
+export async function reorderQuestions(db: PrismaClient, hostId: string | null, input: unknown) {
+  const ownerId = requireHostId(hostId);
+  const data = reorderQuestionsSchema.parse(input);
+  return db.$transaction(async (tx) => {
+    const set = await requireEditableSet(tx, ownerId, data.setId);
+    const current = await tx.question.findMany({
+      where: { questionSetId: set.id },
+      select: { id: true },
+    });
+    const currentIds = new Set(current.map((question) => question.id));
+    const isPermutation =
+      data.questionIds.length === currentIds.size &&
+      new Set(data.questionIds).size === currentIds.size &&
+      data.questionIds.every((id) => currentIds.has(id));
+    if (!isPermutation) throw new Error("Reorder must list every Question in the set once.");
+    // Park positions below zero first so the (set, position) unique key never collides mid-update.
+    for (const [index, id] of data.questionIds.entries()) {
+      await tx.question.update({ where: { id }, data: { position: -(index + 1) } });
+    }
+    for (const [index, id] of data.questionIds.entries()) {
+      await tx.question.update({ where: { id }, data: { position: index } });
+    }
+    await tx.questionSet.update({ where: { id: set.id }, data: { updatedAt: new Date() } });
   });
 }
 
