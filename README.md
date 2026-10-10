@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="Apti-App/apps/web/public/brand/aptiquiz-logo-readme.png" alt="AptiQuiz" width="420">
+  <img src="https://raw.githubusercontent.com/codesuke/AptiQuiz/main/Apti-App/apps/web/public/brand/aptiquiz-logo-readme.png" alt="AptiQuiz" width="420">
 
   <h1>AptiQuiz</h1>
   <p><strong>Race the clock. Climb the room.</strong></p>
@@ -17,6 +17,17 @@
     <a href="Architecture.md">Architecture</a> ·
     <a href="https://github.com/codesuke/AptiQuiz/issues">Roadmap &amp; issues</a> ·
     <a href="CONTRIBUTING.md">Contributing</a>
+  </p>
+
+  <p>
+    <a href="https://nextjs.org/"><img src="https://cdn.simpleicons.org/nextdotjs/111111" alt="Next.js" width="34" height="34"></a>
+    <a href="https://react.dev/"><img src="https://cdn.simpleicons.org/react/61DAFB" alt="React" width="34" height="34"></a>
+    <a href="https://www.typescriptlang.org/"><img src="https://cdn.simpleicons.org/typescript/3178C6" alt="TypeScript" width="34" height="34"></a>
+    <a href="https://tailwindcss.com/"><img src="https://cdn.simpleicons.org/tailwindcss/06B6D4" alt="Tailwind CSS" width="34" height="34"></a>
+    <a href="https://socket.io/"><img src="https://cdn.simpleicons.org/socketdotio/010101" alt="Socket.IO" width="34" height="34"></a>
+    <a href="https://www.postgresql.org/"><img src="https://cdn.simpleicons.org/postgresql/4169E1" alt="PostgreSQL" width="34" height="34"></a>
+    <a href="https://www.prisma.io/"><img src="https://cdn.simpleicons.org/prisma/2D3748" alt="Prisma" width="34" height="34"></a>
+    <a href="https://pnpm.io/"><img src="https://cdn.simpleicons.org/pnpm/F69220" alt="pnpm" width="34" height="34"></a>
   </p>
 </div>
 
@@ -142,15 +153,32 @@ AptiQuiz/
 
 Read [Architecture.md](Architecture.md) for implemented interfaces, failure behavior, and deployment plans. Redis remains deferred until measurements justify multiple Game Server processes; Kafka is also deferred.
 
-## Technology
+## Tech stack
 
-| Layer | Tools |
+<div align="center">
+  <a href="https://nextjs.org/"><img src="https://cdn.simpleicons.org/nextdotjs/111111" alt="Next.js" width="52" height="52"></a>
+  <a href="https://react.dev/"><img src="https://cdn.simpleicons.org/react/61DAFB" alt="React" width="52" height="52"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://cdn.simpleicons.org/typescript/3178C6" alt="TypeScript" width="52" height="52"></a>
+  <a href="https://tailwindcss.com/"><img src="https://cdn.simpleicons.org/tailwindcss/06B6D4" alt="Tailwind CSS" width="52" height="52"></a>
+  <a href="https://nodejs.org/"><img src="https://cdn.simpleicons.org/nodedotjs/5FA04E" alt="Node.js" width="52" height="52"></a>
+  <a href="https://socket.io/"><img src="https://cdn.simpleicons.org/socketdotio/010101" alt="Socket.IO" width="52" height="52"></a>
+  <a href="https://www.postgresql.org/"><img src="https://cdn.simpleicons.org/postgresql/4169E1" alt="PostgreSQL" width="52" height="52"></a>
+  <a href="https://www.prisma.io/"><img src="https://cdn.simpleicons.org/prisma/2D3748" alt="Prisma" width="52" height="52"></a>
+  <a href="https://pnpm.io/"><img src="https://cdn.simpleicons.org/pnpm/F69220" alt="pnpm" width="52" height="52"></a>
+  <a href="https://turbo.build/"><img src="https://cdn.simpleicons.org/turborepo/EF4444" alt="Turborepo" width="52" height="52"></a>
+  <a href="https://biomejs.dev/"><img src="https://cdn.simpleicons.org/biome/60A5FA" alt="Biome" width="52" height="52"></a>
+  <a href="https://vitest.dev/"><img src="https://cdn.simpleicons.org/vitest/6E9F18" alt="Vitest" width="52" height="52"></a>
+</div>
+
+<p align="center"><sub>Next.js · React · TypeScript · Tailwind CSS · Node.js · Socket.IO · PostgreSQL · Prisma · pnpm · Turborepo · Biome · Vitest</sub></p>
+
+| Arena | Stack |
 | --- | --- |
-| Web | Next.js 16, React 19, Tailwind CSS 4 |
-| Realtime | Node.js, Socket.IO 4 |
-| Domain & validation | TypeScript, Zod, pure Game Engine |
-| Data | PostgreSQL, Prisma ORM 7 |
-| Development | pnpm 11, Turborepo, Biome, Vitest |
+| Player experience | Next.js 16, React 19, Tailwind CSS 4 |
+| Live competition | Node.js, Socket.IO 4, authoritative Game Server |
+| Shared rules | TypeScript, Zod, pure Game Engine |
+| Persistence | PostgreSQL, Prisma ORM 7 |
+| Monorepo & quality | pnpm 11, Turborepo, Biome, Vitest |
 
 Better Auth integration is in progress; Dokploy deployment is planned. Exact dependency versions are recorded in [the workspace](Apti-App/package.json) and [lockfile](Apti-App/pnpm-lock.yaml).
 
