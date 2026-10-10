@@ -239,14 +239,34 @@ describe.skipIf(!databaseUrl)("Question Set authoring", () => {
     expect((await getQuestionSet(db, ownerId, set.id))?.questions).toHaveLength(1);
   }, 30_000);
 
-  it("seeds one starter Question Set for a Host even when requested twice", async () => {
-    const first = await seedStarterQuestionSet(db, ownerId);
-    const second = await seedStarterQuestionSet(db, ownerId);
+  it("seeds one read-only starter Question Set visible to every signed-in User", async () => {
+    const first = await seedStarterQuestionSet(db);
+    const second = await seedStarterQuestionSet(db);
     expect(second.id).toBe(first.id);
+    expect(first.ownerId).toBeNull();
+    expect(first.isStarter).toBe(true);
     expect(first.questions.length).toBeGreaterThanOrEqual(3);
     expect((await listQuestionSets(db, ownerId)).filter((set) => set.id === first.id)).toHaveLength(
       1,
     );
-    expect(await getQuestionSet(db, otherId, first.id)).toBeNull();
+    expect((await listQuestionSets(db, otherId)).map((set) => set.id)).toContain(first.id);
+    expect(await getQuestionSet(db, otherId, first.id)).not.toBeNull();
+    expect(await db.questionSet.count({ where: { isStarter: true } })).toBe(1);
+    await expect(
+      addQuestion(db, ownerId, {
+        setId: first.id,
+        idempotencyKey: randomUUID(),
+        question: {
+          text: "No edits",
+          options: [
+            { id: "a", text: "Yes" },
+            { id: "b", text: "No" },
+          ],
+          correctOptionId: "a",
+          topic: "Logic",
+          difficulty: "EASY",
+        },
+      }),
+    ).rejects.toThrow();
   }, 30_000);
 });

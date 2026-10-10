@@ -32,6 +32,9 @@ export default async function QuestionSetPage({
           All Question Sets
         </Link>
         <h1 className="mt-8 text-4xl font-semibold tracking-tight">{set.title}</h1>
+        {set.isStarter ? (
+          <p className="mt-2 text-sm text-stone-600">Shared starter set · Read only</p>
+        ) : null}
         <ol className="mt-8 space-y-5">
           {set.questions.map((question) => (
             <li className="rounded-2xl border border-stone-200 bg-white p-6" key={question.id}>
@@ -60,30 +63,32 @@ export default async function QuestionSetPage({
             </li>
           ))}
         </ol>
-        <section
-          aria-labelledby="add-question-heading"
-          className="mt-10 rounded-2xl border border-stone-200 bg-white p-6"
-        >
-          <h2 className="text-xl font-semibold" id="add-question-heading">
-            Add a Question
-          </h2>
-          {query.error ? (
-            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
-              {query.error}
-            </p>
-          ) : null}
-          <form action={addQuestionAction} className="mt-6 space-y-4">
-            <input name="setId" type="hidden" value={set.id} />
-            <input name="idempotencyKey" type="hidden" value={randomUUID()} />
-            <QuestionFields />
-            <button
-              className="rounded-xl bg-[#e65c00] px-5 py-3 font-semibold text-white hover:bg-[#cc5200] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]"
-              type="submit"
-            >
-              Add Question
-            </button>
-          </form>
-        </section>
+        {!set.isStarter ? (
+          <section
+            aria-labelledby="add-question-heading"
+            className="mt-10 rounded-2xl border border-stone-200 bg-white p-6"
+          >
+            <h2 className="text-xl font-semibold" id="add-question-heading">
+              Add a Question
+            </h2>
+            {query.error ? (
+              <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
+                {query.error}
+              </p>
+            ) : null}
+            <form action={addQuestionAction} className="mt-6 space-y-4">
+              <input name="setId" type="hidden" value={set.id} />
+              <input name="idempotencyKey" type="hidden" value={randomUUID()} />
+              <QuestionFields />
+              <button
+                className="rounded-xl bg-[#e65c00] px-5 py-3 font-semibold text-white hover:bg-[#cc5200] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e65c00]"
+                type="submit"
+              >
+                Add Question
+              </button>
+            </form>
+          </section>
+        ) : null}
       </div>
     </main>
   );

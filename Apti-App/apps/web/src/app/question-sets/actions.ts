@@ -6,7 +6,6 @@ import {
   createQuestionSetSchema,
   QUESTION_OPTION_NUMBERS,
   questionInputSchema,
-  seedStarterQuestionSet,
 } from "@aptiquiz/database";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -72,11 +71,4 @@ export async function addQuestionAction(formData: FormData) {
     question: parsed.data,
   });
   redirect(`/question-sets/${setId}`);
-}
-
-export async function seedStarterQuestionSetAction() {
-  const session = await getActiveSession(await headers());
-  if (!session) redirect("/sign-in");
-  const set = await seedStarterQuestionSet(database, session.user.id);
-  redirect(`/question-sets/${set.id}`);
 }

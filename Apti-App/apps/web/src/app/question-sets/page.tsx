@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { listQuestionSets } from "@aptiquiz/database";
+import { listQuestionSets, seedStarterQuestionSet } from "@aptiquiz/database";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { database } from "@/lib/database";
-import { createQuestionSetAction, seedStarterQuestionSetAction } from "./actions";
+import { createQuestionSetAction } from "./actions";
 import { QuestionFields } from "./question-fields";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,7 @@ export default async function QuestionSetsPage({
 }) {
   const session = await getActiveSession(await headers());
   if (!session) redirect("/sign-in");
+  const starter = await seedStarterQuestionSet(database);
   const [sets, query] = await Promise.all([
     listQuestionSets(database, session.user.id),
     searchParams,
@@ -35,14 +36,14 @@ export default async function QuestionSetsPage({
             <h2 className="text-xl font-semibold" id="your-sets-heading">
               Your sets
             </h2>
-            <form action={seedStarterQuestionSetAction} className="mt-4">
-              <button
+            <div className="mt-4">
+              <Link
                 className="rounded-xl border border-[#e65c00] px-4 py-2 font-semibold text-[#b54800] hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-[#e65c00]"
-                type="submit"
+                href={`/question-sets/${starter.id}`}
               >
-                Use starter set
-              </button>
-            </form>
+                Open starter set
+              </Link>
+            </div>
             {sets.length === 0 ? (
               <p className="mt-4 text-stone-600">No Question Sets yet.</p>
             ) : (
@@ -55,7 +56,7 @@ export default async function QuestionSetsPage({
                     >
                       {set.title}
                       <span className="ml-2 text-sm font-normal text-stone-500">
-                        {set.questions.length} Questions
+                        {set.questions.length} Questions{set.isStarter ? " · Starter" : ""}
                       </span>
                     </Link>
                   </li>
