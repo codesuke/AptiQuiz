@@ -1,0 +1,31 @@
+:root {
+  --auth-primary: #e65c00;
+  --auth-action: #b84700;
+  --auth-accent: #ffb380;
+  --auth-background: #fdfbf7;
+  --auth-surface: #f7f4eb;
+  --auth-text: #111827;
+  --auth-text-muted: #4b5563;
+  --auth-border: #e5e7eb;
+  --auth-on-primary: #fff;
+  --auth-font: "Inter", system-ui, sans-serif;
+  --auth-font-mono: "JetBrains Mono", monospace;
+  --auth-display-size: 4rem;
+  --auth-display-weight: 500;
+  --auth-display-leading: 1.04;
+  --auth-body-size: 1rem;
+  --auth-body-leading: 1.6;
+  --auth-label-size: 0.75rem;
+  --auth-label-weight: 600;
+  --auth-space-unit: 0.5rem;
+  --auth-gap: 1rem;
+  --auth-card-padding: 1.5rem;
+  --auth-section-padding: 5rem;
+  --auth-panel-radius: 1rem;
+  --auth-control-radius: 0.5rem;
+  --auth-pill-radius: 9999px;
+  /* Layout values inferred from the mock; colors/type above come from DESIGN.md. */
+  --auth-page-inset: 2rem;
+  --auth-control-height: 3.25rem;
+  --auth-form-width: 25rem;
+}

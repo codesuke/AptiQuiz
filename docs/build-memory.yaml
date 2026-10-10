@@ -1,6 +1,44 @@
 schema_version: 1
 purpose: "Agent-readable changelog of implemented project behavior."
 changes:
+  - id: "2026-10-10-aptiquiz-brand-and-readme"
+    changed_at: "2026-10-10"
+    kind: "change"
+    title: "Adopt the AptiQuiz Q/check logo and refresh repository documentation"
+    status: "working_with_limitations"
+    summary: "Adopted the user-selected logo across application headers, browser icon metadata, documentation, design reference, and authentication prototype; refreshed the root README with accurate status, setup, architecture, roadmap, and contributor links."
+    areas:
+      - "brand identity"
+      - "web interface"
+      - "design references"
+      - "repository documentation"
+    working:
+      - "Shared deployable PNG assets include the original transparent lockup, an ivory-backed documentation edition, and a standalone Q/check icon."
+      - "The foundation and authentication headers reference the shared logo; browser icon metadata references the shared icon."
+      - "The authentication prototype loads the new logo at desktop and mobile widths, without horizontal overflow or broken images."
+      - "The root README provides project navigation, honest delivery status, local setup, verification commands, architecture, and contribution guidance."
+      - "Preview action colors and reference text contrast were corrected while preserving the orange logo."
+      - "Reference section headings follow the h1/h2 hierarchy; narrow detector exceptions preserve documented fonts, palette, component showcase, and decorative icon/background treatments."
+    limitations:
+      - "Assets are raster PNGs; an editable vector source is not available."
+      - "Original generated screen PNGs retain historical branding; browser-rendered auth previews have been refreshed."
+      - "The web build, typecheck, and Game Server test could not pass while concurrent account work had unresolved dependencies, an unbuilt Socket Ticket package, and unrelated type errors; application runtime rendering was not verified in this change."
+    author:
+      name: "OpenAI Codex"
+      type: "agent"
+    co_authors: []
+    evidence:
+      pull_requests: []
+      commits: []
+      tests:
+        - "Biome passed for the changed web page, layout, and authentication shell."
+        - "Chromium verified the auth prototype at 1586x992, 390x844, and 320x568 with all images loaded, no horizontal overflow, and no page errors."
+        - "Chromium verified password visibility and refreshed desktop/mobile prototype screenshots."
+        - "The authentication asset manifest was regenerated after branding and preview updates."
+        - "The web production build and typecheck reported unresolved account dependencies; no success is claimed for those checks."
+        - "All 80 local links in the updated documentation resolved, build memory parsed as YAML, and git diff --check passed."
+        - "The final scoped Impeccable detector returned no findings for the design reference and authentication prototype after heading correction and documented exceptions."
+        - "The Game Server test could not collect tests because the concurrent Socket Ticket package did not have a resolvable built entry."
   - id: "2026-10-10-apti-app-workspace-relocation"
     changed_at: "2026-10-10"
     version: "0.1.0"

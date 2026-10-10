@@ -14,6 +14,7 @@ Claude Code imports these automatically into every session in this repo (do not 
 
 - Read the domain docs (`docs/agents/domain.md`) before planning work.
 - Read `docs/build-memory.yaml` before changing existing behavior so the implementation plan accounts for what currently works and its known limitations.
+- For database-backed tests and migration checks, use the configured PostgreSQL server from `Apti-App/.env`. Do not print connection strings or secrets in commands, logs, issues, or documentation.
 - Prefer small vertical slices that are demoable end to end. Use horizontal slices when foundational, migration, infrastructure, or documentation work is independently verifiable but not meaningfully demoable.
 - Use test-driven development for product behavior: one failing behavior test, minimal implementation, then refactor.
 - Keep implementation details out of `CONTEXT.md`; it is a domain glossary, not a spec.

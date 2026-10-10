@@ -1,5 +1,7 @@
 # Contributing to AptiQuiz
 
+<p align="center"><img src="Apti-App/apps/web/public/brand/aptiquiz-logo-readme.png" alt="AptiQuiz" width="300"></p>
+
 Thanks for considering a contribution. This repo is built collaboratively by humans and AI agents, so the same rules apply to both — the source of truth is always the repository, not a chat history or a prior conversation.
 
 By participating, you're expected to uphold our [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -81,7 +83,7 @@ pnpm build
 
 Run `pnpm simulate` while `pnpm dev` is active to exercise the public Socket.IO interface with 50 connections by default.
 
-Run the lint, typecheck, test, and build checks configured for the project before opening a PR. This template does not prescribe those tools before the stack is chosen.
+Run `pnpm check` from `Apti-App/` to execute all four verification steps before opening a PR. The simulator verifies connection and time-ping behavior; it does not yet prove complete-match capacity.
 
 ## Coding Standards
 
@@ -130,3 +132,7 @@ New to the project? Look for issues labeled `good first issue` — small, self-c
 | `wontfix`          | Will not be actioned                                                                       |
 
 See [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md) for the full reference.
+
+## Brand Assets
+
+Use the shared assets in [the web public brand directory](Apti-App/apps/web/public/brand/). Follow [Brand.md](Brand.md) for proportions, backgrounds, and accessible naming. Preserve the generated source and provenance in [the logo reference](design-mocks/aptiquiz-logo/README.md).

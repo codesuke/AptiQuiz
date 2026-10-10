@@ -1,10 +1,12 @@
 const DEFAULT_PORT = 3001;
 const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
+const MINIMUM_SECRET_LENGTH = 32;
 
 export interface GameServerConfig {
   readonly port: number;
   readonly webOrigin: string;
   readonly logLevel: string;
+  readonly gameServerSecret: string;
 }
 
 export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServerConfig {
@@ -19,5 +21,14 @@ export function readGameServerConfig(environment: NodeJS.ProcessEnv): GameServer
     port,
     webOrigin: environment.GAME_SERVER_ORIGIN ?? DEFAULT_WEB_ORIGIN,
     logLevel: environment.LOG_LEVEL ?? "info",
+    gameServerSecret: readGameServerSecret(environment.GAME_SERVER_SECRET),
   };
+}
+
+function readGameServerSecret(secret: string | undefined): string {
+  if (secret === undefined || secret.length < MINIMUM_SECRET_LENGTH) {
+    throw new Error(`GAME_SERVER_SECRET must contain at least ${MINIMUM_SECRET_LENGTH} characters`);
+  }
+
+  return secret;
 }

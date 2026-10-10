@@ -1,0 +1,9 @@
+{
+  "extends": "@aptiquiz/typescript-config/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

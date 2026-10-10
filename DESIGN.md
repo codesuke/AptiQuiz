@@ -4,6 +4,8 @@ name: "AptiQuiz Design System"
 description: "AptiQuiz uses an energetic, focused interface for live aptitude competition, Question Sets, Rooms, Leaderboards, and College Leagues. The reference demonstrates typography, component hierarchy, and responsive composition."
 colors:
   primary: "#E65C00"
+  action: "#B84700"
+  action-hover: "#993A00"
   secondary: "#FDFBF7"
   accent: "#FFB380"
   background: "#FDFBF7"
@@ -62,6 +64,10 @@ Use Inter for display moments and Inter for body copy unless the HTML clearly de
 ## Layout
 Keep spacing deliberate and stable. Favor the same grid direction, max-width behavior, card density, and responsive stacking seen in the HTML. Do not replace distinctive source structures with generic SaaS sections.
 ## Components
+Use the Q/check logo assets and usage rules in [Brand.md](Brand.md). Current branding takes precedence over the older marks in generated screen references. Preserve its aspect ratio and accessible naming.
+
+The authentication prototype and design reference use a darker orange action token, #B84700, for small link text and buttons with white labels to meet WCAG AA contrast; #993A00 is the hover fill. The primary brand orange remains #E65C00 for the logo and decorative emphasis.
+
 Room lookup, Question Set actions, and live-match controls should preserve the reference button hierarchy, input density, and clear focus states.
 ## Motion
 Preserve existing motion cues such as masked reveals, staggered entrance, hover lift, scroll-triggered transitions, and ambient movement. Keep easing smooth and restrained.

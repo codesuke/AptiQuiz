@@ -1,0 +1,18 @@
+# Local dependencies and build output are recreated in the image.
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+
+# Runtime secrets belong in Dokploy, never in the image build context.
+.env
+.env.*
+!.env.example
+
+# Repository metadata and local tooling are not needed to build the app.
+.git
+.turbo
+coverage
+*.log

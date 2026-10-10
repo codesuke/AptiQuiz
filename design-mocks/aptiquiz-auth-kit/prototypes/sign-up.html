@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Build your pace. — AptiQuiz</title>
+    <link rel="icon" href="../../../Apti-App/apps/web/public/brand/aptiquiz-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../tokens/auth.css">
+    <link rel="stylesheet" href="auth-layout.css">
+    <script src="auth-preview.js" defer></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <a class="brand" href="normal-login.html" aria-label="AptiQuiz sign in"><img src="../../../Apti-App/apps/web/public/brand/aptiquiz-logo.png" alt=""></a>
+        <p class="header-action"><span>Already have an account? </span><a href="normal-login.html">Sign in</a></p>
+      </header>
+      <div class="auth-layout">
+        <section class="artwork-panel" aria-labelledby="artwork-title">
+          <div class="artwork-copy">
+            <p class="eyebrow">Practice. Compete. Improve.</p>
+            <h2 id="artwork-title">A sharper mind.<br>One Round at a time.</h2>
+            <p>Build your accuracy. Find your pace.</p>
+          </div>
+          <div class="artwork-scene">Race the clock.<br>Climb the Room.</div>
+          <div class="artwork-footer"><span>Live Rooms</span><span>Question Sets</span><span>College Leagues</span></div>
+        </section>
+        <section class="form-panel" aria-labelledby="auth-title">
+          <div class="form-column">
+            <p class="eyebrow">Start your next Round</p>
+            <h1 id="auth-title">Build your pace.</h1>
+            <p class="subtitle">Create an account to keep your progress.</p>
+            <form class="form" onsubmit="return false" data-preview-submit="Account creation is a preview. No details were sent.">
+  <div class="field"><label for="name">Display name</label><input id="name" name="name" type="text" autocomplete="name" maxlength="100" required></div>
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <div class="password-control">
+      <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128">
+      <button class="password-toggle" type="button" data-password-toggle="password" aria-label="Show password" aria-pressed="false"><img src="../icons/eye.svg" alt=""></button>
+    </div>
+  </div>
+  <p class="field-help">Use at least 8 characters.</p>
+  <button class="primary-button" type="submit">Create account</button>
+  <p id="preview-status" class="preview-status" role="status" aria-live="polite"></p>
+</form>
+          </div>
+          <footer class="page-footer">AptiQuiz · Accuracy meets pace.</footer>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

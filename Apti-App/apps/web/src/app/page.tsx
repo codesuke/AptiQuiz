@@ -1,5 +1,9 @@
 import { ArrowRight, Gauge, ShieldCheck, Users } from "lucide-react";
+import { headers } from "next/headers";
+import Image from "next/image";
+import { AccountMenu } from "@/components/auth/account-menu";
 import { GameServerStatus } from "@/components/game-server-status";
+import { getActiveSession } from "@/lib/auth";
 
 const foundations = [
   {
@@ -19,22 +23,32 @@ const foundations = [
   },
 ] as const;
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const session = await getActiveSession(await headers());
   return (
     <main className="min-h-screen overflow-hidden bg-[#efece5] text-stone-900">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(230,92,0,0.15),transparent_34%),radial-gradient(circle_at_80%_20%,rgba(255,179,128,0.24),transparent_30%)]" />
       <section className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8 sm:px-10 lg:px-12">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-xl bg-[#e65c00] font-black text-white shadow-[0_4px_12px_rgba(230,92,0,0.25)]">
-              A
-            </div>
-            <div>
-              <p className="font-semibold tracking-tight">AptiQuiz</p>
-              <p className="text-xs text-stone-500">Placement pressure, made playable.</p>
-            </div>
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <Image
+              alt="AptiQuiz"
+              className="h-auto w-36 sm:w-48"
+              height={724}
+              preload
+              src="/brand/aptiquiz-logo.png"
+              width={2172}
+            />
+            <p className="mt-1 hidden text-xs text-stone-500 sm:block">
+              Placement pressure, made playable.
+            </p>
           </div>
-          <GameServerStatus />
+          <div className="flex flex-wrap items-center gap-3">
+            <GameServerStatus />
+            <AccountMenu name={session?.user.name ?? null} />
+          </div>
         </header>
 
         <div className="grid flex-1 items-center gap-14 py-20 lg:grid-cols-[1.2fr_0.8fr]">

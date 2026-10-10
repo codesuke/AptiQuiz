@@ -2,6 +2,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AptiQuiz Design Reference</title>
+    <link rel="icon" type="image/png" href="Apti-App/apps/web/public/brand/aptiquiz-icon.png">
+    <style>input[type="search"]::placeholder { color: #57534e; }</style>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
@@ -22,11 +24,8 @@
                 <div class="flex-1 bg-gradient-to-br from-[#F5EFE6] to-[#FCE8D5] p-6 relative overflow-hidden">
                     <!-- Nav fake -->
                     <div class="flex items-center justify-between mb-8 relative z-10">
-                        <div class="flex items-center gap-2">
-                            <div class="w-4 h-4 rounded-full bg-[#E65C00]"></div>
-                            <span class="text-xs font-medium tracking-tight text-stone-800">AptiQuiz</span>
-                        </div>
-                        <div class="flex gap-3 text-xs text-stone-500 font-medium">
+                        <img src="Apti-App/apps/web/public/brand/aptiquiz-logo.png" alt="AptiQuiz" width="108" height="36" style="width:108px;height:auto">
+                        <div class="flex gap-3 text-xs text-stone-600 font-medium">
                             <span class="hover:text-stone-800 cursor-pointer transition-colors">Live rooms</span>
                             <span class="hover:text-stone-800 cursor-pointer transition-colors">Plans</span>
                         </div>
@@ -34,8 +33,8 @@
                     <!-- Content -->
                     <div class="relative z-10 max-w-[85%]">
                         <h2 class="gsap-reveal text-2xl font-medium tracking-tight leading-tight mb-2 text-stone-900">Run live AptiQuiz Rooms.</h2>
-                        <p class="text-xs text-stone-500 mb-6">Create a Room, bring in Participants, and race the clock.</p>
-                        <button class="bg-[#E65C00] text-white text-xs px-4 py-1.5 rounded-full font-medium hover:bg-[#CC5200] transition-all shadow-[0_2px_10px_rgba(230,92,0,0.2)] hover:shadow-[0_4px_14px_rgba(230,92,0,0.3)]">View Rooms</button>
+                        <p class="text-xs text-stone-600 mb-6">Create a Room, bring in Participants, and race the clock.</p>
+                        <button class="bg-[#B84700] text-white text-xs px-4 py-1.5 rounded-full font-medium hover:bg-[#993A00] transition-all shadow-[0_2px_10px_rgba(230,92,0,0.2)] hover:shadow-[0_4px_14px_rgba(230,92,0,0.3)]">View Rooms</button>
                     </div>
 
                     <!-- Abstract UI elements -->
@@ -56,8 +55,8 @@
                 <!-- Moving gradient blob -->
                 <div class="gsap-blob absolute -top-20 -left-20 w-64 h-64 bg-gradient-to-r from-[#FFB380] to-[#FFD6AD] rounded-full mix-blend-multiply filter blur-[40px] opacity-40"></div>
 
-                <div class="flex justify-between items-start text-xs font-medium text-stone-500 relative z-10 mb-8">
-                    <span>AptiQuiz</span>
+                <div class="flex justify-between items-start text-xs font-medium text-stone-600 relative z-10 mb-8">
+                    <img src="Apti-App/apps/web/public/brand/aptiquiz-logo.png" alt="AptiQuiz" width="108" height="36" style="width:108px;height:auto">
                     <div class="flex gap-3">
                         <span class="hover:text-stone-800 cursor-pointer transition-colors">Question Sets</span>
                         <span class="hover:text-stone-800 cursor-pointer transition-colors">College League</span>
@@ -66,11 +65,11 @@
                 <div class="relative z-10">
                     <p class="gsap-reveal text-lg font-normal tracking-tight leading-snug text-stone-700">AptiQuiz brings aptitude practice,<br>live Rooms, and College Leagues<br>into one competitive rhythm.</p>
                 </div>
-                <div class="flex justify-between items-end text-xs text-stone-400 mt-6 relative z-10">
+                <div class="flex justify-between items-end text-xs text-stone-600 mt-6 relative z-10">
                     <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#E65C00]"></span> Live match status</span>
                     <div class="flex gap-2">
-                        <span class="hover:text-[#E65C00] cursor-pointer transition-colors">Status</span>
-                        <span class="hover:text-[#E65C00] cursor-pointer transition-colors">Audit</span>
+                        <span class="hover:text-[#B84700] cursor-pointer transition-colors">Status</span>
+                        <span class="hover:text-[#B84700] cursor-pointer transition-colors">Audit</span>
                     </div>
                 </div>
             </div>
@@ -91,15 +90,12 @@
             <!-- Card 4: Room lookup -->
             <div class="col-span-12 lg:col-span-4 lg:row-span-2 bg-gradient-to-b from-[#FDFBF7] to-[#F7F4EB] rounded-2xl overflow-hidden relative p-8 flex flex-col justify-between min-h-[460px] shadow-sm ring-1 ring-stone-200/50">
                 <!-- Top Nav -->
-                <div class="flex justify-between items-center text-xs font-medium text-stone-500 relative z-20">
-                    <div class="flex items-center gap-1.5 text-stone-800">
-                        <iconify-icon icon="solar:layers-linear" width="16" height="16" style="stroke-width: 1.5;"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"><path d="M4.97883 9.68508C2.99294 8.89073 2 8.49355 2 8C2 7.50645 2.99294 7.10927 4.97883 6.31492L7.7873 5.19153C9.77318 4.39718 10.7661 4 12 4C13.2339 4 14.2268 4.39718 16.2127 5.19153L19.0212 6.31492C21.0071 7.10927 22 7.50645 22 8C22 8.49355 21.0071 8.89073 19.0212 9.68508L16.2127 10.8085C14.2268 11.6028 13.2339 12 12 12C10.7661 12 9.77318 11.6028 7.7873 10.8085L4.97883 9.68508Z"></path><path d="M5.76613 10L4.97883 10.3149C2.99294 11.1093 2 11.5065 2 12C2 12.4935 2.99294 12.8907 4.97883 13.6851L7.7873 14.8085C9.77318 15.6028 10.7661 16 12 16C13.2339 16 14.2268 15.6028 16.2127 14.8085L19.0212 13.6851C21.0071 12.8907 22 12.4935 22 12C22 11.5065 21.0071 11.1093 19.0212 10.3149L18.2339 10"></path><path d="M5.76613 14L4.97883 14.3149C2.99294 15.1093 2 15.5065 2 16C2 16.4935 2.99294 16.8907 4.97883 17.6851L7.7873 18.8085C9.77318 19.6028 10.7661 20 12 20C13.2339 20 14.2268 19.6028 16.2127 18.8085L19.0212 17.6851C21.0071 16.8907 22 16.4935 22 16C22 15.5065 21.0071 15.1093 19.0212 14.3149L18.2339 14"></path></g></svg></template></iconify-icon>
-                        <span>AptiQuiz</span>
-                    </div>
+                <div class="flex justify-between items-center text-xs font-medium text-stone-600 relative z-20">
+                    <img src="Apti-App/apps/web/public/brand/aptiquiz-logo.png" alt="AptiQuiz" width="108" height="36" style="width:108px;height:auto">
                     <div class="flex gap-4">
                         <span class="hidden sm:inline hover:text-stone-800 cursor-pointer transition-colors">Plans</span>
                         <span class="hidden sm:inline hover:text-stone-800 cursor-pointer transition-colors">Vectors</span>
-                        <span class="text-[#E65C00]">Host tools</span>
+                        <span class="text-[#B84700]">Host tools</span>
                     </div>
                 </div>
 
@@ -112,18 +108,18 @@
                 <!-- Main Content -->
                 <div class="relative z-10 flex flex-col items-center text-center mt-12 mb-8">
                     <h1 class="gsap-reveal text-4xl sm:text-5xl font-medium tracking-tight leading-[1.1] sm:leading-[1.1] text-stone-900 mb-4 max-w-[280px]">AptiQuiz match center</h1>
-                    <p class="text-xs text-stone-500 mb-6 max-w-[220px]">Find a Room to review its Participants and live progress.</p>
+                    <p class="text-xs text-stone-600 mb-6 max-w-[220px]">Find a Room to review its Participants and live progress.</p>
 
                     <div class="flex w-full max-w-[280px] bg-[#FDFBF7] rounded-full border border-stone-200 p-1 shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all duration-300 focus-within:border-[#E65C00]/50 focus-within:ring-2 focus-within:ring-[#E65C00]/10 focus-within:shadow-md hover:border-stone-300">
-                        <input type="search" aria-label="Find a Room" placeholder="Join Code" class="min-w-0 flex-1 bg-transparent px-4 text-sm outline-none placeholder:text-stone-400 font-medium text-stone-800">
-                        <button class="bg-[#E65C00] text-white text-xs px-4 py-2 rounded-full font-medium hover:bg-[#CC5200] transition-colors flex shrink-0 items-center gap-1 shadow-[0_2px_8px_rgba(230,92,0,0.25)]">
+                        <input type="search" aria-label="Find a Room" placeholder="Join Code" class="min-w-0 flex-1 bg-transparent px-4 text-sm outline-none placeholder:text-stone-600 font-medium text-stone-800">
+                        <button class="bg-[#B84700] text-white text-xs px-4 py-2 rounded-full font-medium hover:bg-[#993A00] transition-colors flex shrink-0 items-center gap-1 shadow-[0_2px_8px_rgba(230,92,0,0.25)]">
                             Find Room <iconify-icon icon="solar:arrow-right-linear" width="14" height="14" style="stroke-width: 1.5;"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 12H20M14 18L20 12L14 6"></path></svg></template></iconify-icon>
                         </button>
                     </div>
                 </div>
 
                 <!-- Bottom Footer -->
-                <div class="relative z-10 flex justify-between items-end text-[10px] text-stone-400 uppercase tracking-wider mt-auto pt-8 border-t border-stone-200/60">
+                <div class="relative z-10 flex justify-between items-end text-xs text-stone-600 uppercase tracking-wider mt-auto pt-8 border-t border-stone-200/60">
                     <div>
                         <span class="block mb-1">Question library</span>
                         <span class="text-stone-800 font-medium normal-case tracking-normal text-xs">Question Sets &amp; topics</span>
@@ -137,22 +133,22 @@
 
             <!-- Card 5: Question Set management -->
             <div class="col-span-12 md:col-span-6 lg:col-span-3 bg-gradient-to-b from-[#FDFBF7] to-[#F7F4EB] rounded-2xl p-6 flex flex-col justify-between shadow-sm ring-1 ring-stone-200/50">
-                <div class="flex justify-between items-start text-xs text-stone-400 mb-8">
-                    <span class="uppercase tracking-wider text-[10px]">Host tools</span>
-                    <span class="font-medium text-[#E65C00]">01</span>
+                <div class="flex justify-between items-start text-xs text-stone-600 mb-8">
+                    <span class="uppercase tracking-wider text-xs">Host tools</span>
+                    <span class="font-medium text-[#B84700]">01</span>
                 </div>
                 <div>
-                    <h3 class="gsap-reveal text-xl font-medium tracking-tight mb-2 text-stone-900">Question Sets.</h3>
-                    <p class="text-sm text-stone-500 font-normal leading-relaxed">Prepare ordered Questions by Topic and Difficulty for every live Room.</p>
+                    <h2 class="gsap-reveal text-xl font-medium tracking-tight mb-2 text-stone-900">Question Sets.</h2>
+                    <p class="text-sm text-stone-600 font-normal leading-relaxed">Prepare ordered Questions by Topic and Difficulty for every live Room.</p>
                 </div>
             </div>
 
             <!-- Card 6: Match pace -->
             <div class="col-span-12 md:col-span-6 lg:col-span-2 bg-gradient-to-b from-[#FDFBF7] to-[#F7F4EB] rounded-2xl p-6 flex flex-col justify-center items-center relative overflow-hidden group shadow-sm ring-1 ring-stone-200/50">
                 <div class="absolute inset-0 bg-stone-100/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <h3 class="gsap-reveal text-3xl font-medium tracking-tight text-stone-900 relative z-10 leading-none text-center">Race the<br>clock</h3>
+                <h2 class="gsap-reveal text-3xl font-medium tracking-tight text-stone-900 relative z-10 leading-none text-center">Race the<br>clock</h2>
 
-                <div class="w-full flex justify-between mt-8 text-[10px] text-stone-400 uppercase tracking-wider relative z-10 border-t border-stone-200/60 pt-3">
+                <div class="w-full flex justify-between mt-8 text-xs text-stone-600 uppercase tracking-wider relative z-10 border-t border-stone-200/60 pt-3">
                     <div class="flex flex-col"><span>Round</span><span class="text-stone-800 font-medium normal-case text-xs">01</span></div>
                     <div class="flex flex-col text-right"><span>Focus</span><span class="text-stone-800 font-medium normal-case text-xs">Accuracy</span></div>
                 </div>
@@ -161,38 +157,33 @@
             <!-- Card 7: Palette -->
             <div class="col-span-12 md:col-span-6 lg:col-span-3 bg-gradient-to-b from-[#FDFBF7] to-[#F7F4EB] rounded-2xl overflow-hidden flex flex-col h-40 shadow-sm ring-1 ring-stone-200/50 p-1">
                 <div class="flex-1 bg-[#FDFBF7] rounded-t-xl p-3 flex items-start border-b border-stone-100">
-                    <span class="text-[10px] font-medium text-stone-500 tracking-wider uppercase">Base Light</span>
+                    <span class="text-xs font-medium text-stone-600 tracking-wider uppercase">Base Light</span>
                 </div>
                 <div class="flex-1 bg-[#EFECE5] border-b border-stone-200/50"></div>
                 <div class="flex-1 bg-[#FFB380] border-b border-orange-200/50"></div>
                 <div class="flex-1 bg-[#E65C00] rounded-b-xl flex items-end justify-end p-2">
-                    <span class="text-[10px] font-medium text-white/80 tracking-wider uppercase">Action</span>
+                    <span class="text-xs font-medium text-stone-900 tracking-wider uppercase">Action</span>
                 </div>
             </div>
 
             <!-- Card 8: Question library -->
             <div class="col-span-12 lg:col-span-5 bg-gradient-to-b from-[#FDFBF7] to-[#F7F4EB] rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-sm ring-1 ring-stone-200/50">
                 <div class="flex items-center gap-2 mb-6">
-                    <div class="w-8 h-8 rounded-full bg-[#FFF5E6] flex items-center justify-center text-[#E65C00] shadow-[inset_0_1px_2px_rgba(255,255,255,0.8)] ring-1 ring-[#E65C00]/10">
+                    <div class="w-8 h-8 rounded-full bg-[#FFF5E6] flex items-center justify-center text-[#B84700] shadow-[inset_0_1px_2px_rgba(255,255,255,0.8)] ring-1 ring-[#E65C00]/10">
                         <iconify-icon icon="solar:compass-square-linear" width="18" height="18" style="stroke-width: 1.5;"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"><path d="M13.024 14.5601C10.7142 15.484 9.5593 15.946 8.89964 15.4977C8.74324 15.3914 8.60834 15.2565 8.50206 15.1001C8.0538 14.4405 8.51575 13.2856 9.43967 10.9758C9.63673 10.4831 9.73527 10.2368 9.90474 10.0435C9.94792 9.99429 9.99429 9.94792 10.0435 9.90474C10.2368 9.73527 10.4831 9.63673 10.9758 9.43966C13.2856 8.51575 14.4405 8.0538 15.1001 8.50206C15.2565 8.60834 15.3914 8.74324 15.4977 8.89964C15.946 9.5593 15.484 10.7142 14.5601 13.024C14.363 13.5166 14.2645 13.763 14.095 13.9562C14.0518 14.0055 14.0055 14.0518 13.9562 14.095C13.763 14.2645 13.5166 14.363 13.024 14.5601Z"></path><path d="M2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C22 4.92893 22 7.28595 22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12Z"></path></g></svg></template></iconify-icon>
                     </div>
                     <span class="text-xs font-medium tracking-tight text-stone-600">Question library</span>
                 </div>
                 <h2 class="gsap-reveal text-2xl sm:text-3xl font-medium tracking-tight mb-3 text-stone-900">Build your next Question Set.</h2>
-                <p class="text-sm text-stone-500 mb-6 max-w-md">Create aptitude Questions that help Participants improve their accuracy and pace.</p>
-                <button class="bg-white text-stone-800 text-xs px-5 py-2.5 rounded-full font-medium hover:text-[#E65C00] transition-colors flex items-center gap-2 shadow-[0_2px_10px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,1)] ring-1 ring-stone-200">
+                <p class="text-sm text-stone-600 mb-6 max-w-md">Create aptitude Questions that help Participants improve their accuracy and pace.</p>
+                <button class="bg-white text-stone-800 text-xs px-5 py-2.5 rounded-full font-medium hover:text-[#B84700] transition-colors flex items-center gap-2 shadow-[0_2px_10px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,1)] ring-1 ring-stone-200">
                     View Question Sets <iconify-icon icon="solar:arrow-right-up-linear" width="14" height="14" style="stroke-width: 1.5;"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M18 15V6H9"></path></svg></template></iconify-icon>
                 </button>
             </div>
 
             <!-- Card 9: Logo -->
             <div class="col-span-12 lg:col-span-4 bg-gradient-to-b from-[#FDFBF7] to-[#F7F4EB] rounded-2xl p-8 flex items-center justify-center group cursor-pointer shadow-sm ring-1 ring-stone-200/50">
-                <div class="flex items-center gap-3 transition-transform duration-500 ease-out group-hover:scale-105">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E65C00] to-[#FF8C40] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(230,92,0,0.3)]">
-                        <iconify-icon icon="solar:leaf-linear" width="22" height="22" style="stroke-width: 1.5;"><template shadowrootmode="open"><style data-style="data-style">:host{display:inline-block;vertical-align:0}span,svg{display:block}</style><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"><path d="M12 9.00008L16.4317 4.56842M12 14.5001L18.6143 7.88582M12 19.5001L19.811 11.6891"></path><path d="M12 22C16.4183 22 20 18.3541 20 13.8567C20 9.39453 17.4467 4.18759 13.4629 2.32555C12.9986 2.10852 12.4993 2 12 2M12 22C7.58172 22 4 18.3541 4 13.8567C4 9.39453 6.55332 4.18759 10.5371 2.32555C11.0014 2.10852 11.5007 2 12 2M12 22V2"></path></g></svg></template></iconify-icon>
-                    </div>
-                    <span class="text-2xl font-medium tracking-tighter text-stone-900">AptiQuiz</span>
-                </div>
+                <img src="Apti-App/apps/web/public/brand/aptiquiz-logo.png" alt="AptiQuiz" width="240" height="80" style="width:240px;max-width:100%;height:auto">
             </div>
 
         </div>

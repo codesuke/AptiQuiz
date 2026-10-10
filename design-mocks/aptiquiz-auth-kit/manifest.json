@@ -1,0 +1,216 @@
+{
+  "name": "AptiQuiz authentication UI kit",
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "path": "brand/aptiquiz-logo-v1.png",
+      "bytes": 463674,
+      "sha256": "bf2e03502692a7695b689f66168768d4b28ca53704bf75e546ebd0f3a72d7222",
+      "width": 2172,
+      "height": 724
+    },
+    {
+      "path": "brand/README.md",
+      "bytes": 632,
+      "sha256": "0cd4d6622b6daacb1b147686a3af454d849b97953fa56da00f837a206a679216"
+    },
+    {
+      "path": "icons/arrow-right.svg",
+      "bytes": 200,
+      "sha256": "92627e07d78454ee306b7cc01bfbb6499f8b22835d6783b6766a17fed98777ab"
+    },
+    {
+      "path": "icons/eye-off.svg",
+      "bytes": 290,
+      "sha256": "b28b1d917200d5786e067d79586ea1a73cf4822fb38350d5ab14c8a28527efa7"
+    },
+    {
+      "path": "icons/eye.svg",
+      "bytes": 258,
+      "sha256": "f5ad526cd7756e4a7593f391d7d42d26b57a55bbc4e1ac209b0e6dbc7c8a06d2"
+    },
+    {
+      "path": "icons/google.png",
+      "bytes": 33661,
+      "sha256": "d1ce9c2af0b10a7333abc99bc706f9a6a199e5b65bf3e3009624f076b8638e6a",
+      "width": 200,
+      "height": 204
+    },
+    {
+      "path": "images/auth-artwork.png",
+      "bytes": 1594490,
+      "sha256": "2185804367b88ff914a833009b54aed7eaf1929fc8faf8223974c7a57979d7be",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "path": "prompts/auth-artwork.txt",
+      "bytes": 1249,
+      "sha256": "5fc178d433cd2712339469953a5f8f8a1e0b174059e189edd326951fa97989f6"
+    },
+    {
+      "path": "prompts/normal-login.txt",
+      "bytes": 3791,
+      "sha256": "646da8052cdaec078db71d4da59c726992a9f20f9d10a0cdcae2e25d27159bf0"
+    },
+    {
+      "path": "prototypes/auth-layout.css",
+      "bytes": 6149,
+      "sha256": "234f4d156fa856c13f418d28c79e2bd2f16ce47236c7b6e30e001c564474d04a"
+    },
+    {
+      "path": "prototypes/auth-preview.js",
+      "bytes": 2036,
+      "sha256": "411488a53c16a1f62e93dae5db64957803784629e22877ca23a6a20f54cff1ee"
+    },
+    {
+      "path": "prototypes/expired-reset-link.html",
+      "bytes": 2441,
+      "sha256": "b9fe29cee8f923a95ca383cd26b8a917406db616f2c8d1159df493c02c328ce5"
+    },
+    {
+      "path": "prototypes/forgot-password.html",
+      "bytes": 2531,
+      "sha256": "e1dab2253fb4052a0237ebf3590e458e489e9bc296cd888cebdefc6d02c7f8e7"
+    },
+    {
+      "path": "prototypes/login-error.html",
+      "bytes": 3238,
+      "sha256": "ad4d99f7a55fbe1c96b499bd86860e07a729d358a4131d37589c3b3ad18d4e7a"
+    },
+    {
+      "path": "prototypes/login-loading.html",
+      "bytes": 3021,
+      "sha256": "7c14689010cbe5599c6dc7c401f749450c0909bc57cf22507b8372aa92df3407"
+    },
+    {
+      "path": "prototypes/normal-login.html",
+      "bytes": 3064,
+      "sha256": "02e8c5b9111ad075f7163b38f9ca7be05e249b248be5b90fc9492e300d9df085"
+    },
+    {
+      "path": "prototypes/oauth-login.html",
+      "bytes": 2536,
+      "sha256": "a8e20d630340a09d83d3a69aa15a046ab00cf23783dc3930f3118e55a5a57027"
+    },
+    {
+      "path": "prototypes/password-reset-success.html",
+      "bytes": 2324,
+      "sha256": "3b2c4596d9aa44d4e11fbcc09358bc66efe1ba31c29bc149a1d2d861eba02f02"
+    },
+    {
+      "path": "prototypes/reset-email-confirmation.html",
+      "bytes": 2463,
+      "sha256": "f06f25a7355b49f7c95c87f0790b51d3845b79c9f78484cbfe19189a3d352d3e"
+    },
+    {
+      "path": "prototypes/reset-password.html",
+      "bytes": 3241,
+      "sha256": "95d54829c90cefd39f6b5ec0fa3cbb7fb6803effcc6c9c34f8084a10e7100641"
+    },
+    {
+      "path": "prototypes/sign-up.html",
+      "bytes": 3212,
+      "sha256": "73b3effb1e6cc2e7354dd70ba33b8167332df1e18593d0e82e191e45dc2c6732"
+    },
+    {
+      "path": "prototypes/update-manifest.mjs",
+      "bytes": 1431,
+      "sha256": "d51556cb9481c09e622a369aa913483e70a6f97b4856b553fe25438aeb767692"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2377,
+      "sha256": "d9798d0af17369ebc228d4a81485bf661f5c9acc053c094641d9ea152dbe356b"
+    },
+    {
+      "path": "screens/current/expired-reset-link.png",
+      "bytes": 1598287,
+      "sha256": "de6545839c2b885609ccb198b4d00205c676d7c69e21b205cabca4cbc2ea7aac",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/forgot-password.png",
+      "bytes": 1664149,
+      "sha256": "52be9ca98e0447fe43959f3335b1eae76503a8ead008f0a212120af9715e242e",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/login-error.png",
+      "bytes": 1589779,
+      "sha256": "645122ecbd9950f1a382e552c895274a49a72f0c01adc714539b5073efd26557",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/login-loading.png",
+      "bytes": 1569906,
+      "sha256": "0b817b1604a7d42967031c4fd29517b1c5b98eba73d56056d15a92849ff7375c",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/normal-login.png",
+      "bytes": 1726864,
+      "sha256": "d6287751a8a449228bb38472b4445102f2e6225ca17b754045ef600c442ab1ca",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/oauth-login.png",
+      "bytes": 1643628,
+      "sha256": "9b78be1f47e10503460f85151f0a8004d5ebea9327516b46ec80731d7663dd63",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/password-reset-success.png",
+      "bytes": 1571393,
+      "sha256": "bb52b75b0565f057b1e7bebfa67ae4665dad817c8436220259af9bfdedeb21c8",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/reset-email-confirmation.png",
+      "bytes": 1622013,
+      "sha256": "07da6c04acf867fe201263991bfeea057b2ce45bf3218fa16a9a184486bb6461",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/current/reset-password.png",
+      "bytes": 1620784,
+      "sha256": "28a85ab1f1890663c0a2dfcf05bfc1ca94ac0d202180f63cedf65f113eb136c4",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/future/passkey-login.png",
+      "bytes": 1828185,
+      "sha256": "b4006bd0e8c96fbb6f19d5fc7fcfa528dc1c606a4553d8828cb9abb407e1497e",
+      "width": 1586,
+      "height": 992
+    },
+    {
+      "path": "screens/prototypes/normal-login-desktop.png",
+      "bytes": 515626,
+      "sha256": "55774f9246fa16ea009cecab7faaebfb7258879ac476eb8d7fba99e1ca4ee7b3",
+      "width": 1586,
+      "height": 1048
+    },
+    {
+      "path": "screens/prototypes/normal-login-mobile.png",
+      "bytes": 41286,
+      "sha256": "d6fbaa5aa35abfd028946847fddb09a144b04a99fdfba655718c69c767730b1a",
+      "width": 390,
+      "height": 897
+    },
+    {
+      "path": "tokens/auth.css",
+      "bytes": 930,
+      "sha256": "6f1dafb260ec22a89b01e9c40856c8b2ed5645ef8b03eec4dcdde0c5dd8dc481"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 # env
 .env
+.env.prod
 .env*.local
 
 # misc

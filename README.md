@@ -1,112 +1,101 @@
-# AptiQuiz
+<div align="center">
+  <img src="Apti-App/apps/web/public/brand/aptiquiz-logo-readme.png" alt="AptiQuiz" width="420">
 
-A live multiplayer aptitude arena where students answer synchronized questions under pressure and watch a server-scored leaderboard move in real time.
+  <h1>AptiQuiz</h1>
+  <p><strong>Race the clock. Climb the room.</strong></p>
+  <p>Live aptitude competition for students preparing for placements.</p>
 
-**Hackathon problem statement:** 3 — AptiQuiz.
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-E65C00" alt="License: MIT"></a>
+    <a href="Apti-App/package.json"><img src="https://img.shields.io/badge/Node.js-22.18%2B-339933" alt="Node.js 22.18 or newer"></a>
+    <a href="Apti-App/package.json"><img src="https://img.shields.io/badge/pnpm-11-F69220" alt="pnpm 11"></a>
+    <a href="#project-status"><img src="https://img.shields.io/badge/status-early_development-6B7280" alt="Status: early development"></a>
+  </p>
 
-## What It Does
+  <p>
+    <a href="#quick-start">Quick start</a> ·
+    <a href="Architecture.md">Architecture</a> ·
+    <a href="https://github.com/codesuke/AptiQuiz/issues">Roadmap &amp; issues</a> ·
+    <a href="CONTRIBUTING.md">Contributing</a>
+  </p>
+</div>
 
-A host creates a reusable aptitude Question Set, opens a Room, and shares a short Join Code. Up to 50 Participants answer the same timed Round from phones or laptops; the authoritative Game Server accepts answers, calculates speed-and-accuracy scores, reveals the answer, and broadcasts standings.
+## About
 
-The complete official brief and team-authored build specification are in [`PS.md`](PS.md).
+AptiQuiz turns solitary placement practice into a live competition. The intended experience brings students into a shared Room to answer synchronized aptitude Questions, build accuracy under pressure, and follow their progress on a Leaderboard.
 
-## Done / Left / Plan
+Hosts will create reusable Question Sets and share a Join Code. Participants will compete from phones or laptops, with the Game Server controlling deadlines, answer acceptance, and scoring. Completed results will contribute to College Leagues.
 
-### Done
+Built for **hackathon problem statement 3 — AptiQuiz**. See [the official brief and build specification](PS.md) for the full product scope.
 
-- pnpm/Turborepo TypeScript workspace.
-- Next.js web application with a game-server connectivity indicator.
-- Long-running Socket.IO Game Server with health and typed time-ping interfaces.
-- Shared Zod transport contracts.
-- Pure, tested Game Engine phase transitions and provisional scoring.
-- PostgreSQL/Prisma data model.
-- Fifty-connection Socket.IO simulator.
+## Project status
 
-### Left
+**The application is under active development.** The latest verified build is the foundation described below. Account flows are being implemented; consult [build memory](docs/build-memory.yaml) for the latest verified delivery. Join and Host controls currently illustrate the intended gameplay interface.
 
-- Question Set authoring and durable CRUD.
-- Room creation, Join Code flow, lobby, and host controls.
-- Full live Round events, answer acceptance, reveal, and Leaderboard.
-- Stable option permutation, reconnect tokens, and cheating-resistance tests.
-- Final analytics, College League, full 50-Participant match simulation, deployment, and demo recording.
-- Better Auth accounts, signed Socket Tickets, Google OAuth, and email verification.
+| Area | Current state |
+| --- | --- |
+| Web application | Next.js foundation page, AptiQuiz branding, health endpoint, and connection indicator |
+| Realtime server | Long-running Socket.IO server with health checks and validated time-ping acknowledgements |
+| Game Engine | Tested initial phase transitions and provisional scoring rules |
+| Shared contracts | Zod validation and TypeScript types for current interfaces |
+| Database | PostgreSQL/Prisma schema and generated client; product persistence still planned |
+| Connection simulator | Verified 50 concurrent local connections and time-ping responses |
+| Gameplay | Question Set authoring, Room joining, live answers, reveal, and Leaderboard still planned |
+| Accounts & leagues | Account implementation in progress; reconnection, completed results, and College League still planned |
 
-### Plan
+The simulator currently measures connectivity, not complete-match capacity. The latest recorded relocation check connected **50/50 clients**, with **11 ms median / 13 ms p95** local time-ping round trip. Results are environment-specific; see [build memory](docs/build-memory.yaml) for verification history and limitations.
 
-1. Build one complete single-process match vertically.
-2. Add reconnect and cheating-resistance behavior.
-3. Persist completed matches and aggregate the College League.
-4. Pass the full 50-Participant simulation and deploy.
-5. Deploy both containers through Dokploy, then add Redis only when running multiple Game Server processes. Kafka remains deferred until durable multi-consumer event workloads are measured.
-
-## Architecture and Why
-
-The repository separates the web and realtime runtimes while sharing contracts and game rules:
-
-```text
-Apti-App/apps/web          Next.js product interface and durable CRUD
-Apti-App/apps/game-server  authoritative Socket.IO runtime
-Apti-App/apps/simulator    repeatable multi-participant proof
-
-Apti-App/packages/contracts    runtime-validated events
-Apti-App/packages/game-engine  deterministic transitions and scoring
-Apti-App/packages/database     Prisma/PostgreSQL access
-```
-
-Next.js is not responsible for live timers or scoring. The standalone Game Server stays alive for WebSocket rooms, while the pure Game Engine keeps every rule independently testable. PostgreSQL owns durable authoring, accounts, results, and league records. Better Auth and signed Socket Tickets are accepted but not implemented. See [`Architecture.md`](Architecture.md), [ADR 0006](docs/ADR/0006-typescript-monorepo-and-realtime-runtime.md), [ADR 0007](docs/ADR/0007-better-auth-and-socket-tickets.md), and [ADR 0008](docs/ADR/0008-dokploy-deployment-redis-deferred.md).
-
-## What We Added
-
-- A framework-free state machine so UI and network code cannot silently invent game rules.
-- Runtime-validated shared event contracts.
-- A standalone simulator that defaults to 50 independent connections.
-- An explicit application-first scale plan that avoids premature Redis and Kafka infrastructure.
-
-## How to Run It
+## Quick start
 
 ### Prerequisites
 
-- Node.js 22.18 or newer; Node.js 24 is recommended.
-- pnpm 11.
-- PostgreSQL when running migrations or durable product features.
+- Node.js **22.18+**; Node.js 24 is recommended by the project setup.
+- pnpm **11**; the workspace pins `11.24.0`.
+- PostgreSQL for account flows, database migrations, and database browsing.
 
-### Setup
+### Install and run
 
 ```bash
-cd Apti-App
+git clone https://github.com/codesuke/AptiQuiz.git
+cd AptiQuiz/Apti-App
 cp .env.example .env
 pnpm install
+```
+
+All workspace commands run from **`Apti-App/`**. Installation generates the Prisma client. Create your local PostgreSQL database, update `DATABASE_URL` in `.env`, and configure the authentication variables needed by account flows before starting the application. Then run:
+
+```bash
+pnpm db:migrate
 pnpm dev
 ```
 
-Open:
+| Service | Local URL |
+| --- | --- |
+| Web application | http://localhost:3000 |
+| Web health | http://localhost:3000/api/health |
+| Game Server health | http://localhost:3001/health |
 
-- Web application: `http://localhost:3000`
-- Web health: `http://localhost:3000/api/health`
-- Game Server health: `http://localhost:3001/health`
+The [environment template](Apti-App/.env.example) documents server ports, browser URLs, and reserved authentication settings. The Game Server reads `Apti-App/.env` and refuses to start unless `GAME_SERVER_SECRET` contains at least 32 characters; generate one with `openssl rand -base64 32`.
 
-No login is implemented yet.
-
-### Verify
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-With `pnpm dev` running in another terminal:
+### Verify the workspace
 
 ```bash
-pnpm simulate
+pnpm check
 ```
 
-The current simulator verifies concurrent WebSocket connections and typed time acknowledgements. It does not yet prove a complete 50-player match.
+This runs formatting/lint checks, TypeScript checks, behavior tests, and production builds. Individual commands are also available:
 
-Bootstrap result on 10 October 2026: 50/50 local WebSocket clients connected successfully, with 18 ms median and 22 ms p95 time-ping round trip. Environment: WSL2, AMD Ryzen 7 5800H, 16 logical CPUs, 13 GiB RAM. This is connectivity evidence, not a complete-match capacity claim.
+| Command | Purpose |
+| --- | --- |
+| `pnpm lint` | Biome formatting and lint checks |
+| `pnpm typecheck` | Strict TypeScript checks |
+| `pnpm test` | Vitest behavior tests |
+| `pnpm build` | Production builds for apps and packages |
+| `pnpm simulate` | Concurrent Socket.IO connection and time-ping check |
 
-### Database
+Run `pnpm simulate` in another terminal while `pnpm dev` is running.
+
+### Database commands
 
 ```bash
 pnpm db:generate
@@ -114,22 +103,87 @@ pnpm db:migrate
 pnpm db:studio
 ```
 
-`pnpm db:migrate` and `pnpm db:studio` require a working `DATABASE_URL`.
+Migrations and Prisma Studio need a reachable PostgreSQL database and a valid `DATABASE_URL`. The schema lives in [packages/database](Apti-App/packages/database/prisma/schema.prisma).
 
-## Tools and AI Used
+## Architecture
 
-- Next.js, React, TypeScript, Tailwind CSS, Socket.IO, Zod, Zustand, Prisma ORM, PostgreSQL, Vitest, Biome, pnpm, and Turborepo.
-- OpenAI Codex assisted with architecture and bootstrap code.
-- AptiQuiz currently has no end-user AI feature. If one is added, the interface will identify it clearly.
+The web interface and realtime runtime share validated contracts and deterministic game rules. A separate Game Server owns timing; the browser is not authoritative for answers or scores.
 
-## Who It Is For
+```mermaid
+flowchart LR
+    Browser[Browser] -->|HTTP| Web[Next.js web app]
+    Browser <-->|WebSocket| Server[Socket.IO Game Server]
+    Web -.-> Contracts[Shared contracts]
+    Server -.-> Contracts
+    Server -. planned gameplay .-> Engine[Pure Game Engine]
+    Web -. planned persistence .-> Database[(PostgreSQL / Prisma)]
+```
 
-Students preparing for placement aptitude and logical-reasoning tests, and colleges that want repeatable live practice events and league competition. Students return for pressure practice, measurable topic improvement, and visible rank progression.
+Solid arrows show current browser interfaces. Dashed arrows show shared dependencies or planned integration, as labeled. The Game Engine and database schema exist; complete gameplay and persistence flows remain to be wired.
 
-## Repository Workflow
+```text
+AptiQuiz/
+├── Apti-App/                 # Runnable pnpm / Turborepo workspace
+│   ├── apps/
+│   │   ├── web/              # Next.js interface and public brand assets
+│   │   ├── game-server/      # Authoritative Socket.IO runtime
+│   │   └── simulator/        # Repeatable connection verification
+│   └── packages/
+│       ├── contracts/        # Runtime schemas and transport types
+│       ├── game-engine/      # Pure phase transitions and scoring
+│       ├── database/         # Prisma schema and PostgreSQL adapter
+│       └── typescript-config/
+├── design-mocks/             # UI references, prototypes, and logo provenance
+├── docs/                     # Architecture decisions and build records
+└── AGENTS.md                 # Agent contribution rules
+```
 
-Documentation and agent guidance stay at the repository root; all runnable source and workspace tooling live in [`Apti-App/`](Apti-App/). Read [`AGENTS.md`](AGENTS.md), [`CONTEXT.md`](CONTEXT.md), [`Architecture.md`](Architecture.md), and [`docs/agents/stack-conventions.md`](docs/agents/stack-conventions.md) before changing behavior. Planned work lives in GitHub Issues; verified completed behavior is recorded in [`docs/build-memory.yaml`](docs/build-memory.yaml).
+Read [Architecture.md](Architecture.md) for implemented interfaces, failure behavior, and deployment plans. Redis remains deferred until measurements justify multiple Game Server processes; Kafka is also deferred.
+
+## Technology
+
+| Layer | Tools |
+| --- | --- |
+| Web | Next.js 16, React 19, Tailwind CSS 4 |
+| Realtime | Node.js, Socket.IO 4 |
+| Domain & validation | TypeScript, Zod, pure Game Engine |
+| Data | PostgreSQL, Prisma ORM 7 |
+| Development | pnpm 11, Turborepo, Biome, Vitest |
+
+Better Auth integration is in progress; Dokploy deployment is planned. Exact dependency versions are recorded in [the workspace](Apti-App/package.json) and [lockfile](Apti-App/pnpm-lock.yaml).
+
+## Roadmap
+
+The active roadmap and acceptance criteria live in [GitHub Issues](https://github.com/codesuke/AptiQuiz/issues).
+
+1. Ship Question Set authoring and one complete live Room with timed answers, reveal, and scoring.
+2. Add account flows, guest entry, and reliable Participant reconnection.
+3. Persist completed results and aggregate College League standings.
+4. Verify a complete 50-Participant match and deploy the web and Game Server containers.
+
+## Documentation
+
+| Resource | Contents |
+| --- | --- |
+| [Product brief](PS.md) | Official problem statement and product scope |
+| [Domain glossary](CONTEXT.md) | Question Sets, Rooms, Rounds, and other shared terms |
+| [Architecture](Architecture.md) | System structure, implemented behavior, and accepted plans |
+| [Architecture decisions](docs/ADR/README.md) | Recorded technical trade-offs |
+| [Brand](Brand.md) · [Design system](DESIGN.md) | Logo usage, voice, palette, and interface direction |
+| [Design references](design-mocks/README.md) | Authentication prototype and generated asset provenance |
+| [Deployment guides](docs/guide/README.md) | Dokploy deployment, DNS records, and nameserver delegation |
+| [Build memory](docs/build-memory.yaml) | Verified changes, evidence, and known limitations |
+
+## Contributing
+
+Bug reports, documentation improvements, and focused contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, verification, and the GitHub-first delivery workflow. AI agents should also follow [AGENTS.md](AGENTS.md).
+
+Open an [issue](https://github.com/codesuke/AptiQuiz/issues) to discuss a feature or report a reproducible bug. Keep contributions small and name the observable behavior they change.
+
+## Acknowledgements
+
+OpenAI Codex assisted with architecture, bootstrap code, and documentation. The AptiQuiz logo was generated with the built-in imagegen tool; its [original prompt and asset](design-mocks/aptiquiz-logo/README.md) are preserved. The current product has no end-user AI feature.
 
 ## License
 
-[MIT](LICENSE)
+Licensed under the [MIT License](LICENSE). Copyright © 2026 Codesuke.

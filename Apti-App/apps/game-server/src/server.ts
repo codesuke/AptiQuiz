@@ -9,6 +9,7 @@ import { timePingSchema } from "@aptiquiz/contracts";
 import type { Logger } from "pino";
 import { Server as SocketServer } from "socket.io";
 import type { GameServerConfig } from "./config.js";
+import { identifyConnection } from "./handshake.js";
 
 export interface RunningGameServer {
   readonly httpServer: HttpServer;
@@ -40,10 +41,28 @@ export function createGameServer(config: GameServerConfig, logger: Logger): Runn
     },
   });
 
+  io.use(async (socket, next) => {
+    const handshake = await identifyConnection(
+      socket.handshake.auth,
+      config.gameServerSecret,
+      Date.now(),
+    );
+
+    if (!handshake.ok) {
+      logger.info({ connectionId: socket.id, error: handshake.error }, "handshake refused");
+      next(new Error(handshake.error));
+      return;
+    }
+
+    socket.data.identity = handshake.identity;
+    next();
+  });
+
   io.on("connection", (socket) => {
+    const { identity } = socket.data;
     socket.data.connectionId = socket.id;
-    logger.info({ connectionId: socket.id }, "player transport connected");
-    socket.emit("server:ready", { connectionId: socket.id, serverTime: Date.now() });
+    logger.info({ connectionId: socket.id, identity: identity.kind }, "player transport connected");
+    socket.emit("server:ready", { connectionId: socket.id, serverTime: Date.now(), identity });
 
     socket.on("time:ping", (payload, acknowledge) => {
       const parsed = timePingSchema.safeParse(payload);

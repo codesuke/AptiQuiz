@@ -1,0 +1,100 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "apple color emoji",
+        "files": [
+          "reference.html"
+        ],
+        "createdAt": "2026-10-10T05:51:25.230Z",
+        "reason": "Agent review: this is the generated Tailwind system emoji fallback, not a new brand font; DESIGN.md permits compatible fallback typography."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sfmono-regular",
+        "files": [
+          "reference.html"
+        ],
+        "createdAt": "2026-10-10T05:51:25.237Z",
+        "reason": "Agent review: this is the generated Tailwind system monospace fallback, not a new brand font; DESIGN.md permits equivalent mono faces."
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "design-mocks/aptiquiz-auth-kit/prototypes/normal-login.html",
+          "reference.html"
+        ],
+        "createdAt": "2026-10-10T05:53:27.504Z",
+        "reason": "Agent review: DESIGN.md Typography explicitly specifies Inter for display and body; this scoped brand refinement preserves that documented choice."
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "design-mocks/aptiquiz-auth-kit/prototypes/normal-login.html",
+          "reference.html"
+        ],
+        "createdAt": "2026-10-10T05:53:27.511Z",
+        "reason": "Agent review: DESIGN.md explicitly pins ivory and cream surfaces and preserves the reference color mode; these are intentional AptiQuiz design tokens."
+      },
+      {
+        "rule": "nested-cards",
+        "value": "*",
+        "files": [
+          "reference.html"
+        ],
+        "createdAt": "2026-10-10T05:53:27.519Z",
+        "reason": "Agent review: reference.html is the documented component showcase, including miniature UI windows and palette swatches inside sample cards; DESIGN.md explicitly requires preserving its composition and component hierarchy."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "reference.html"
+        ],
+        "createdAt": "2026-10-10T05:53:27.527Z",
+        "reason": "Agent review: the only finding targets a decorative 18px SVG centered in a 32px icon badge with 7px inset; the badge contains no functional text, so a text-padding rule does not apply."
+      },
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          "reference.html"
+        ],
+        "createdAt": "2026-10-10T05:53:27.534Z",
+        "reason": "Agent review: the positioned children are decorative circles and ambient layers inside the static reference panels, not menus or popovers; clipping preserves the demonstrated composition required by DESIGN.md."
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "design-mocks/aptiquiz-auth-kit/prototypes/normal-login.html"
+        ],
+        "createdAt": "2026-10-10T05:59:01.900Z",
+        "reason": "Agent browser verification: at 1280px the imported Tailwind prototype renders h1 at 52px, h2 at 20px, and body at 16px. The detector reports all roles at 16px because it does not resolve the runtime custom Tailwind typography; the actual hierarchy exceeds the required size step."
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "design-mocks/aptiquiz-auth-kit/prototypes/sign-up.html"
+        ],
+        "createdAt": "2026-10-10T06:34:45.319Z",
+        "reason": "Project DESIGN.md: Inter is specified for display and body; sign-up mirrors the AptiQuiz auth shell"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "design-mocks/aptiquiz-auth-kit/prototypes/sign-up.html"
+        ],
+        "createdAt": "2026-10-10T06:34:48.245Z",
+        "reason": "Project DESIGN.md: #FDFBF7 background and #F7F4EB surface are prescribed; sign-up mirrors the AptiQuiz auth shell"
+      }
+    ]
+  }
+}

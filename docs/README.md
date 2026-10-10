@@ -1,5 +1,9 @@
 # Docs
 
+![AptiQuiz](../Apti-App/apps/web/public/brand/aptiquiz-logo-readme.png)
+
+Start with the [project README](../README.md), [contributor guide](../CONTRIBUTING.md), and [brand guide](../Brand.md).
+
 This folder stores durable project knowledge: completed delivery records, architecture decisions, templates, build memory, and agent configuration. Planned and active PRDs and slices live only in GitHub Issues.
 
 ## Folders
