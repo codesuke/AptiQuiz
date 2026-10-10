@@ -13,10 +13,16 @@ interface ParticipantRoundProps {
   readonly round: ReceivedRound;
   readonly online: boolean;
   readonly sendAnswer: SendRoundAnswer;
+  readonly participantId: string;
 }
 
 /** The current Round: answer buttons while open, the correct option and scores once revealed. */
-export function ParticipantRound({ round, online, sendAnswer }: ParticipantRoundProps) {
+export function ParticipantRound({
+  round,
+  online,
+  sendAnswer,
+  participantId,
+}: ParticipantRoundProps) {
   const { view } = round;
   switch (view.phase) {
     case "QUESTION_OPEN":
@@ -27,11 +33,12 @@ export function ParticipantRound({ round, online, sendAnswer }: ParticipantRound
           online={online}
           round={round}
           sendAnswer={sendAnswer}
+          participantId={participantId}
         />
       );
     case "QUESTION_REVEAL":
       return (
-        <RevealedQuestion view={view}>
+        <RevealedQuestion view={view} viewerId={participantId}>
           <p className="mt-4 font-semibold text-stone-900" role="status">
             {roundResultLabel(view)}
           </p>

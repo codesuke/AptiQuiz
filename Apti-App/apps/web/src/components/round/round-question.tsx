@@ -3,7 +3,7 @@
 import type { RevealedRound, RoundView } from "@aptiquiz/contracts";
 import type { ReactNode } from "react";
 import type { ReceivedRound } from "@/lib/server-clock";
-import { RoundScores } from "./round-scores";
+import { Leaderboard } from "./leaderboard";
 import { countdownLabel, revealedOptionLabels } from "./round-view";
 import { useCountdown } from "./use-countdown";
 
@@ -39,12 +39,14 @@ export function RoundFrame({ view, status, children }: RoundFrameProps) {
 
 interface RevealedQuestionProps {
   readonly view: RevealedRound;
-  /** Shown between the options and the scores, e.g. the Participant's own result. */
+  /** The viewing Participant's id, to highlight their row; omitted for the Host. */
+  readonly viewerId?: string;
+  /** Shown between the options and the Leaderboard, e.g. the Participant's own result. */
   readonly children?: ReactNode;
 }
 
-/** A closed Round: options with the correct one and the receiver's pick marked, then scores. */
-export function RevealedQuestion({ view, children }: RevealedQuestionProps) {
+/** A closed Round: options with the correct one and the receiver's pick marked, then the Leaderboard. */
+export function RevealedQuestion({ view, viewerId, children }: RevealedQuestionProps) {
   return (
     <RoundFrame status="Round closed" view={view}>
       <ol className="mt-4 grid gap-2">
@@ -67,7 +69,7 @@ export function RevealedQuestion({ view, children }: RevealedQuestionProps) {
         })}
       </ol>
       {children}
-      <RoundScores scores={view.scores} />
+      <Leaderboard entries={view.leaderboard} viewerId={viewerId ?? null} />
     </RoundFrame>
   );
 }

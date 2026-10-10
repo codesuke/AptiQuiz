@@ -41,6 +41,9 @@ const revealed: RevealedRound = {
   scores: [
     { participantId: "p-1", displayName: "Asha", answered: true, correct: false, points: 0 },
   ],
+  leaderboard: [
+    { participantId: "p-1", displayName: "Asha", rank: 1, totalScore: 0, movement: null },
+  ],
 };
 
 const received = (view: RoundView) => ({ view, clockOffsetMs: 0 });

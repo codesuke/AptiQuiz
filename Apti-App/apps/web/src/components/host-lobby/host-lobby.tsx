@@ -2,6 +2,7 @@
 
 import type { RoomError } from "@aptiquiz/contracts";
 import { LobbyDetails } from "@/components/lobby/lobby-details";
+import { FinalResults } from "@/components/results/final-results";
 import { RoundQuestion } from "@/components/round/round-question";
 import { isMatchFinished } from "@/components/round/round-view";
 import { describeRoomError } from "@/lib/rooms-client";
@@ -65,6 +66,9 @@ export function HostLobby({ roomId, joinCode, collegeName, registrationFailed }:
             ) : null}
           </div>
         </section>
+        {lobby && isMatchFinished(lobby) ? (
+          <FinalResults results={lobby.results} viewerId={null} />
+        ) : null}
         {round ? (
           <div className="space-y-4">
             <RoundQuestion round={round} />
