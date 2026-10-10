@@ -47,7 +47,7 @@ export type GameCommand =
   | { readonly type: "OPEN_READY_QUESTION"; readonly durationMs: number }
   | { readonly type: "CLOSE_QUESTION" }
   | { readonly type: "SHOW_LEADERBOARD" }
-  | { readonly type: "ADVANCE"; readonly durationMs: number };
+  | { readonly type: "ADVANCE"; readonly durationMs: number; readonly readyDurationMs?: number };
 
 export type GameEvent =
   | { readonly type: "QUESTION_OPENED"; readonly questionIndex: number }
@@ -139,6 +139,21 @@ export function transitionGame(
         };
       }
 
+      if (command.readyDurationMs !== undefined) {
+        assertDuration(command.readyDurationMs);
+        return {
+          state: {
+            ...state,
+            phase: "GETTING_READY",
+            questionIndex: nextQuestionIndex,
+            readyEndsAt: serverTime + command.readyDurationMs,
+            roundStartsAt: null,
+            roundEndsAt: null,
+            roundClosedAt: null,
+          },
+          events: [],
+        };
+      }
       return openQuestion(state, nextQuestionIndex, command.durationMs, serverTime);
     }
   }

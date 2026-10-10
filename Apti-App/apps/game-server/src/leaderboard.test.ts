@@ -22,6 +22,7 @@ import {
   advanceTo,
   CORRECT_OPTION_TEXT,
   joinPlayer,
+  openNextAfterReveal,
   openRound,
   optionIdFor,
   type Player,
@@ -103,11 +104,9 @@ async function closeByDeadline(
 
 async function advanceToSecondRound(table: Table): Promise<void> {
   const opened = Promise.all(table.players.map((player) => nextRound(player.socket)));
-  const acknowledged = await table.host.emitWithAck("room:advance", {
-    roomId: roundRoom.roomId,
-    idempotencyKey: randomUUID(),
-  });
-  expect(acknowledged.ok).toBe(true);
+  const hosted = await table.host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+  if (!hosted.ok || !hosted.round) throw new Error("no revealed Round");
+  await openNextAfterReveal(table.testServer, hosted.round);
   table.rounds = await opened;
 }
 

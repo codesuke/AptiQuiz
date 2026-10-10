@@ -38,6 +38,7 @@ const roomErrorMessages: Record<RoomError, string> = {
   room_finished: "This match has finished.",
   invalid_resume_token: "That place in the Room could not be restored. Join again.",
   advance_failed: "The next Question did not open. Try again.",
+  advance_disabled: "Questions move forward automatically.",
 };
 
 function isCreateRoomFailure(value: unknown): value is CreateRoomFailure {

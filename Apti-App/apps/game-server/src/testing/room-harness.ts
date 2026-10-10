@@ -95,6 +95,8 @@ export interface TestScheduler {
   readonly schedule: Schedule;
   /** Runs every callback due at the current test time; callbacks they schedule wait. */
   fireDue(): void;
+  /** Snapshot callbacks so tests can replay a stale delivery after a later Round opens. */
+  callbacks(): readonly { readonly at: number; readonly callback: () => void }[];
 }
 
 export interface TestServer<Store extends RoomStore = InMemoryRoomStore> {
@@ -139,6 +141,7 @@ function createTestScheduler(clock: TestClock): TestScheduler {
         entry.callback();
       }
     },
+    callbacks: () => [...pending],
   };
 }
 

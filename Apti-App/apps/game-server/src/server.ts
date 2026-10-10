@@ -128,6 +128,9 @@ export function createGameServer(
   const stopPublishingReady = registry.onReadyOpened((publication) =>
     publishAdvance(io, publication),
   );
+  const stopPublishingAutoAdvance = registry.onAutoAdvance((publication) =>
+    publishAdvance(io, publication),
+  );
 
   io.on("connection", (socket) => {
     const { identity } = socket.data;
@@ -174,6 +177,7 @@ export function createGameServer(
       new Promise((resolve) => {
         stopPublishingClosures();
         stopPublishingReady();
+        stopPublishingAutoAdvance();
         registry.dispose();
         io.close(() => resolve());
       }),

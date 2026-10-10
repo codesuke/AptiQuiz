@@ -26,6 +26,7 @@ const revealed: RoundView = {
   ...base,
   phase: "QUESTION_REVEAL",
   closedAt: 20_000,
+  revealEndsAt: 26_000,
   correctOptionId: "x",
   answer: null,
   result: { correct: true, points: 900 },

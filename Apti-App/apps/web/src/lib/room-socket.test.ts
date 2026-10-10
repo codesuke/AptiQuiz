@@ -304,6 +304,7 @@ describe("parseRoundUpdate", () => {
       ...round,
       phase: "QUESTION_REVEAL",
       closedAt: 31_000,
+      revealEndsAt: 37_000,
       correctOptionId: "opt-b",
       answer: { questionIndex: 0, optionId: "opt-b", receivedAt: 4_000 },
       result: { correct: true, points: 900 },

@@ -8,6 +8,7 @@ import {
   roundRoom,
   settle,
   startRoom,
+  TEST_READY_DURATION_MS,
   type TestClock,
   type TestServer,
   type TestSocket,
@@ -105,4 +106,26 @@ export function submit(
 
 export function advanceTo(clock: TestClock, serverTime: number): void {
   clock.advance(serverTime - clock.now());
+}
+
+/** Lets the server's reveal timer fire; the returned Promise includes event delivery. */
+export async function finishReveal(
+  server: Pick<TestServer, "clock" | "deadlines">,
+  view: RoundView,
+): Promise<void> {
+  if (view.phase !== "QUESTION_REVEAL") throw new Error("the Round has not revealed");
+  advanceTo(server.clock, view.revealEndsAt);
+  server.deadlines.fireDue();
+  await settle();
+}
+
+/** Runs the six-second reveal and the following three-second ready timer. */
+export async function openNextAfterReveal(
+  server: Pick<TestServer, "clock" | "deadlines">,
+  view: RoundView,
+): Promise<void> {
+  await finishReveal(server, view);
+  server.clock.advance(TEST_READY_DURATION_MS);
+  server.deadlines.fireDue();
+  await settle();
 }

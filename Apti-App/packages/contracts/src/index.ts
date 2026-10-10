@@ -259,6 +259,7 @@ export const leaderboardEntrySchema = z.object({
 export const revealedRoundSchema = roundBaseSchema.extend({
   phase: z.literal("QUESTION_REVEAL"),
   closedAt: timestampSchema,
+  revealEndsAt: timestampSchema,
   /** In the receiver's own option id space. */
   correctOptionId: z.string().min(1),
   /** This Participant's accepted Answer, or null; always null for the Host. */
@@ -290,6 +291,7 @@ export const roomErrorSchema = z.enum([
   "room_finished",
   "invalid_resume_token",
   "advance_failed",
+  "advance_disabled",
 ]);
 
 export const roomHostSchema = z.object({ roomId: roomIdSchema });

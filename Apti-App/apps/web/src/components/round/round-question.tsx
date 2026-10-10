@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import type { ReceivedRound } from "@/lib/server-clock";
 import { Leaderboard } from "./leaderboard";
 import { countdownLabel, revealedOptionLabels } from "./round-view";
-import { useCountdown } from "./use-countdown";
+import { useCountdown, useDeadlineCountdown } from "./use-countdown";
 
 interface RoundFrameProps {
   readonly view: RoundView;
@@ -67,6 +67,7 @@ export function RoundFrame({ view, status, hostSecondsLeft, children }: RoundFra
 
 interface RevealedQuestionProps {
   readonly view: RevealedRound;
+  readonly clockOffsetMs: number;
   /** The viewing Participant's id, to highlight their row; omitted for the Host. */
   readonly viewerId?: string;
   /** Shown between the options and the Leaderboard, e.g. the Participant's own result. */
@@ -74,9 +75,16 @@ interface RevealedQuestionProps {
 }
 
 /** A closed Round: options with the correct one and the receiver's pick marked, then the Leaderboard. */
-export function RevealedQuestion({ view, viewerId, children }: RevealedQuestionProps) {
+export function RevealedQuestion({
+  view,
+  clockOffsetMs,
+  viewerId,
+  children,
+}: RevealedQuestionProps) {
+  const secondsLeft = useDeadlineCountdown(view.revealEndsAt, clockOffsetMs);
+  const nextLabel = view.questionIndex + 1 === view.questionCount ? "Results" : "Next Question";
   return (
-    <RoundFrame status="Round closed" view={view}>
+    <RoundFrame status={`${nextLabel} in ${secondsLeft}s`} view={view}>
       <ol className="mt-6 grid gap-2">
         {view.question.options.map((option) => {
           const labels = revealedOptionLabels(view, option.id);
@@ -146,6 +154,6 @@ export function RoundQuestion({ round }: RoundQuestionProps) {
     case "QUESTION_OPEN":
       return <OpenHostQuestion round={round} />;
     case "QUESTION_REVEAL":
-      return <RevealedQuestion view={view} />;
+      return <RevealedQuestion clockOffsetMs={round.clockOffsetMs} view={view} />;
   }
 }

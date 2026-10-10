@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import type {
-  RoomAdvanceResponse,
-  RoundView,
-  ServerToClientEvents,
-  SocketTicketSubject,
-} from "@aptiquiz/contracts";
+import type { RoundView, ServerToClientEvents, SocketTicketSubject } from "@aptiquiz/contracts";
 import {
   createDatabase,
   createQuestionSet,
@@ -27,7 +22,13 @@ import {
   type TestServer,
   type TestSocket,
 } from "./testing/room-harness.js";
-import { advanceTo, optionIdFor, submit } from "./testing/round-harness.js";
+import {
+  advanceTo,
+  finishReveal,
+  openNextAfterReveal,
+  optionIdFor,
+  submit,
+} from "./testing/round-harness.js";
 
 const envFile = new URL("../../../.env", import.meta.url);
 if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -236,12 +237,25 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
     await settle();
   }
 
-  function advance(table: Table, idempotencyKey = randomUUID()): Promise<RoomAdvanceResponse> {
-    return table.host.emitWithAck("room:advance", { roomId: table.roomId, idempotencyKey });
+  async function finishAutomatically(table: Table) {
+    const view = table.hostView();
+    if (view === undefined) throw new Error("no revealed Round");
+    const finished = new Promise<void>((resolve) => {
+      table.host.on("room:lobby", function onLobby(lobby) {
+        if (lobby.phase !== "FINISHED") return;
+        table.host.off("room:lobby", onLobby);
+        resolve();
+      });
+    });
+    await finishReveal(table.server, view);
+    await finished;
+    return table.host.emitWithAck("room:host", { roomId: table.roomId });
   }
 
   async function openNext(table: Table) {
-    await expect(advance(table)).resolves.toMatchObject({ ok: true });
+    const view = table.hostView();
+    if (view === undefined) throw new Error("no revealed Round");
+    await openNextAfterReveal(table.server, view);
     await settle();
   }
 
@@ -285,7 +299,7 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       const table = await openTable(fourQuestionSetId);
       const { asha, ravi, hari, gita } = await playFourQuestions(table);
 
-      await expect(advance(table)).resolves.toMatchObject({
+      await expect(finishAutomatically(table)).resolves.toMatchObject({
         ok: true,
         lobby: { phase: "FINISHED" },
         round: null,
@@ -350,7 +364,7 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
     async () => {
       const table = await openTable(fourQuestionSetId);
       const { asha, ravi } = await playFourQuestions(table);
-      await advance(table);
+      await finishAutomatically(table);
 
       const saved = await resultRows(table.roomId);
       const ashaRow = saved.find((row) => row.participantId === asha.participantId);
@@ -372,7 +386,7 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
         data: { emailVerified: false, homeCollegeId: collegeIds.later },
       });
       await db.user.update({ where: { id: raviId }, data: { emailVerified: true } });
-      await advance(table);
+      await table.host.emitWithAck("room:host", { roomId: table.roomId });
 
       expect(await resultRows(table.roomId)).toEqual(saved);
       await db.user.update({
@@ -389,7 +403,7 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
     async () => {
       const table = await openTable(fourQuestionSetId);
       const { asha } = await playFourQuestions(table);
-      await advance(table);
+      await finishAutomatically(table);
 
       const verifiedInCollege = await db.matchResult.findMany({
         where: {
@@ -416,7 +430,7 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
   );
 
   it(
-    "does not finish or announce the Room when the commit fails, and a retry completes it",
+    "does not announce a finished Room when the final commit fails",
     async () => {
       const table = await openTable(oneQuestionSetId);
       const asha = await seat(table, "Asha", ticketFor(ashaId, collegeIds.asha, true));
@@ -428,9 +442,9 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       await settle();
       announcements.length = 0;
       table.server.store.failNextCompletion();
-      const key = randomUUID();
-
-      await expect(advance(table, key)).resolves.toEqual({ ok: false, error: "advance_failed" });
+      const view = table.hostView();
+      if (view === undefined) throw new Error("no revealed Round");
+      await finishReveal(table.server, view);
       await settle();
 
       expect(announcements).toEqual([]);
@@ -440,23 +454,13 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       const hosted = await table.host.emitWithAck("room:host", { roomId: table.roomId });
       expect(hosted).toMatchObject({ ok: true, lobby: { phase: "QUESTION_REVEAL" } });
 
-      await expect(advance(table, key)).resolves.toMatchObject({
-        ok: true,
-        lobby: { phase: "FINISHED" },
-      });
-      await settle();
-
-      expect(announcements).toMatchObject([{ phase: "FINISHED" }]);
-      expect(await resultRows(table.roomId)).toHaveLength(1);
-      const finished = await db.room.findUniqueOrThrow({ where: { id: table.roomId } });
-      expect(finished.status).toBe("FINISHED");
-      expect(finished.completedAt).not.toBeNull();
+      expect(table.server.store.completionAttempts()).toBe(1);
     },
     TEST_TIMEOUT_MS,
   );
 
   it(
-    "commits once for repeated and concurrent final advances",
+    "commits once when the final timer fires repeatedly",
     async () => {
       const table = await openTable(oneQuestionSetId);
       const asha = await seat(table, "Asha", ticketFor(ashaId, collegeIds.asha, true));
@@ -465,23 +469,12 @@ describe.skipIf(!databaseUrl)("Room completion in PostgreSQL", () => {
       await settle();
       await answerAt(table, asha, 1_000, CORRECT);
       await closeByDeadline(table);
-      const sameKey = randomUUID();
-
-      const concurrent = await Promise.all([
-        advance(table, sameKey),
-        advance(table, sameKey),
-        advance(table),
-      ]);
+      const finished = await finishAutomatically(table);
       const firstRows = await resultRows(table.roomId);
-      const replay = await advance(table, sameKey);
-      const lateRetry = await advance(table);
+      table.server.deadlines.fireDue();
+      await settle();
 
-      const finishes = concurrent.filter((response) => response.ok);
-      const refusals = concurrent.filter((response) => !response.ok);
-      expect(finishes).toHaveLength(2);
-      expect(refusals).toEqual([{ ok: false, error: "room_finished" }]);
-      expect(replay).toMatchObject({ ok: true, lobby: { phase: "FINISHED" } });
-      expect(lateRetry).toEqual({ ok: false, error: "room_finished" });
+      expect(finished).toMatchObject({ ok: true, lobby: { phase: "FINISHED" } });
       expect(table.server.store.completionAttempts()).toBe(1);
       expect(firstRows).toHaveLength(2);
       expect(await resultRows(table.roomId)).toEqual(firstRows);

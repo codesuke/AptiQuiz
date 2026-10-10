@@ -106,7 +106,7 @@ export interface AdvancePublication {
 
 /**
  * `round` is the Host's view of the newly opened Round, or null once the Room finished.
- * `publication` is null when a retried advance repeats its first result without a transition.
+ * `publication` is null when a transition cannot publish a new phase.
  */
 export type AdvanceResult =
   | {
@@ -172,12 +172,6 @@ interface StartRecord {
   readonly idempotencyKey: string;
 }
 
-/** The acknowledgement of one accepted advance, repeated for a retry with the same key. */
-interface AdvanceRecord {
-  readonly lobby: LobbySnapshot;
-  readonly round: RoundView | null;
-}
-
 interface LiveRoom {
   readonly registration: RoomRegistration;
   readonly rules: RoundRules;
@@ -185,8 +179,6 @@ interface LiveRoom {
   readonly optionSalt: string;
   game: GameState;
   start: StartRecord | null;
-  /** Accepted advances keyed by idempotency key. */
-  readonly advances: Map<string, AdvanceRecord>;
   /** Joined Participants keyed by identity, in join order. */
   readonly participants: Map<string, LobbyParticipant>;
   /** Server time each Participant joined the Lobby, keyed by Participant id. */
@@ -208,9 +200,9 @@ interface LiveRoom {
   readonly reconnecting: Map<string, ReconnectGrace>;
   /** Cancels the open Round's deadline timer; null when no timer is pending. */
   cancelDeadline: CancelScheduled | null;
-  /** The in-flight result commit of the final advance; it never rejects. Null when idle. */
+  /** The in-flight result commit; it never rejects. Null when idle. */
   completion: Promise<boolean> | null;
-  /** The committed results, best rank first; null until the final advance saves them. */
+  /** The committed results, best rank first; null until final completion. */
   results: FinalResult[] | null;
 }
 
@@ -272,11 +264,6 @@ export interface RoomRegistry {
   resume(request: ValidResumeRequest, identity: ConnectionIdentity): ResumeResult;
   start(roomId: string, idempotencyKey: string, identity: ConnectionIdentity): StartResult;
   /** Opens the next Question after a reveal, or finishes the Room after the last one. */
-  advance(
-    roomId: string,
-    idempotencyKey: string,
-    identity: ConnectionIdentity,
-  ): Promise<AdvanceResult>;
   answer(submission: AnswerSubmission): AnswerResult;
   /** Scored Answers for one Question, for the reveal; never sent to clients before it. */
   answersFor(roomId: string, questionIndex: number): readonly RecordedAnswer[];
@@ -292,6 +279,7 @@ export interface RoomRegistry {
   /** Tells `listener` about each Round closure, whatever caused it; returns an unsubscribe. */
   onRoundClosed(listener: RoundClosedListener): () => void;
   onReadyOpened(listener: (publication: AdvancePublication) => void): () => void;
+  onAutoAdvance(listener: (publication: AdvancePublication) => void): () => void;
   /** Cancels every pending deadline and reconnect grace timer. */
   dispose(): void;
 }
@@ -302,10 +290,9 @@ const ROOM_NOT_IN_LOBBY: RoomFailure = { ok: false, error: "room_not_in_lobby" }
 const ROOM_FULL: RoomFailure = { ok: false, error: "room_full" };
 const JOIN_FAILED: RoomFailure = { ok: false, error: "join_failed" };
 const START_FAILED: RoomFailure = { ok: false, error: "start_failed" };
-const ROUND_NOT_REVEALED: RoomFailure = { ok: false, error: "round_not_revealed" };
-const ROOM_FINISHED: RoomFailure = { ok: false, error: "room_finished" };
 const ADVANCE_FAILED: RoomFailure = { ok: false, error: "advance_failed" };
 const READY_DURATION_MS = 3_000;
+const REVEAL_DURATION_MS = 6_000;
 const INVALID_RESUME_TOKEN: RoomFailure = { ok: false, error: "invalid_resume_token" };
 
 type AnswerFailure = Extract<AnswerResult, { ok: false }>;
@@ -329,6 +316,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
   const roomIdsByJoinCode = new Map<string, string>();
   const closedListeners = new Set<RoundClosedListener>();
   const readyListeners = new Set<(publication: AdvancePublication) => void>();
+  const advanceListeners = new Set<(publication: AdvancePublication) => void>();
 
   function register(registration: RoomRegistration): RegistrationResult {
     if (rooms.has(registration.roomId)) {
@@ -345,7 +333,6 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
       optionSalt: randomUUID(),
       game: createGameState(registration.roomId, registration.questions.length),
       start: null,
-      advances: new Map(),
       participants: new Map(),
       joinedAt: new Map(),
       pendingJoins: new Map(),
@@ -579,54 +566,20 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     });
   }
 
-  async function advance(
-    roomId: string,
-    idempotencyKey: string,
-    identity: ConnectionIdentity,
-  ): Promise<AdvanceResult> {
-    const room = rooms.get(roomId);
-
-    if (room === undefined) {
-      return ROOM_NOT_FOUND;
-    }
-
-    if (!isRoomHost(room, identity)) {
-      return NOT_ROOM_HOST;
-    }
-
-    const earlier = room.advances.get(idempotencyKey);
-
-    if (earlier !== undefined) {
-      return { ok: true, ...earlier, publication: null };
-    }
-
-    if (room.completion !== null) {
-      // Wait for the commit in flight, then answer from its outcome: a replay, room_finished,
-      // or a fresh attempt when it failed. This keeps one completion per Room.
-      await room.completion;
-      return advance(roomId, idempotencyKey, identity);
-    }
-
-    return advanceAfterReveal(room, idempotencyKey);
-  }
-
-  /** Only a revealed Round advances, so a repeated command cannot skip a Question. */
-  function advanceAfterReveal(
-    room: LiveRoom,
-    idempotencyKey: string,
-  ): AdvanceResult | Promise<AdvanceResult> {
+  /** Only a revealed Round advances, so a repeated timer cannot skip a Question. */
+  function advanceAfterReveal(room: LiveRoom): AdvanceResult | Promise<AdvanceResult> {
     if (room.game.phase === "FINISHED") {
-      return ROOM_FINISHED;
+      return ADVANCE_FAILED;
     }
 
     if (room.game.phase !== "QUESTION_REVEAL") {
-      return ROUND_NOT_REVEALED;
+      return ADVANCE_FAILED;
     }
 
     const serverTime = now();
     const next = tryTransition(
       room.game,
-      { type: "ADVANCE", durationMs: rules.roundDurationMs },
+      { type: "ADVANCE", durationMs: rules.roundDurationMs, readyDurationMs: READY_DURATION_MS },
       serverTime,
     );
 
@@ -635,20 +588,25 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     }
 
     if (next.phase === "FINISHED") {
-      return finishRoom(room, idempotencyKey, next, serverTime);
+      return finishRoom(room, next, serverTime);
+    }
+
+    if (next.phase === "GETTING_READY" && next.readyEndsAt !== null) {
+      room.game = next;
+      scheduleReady(room, next.readyEndsAt);
+      return recordAdvance(room, null);
     }
 
     const delivery = openRoundAt(room, next, serverTime);
-    return delivery === null ? ADVANCE_FAILED : recordAdvance(room, idempotencyKey, delivery);
+    return delivery === null ? ADVANCE_FAILED : recordAdvance(room, delivery);
   }
 
   /**
    * The Room leaves its last reveal only after its results commit, so a displayed finish always
-   * has durable results. A failed commit changes nothing and the Host can send the command again.
+   * has durable results. A failed commit leaves the reveal visible until retry handling runs.
    */
   async function finishRoom(
     room: LiveRoom,
-    idempotencyKey: string,
     finished: GameState,
     serverTime: number,
   ): Promise<AdvanceResult> {
@@ -662,7 +620,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     }
 
     room.game = finished;
-    return recordAdvance(room, idempotencyKey, null);
+    return recordAdvance(room, null);
   }
 
   async function commitFinalResults(room: LiveRoom, serverTime: number): Promise<boolean> {
@@ -680,14 +638,9 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
   }
 
   /** `delivery` is the newly opened Round, or null when the advance finished the Room. */
-  function recordAdvance(
-    room: LiveRoom,
-    idempotencyKey: string,
-    delivery: RoundDelivery | null,
-  ): AdvanceResult {
-    const record: AdvanceRecord = { lobby: toLobby(room, now()), round: delivery?.host ?? null };
-    room.advances.set(idempotencyKey, record);
-    return { ok: true, ...record, publication: { lobby: record.lobby, delivery } };
+  function recordAdvance(room: LiveRoom, delivery: RoundDelivery | null): AdvanceResult {
+    const lobby = toLobby(room, now());
+    return { ok: true, lobby, round: delivery?.host ?? null, publication: { lobby, delivery } };
   }
 
   /**
@@ -746,6 +699,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     room.game = transitionGame(room.game, { type: "CLOSE_QUESTION" }, closedAt).state;
     room.cancelDeadline?.();
     room.cancelDeadline = null;
+    scheduleReveal(room, closedAt + REVEAL_DURATION_MS);
     const round = findActiveRound(room);
 
     if (round === null) {
@@ -760,6 +714,38 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     for (const listener of closedListeners) {
       listener(closure);
     }
+  }
+
+  function scheduleReveal(room: LiveRoom, endsAt: number): void {
+    const questionIndex = room.game.questionIndex;
+    const closedAt = room.game.roundClosedAt;
+    room.cancelDeadline = schedule(endsAt, () => {
+      if (
+        room.game.phase !== "QUESTION_REVEAL" ||
+        room.game.questionIndex !== questionIndex ||
+        room.game.roundClosedAt !== closedAt ||
+        room.completion !== null
+      )
+        return;
+      room.cancelDeadline = null;
+      if (now() < endsAt) {
+        scheduleReveal(room, endsAt);
+        return;
+      }
+      if (questionIndex === null) return;
+      Promise.resolve(advanceAfterReveal(room))
+        .then((result) => {
+          if (result.ok && result.publication !== null) {
+            for (const listener of advanceListeners) listener(result.publication);
+          }
+        })
+        .catch((error: unknown) => {
+          logger.error(
+            { roomId: room.registration.roomId, err: error },
+            "automatic advance failed",
+          );
+        });
+    });
   }
 
   function closeIfAllAnswered(roomId: string): void {
@@ -843,6 +829,11 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
   function onReadyOpened(listener: (publication: AdvancePublication) => void): () => void {
     readyListeners.add(listener);
     return () => readyListeners.delete(listener);
+  }
+
+  function onAutoAdvance(listener: (publication: AdvancePublication) => void): () => void {
+    advanceListeners.add(listener);
+    return () => advanceListeners.delete(listener);
   }
 
   function dispose(): void {
@@ -956,7 +947,6 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     join,
     resume,
     start,
-    advance,
     answer,
     answersFor,
     connect,
@@ -964,6 +954,7 @@ export function createRoomRegistry(dependencies: RoomRegistryDependencies): Room
     closeIfAllAnswered,
     onRoundClosed,
     onReadyOpened,
+    onAutoAdvance,
     dispose,
   };
 }
@@ -1027,7 +1018,7 @@ function lastRevealedQuestion(room: LiveRoom): number {
     return -1;
   }
 
-  return phase === "QUESTION_OPEN" ? questionIndex - 1 : questionIndex;
+  return phase === "QUESTION_OPEN" || phase === "GETTING_READY" ? questionIndex - 1 : questionIndex;
 }
 
 function hasParticipant(room: LiveRoom, participantId: string): boolean {
@@ -1205,6 +1196,7 @@ function viewRound(context: RoundContext, receiver: RoundReceiver, serverTime: n
     ...shared,
     phase: "QUESTION_REVEAL",
     closedAt: round.closedAt,
+    revealEndsAt: round.closedAt + REVEAL_DURATION_MS,
     correctOptionId: correctOptionIdFor(room, round, receiver),
     result: resultFor(room, round, receiver),
     scores: roundScores(room, round),

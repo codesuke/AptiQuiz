@@ -7,8 +7,10 @@ const TICK_MS = 250;
 
 /** Whole seconds left in the Round by server time, refreshed a few times each second. */
 export function useCountdown(round: ReceivedRound): number {
-  const { clockOffsetMs } = round;
-  const { endsAt } = round.view;
+  return useDeadlineCountdown(round.view.endsAt, round.clockOffsetMs);
+}
+
+export function useDeadlineCountdown(endsAt: number, clockOffsetMs: number): number {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {

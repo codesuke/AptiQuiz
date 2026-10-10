@@ -7,7 +7,6 @@ import { GettingReady } from "@/components/round/getting-ready";
 import { RoundQuestion } from "@/components/round/round-question";
 import { isMatchFinished } from "@/components/round/round-view";
 import { describeRoomError } from "@/lib/rooms-client";
-import { AdvanceControl } from "./advance-control";
 import { ShareRoom } from "./share-room";
 import { type HostConnection, type StartState, useHostRoom } from "./use-host-room";
 
@@ -26,17 +25,8 @@ export function HostLobby({
   questionSetTitle,
   registrationFailed,
 }: HostLobbyProps) {
-  const {
-    lobby,
-    lobbyReceivedAt,
-    round,
-    connection,
-    roomError,
-    start,
-    startMatch,
-    advance,
-    advanceMatch,
-  } = useHostRoom(roomId);
+  const { lobby, lobbyReceivedAt, round, connection, roomError, start, startMatch } =
+    useHostRoom(roomId);
   const inLobby = lobby?.phase === "LOBBY";
   const canStart = inLobby && connection === "online" && !start.pending;
 
@@ -81,13 +71,6 @@ export function HostLobby({
         ) : round ? (
           <div className="min-w-0 space-y-4">
             <RoundQuestion round={round} />
-            <AdvanceControl
-              advance={advance}
-              lobby={lobby}
-              onAdvance={advanceMatch}
-              online={connection === "online"}
-              round={round.view}
-            />
           </div>
         ) : (
           <ShareRoom collegeName={collegeName} joinCode={joinCode} />

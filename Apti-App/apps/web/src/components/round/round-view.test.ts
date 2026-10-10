@@ -35,6 +35,7 @@ const revealed: RevealedRound = {
   phase: "QUESTION_REVEAL",
   serverTime: 31_000,
   closedAt: 31_000,
+  revealEndsAt: 37_000,
   correctOptionId: "opt-b",
   answer: { questionIndex: 2, optionId: "opt-a", receivedAt: 5_000 },
   result: { correct: false, points: 0 },

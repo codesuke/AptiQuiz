@@ -217,20 +217,7 @@ export function registerRoomHandlers(socket: GameSocket, dependencies: RoomHandl
       return;
     }
 
-    const { roomId, idempotencyKey } = parsed.data;
-    const result = await registry.advance(roomId, idempotencyKey, socket.data.identity);
-
-    if (!result.ok) {
-      acknowledge(result);
-      return;
-    }
-
-    socket.join(hostChannels(roomId));
-    acknowledge({ ok: true, lobby: result.lobby, round: result.round });
-
-    if (result.publication !== null) {
-      publishAdvance(io, result.publication);
-    }
+    acknowledge({ ok: false, error: "advance_disabled" });
   });
 
   socket.on("round:answer", (payload, callback) => {

@@ -29,6 +29,7 @@ import {
 import {
   advanceTo,
   CORRECT_OPTION_TEXT,
+  openNextAfterReveal,
   optionIdFor,
   submit,
   WRONG_OPTION_TEXT,
@@ -152,7 +153,7 @@ describe("reconnect grace during an open Round", () => {
     });
   });
 
-  it("does nothing when the grace ends after the Round closed or the Host advanced", async () => {
+  it("does nothing when the grace ends after the next Round opens", async () => {
     const table = await openTable();
     const hostRounds = collectRounds(table.host);
     await ashaAnswersFirst(table);
@@ -167,18 +168,24 @@ describe("reconnect grace during an open Round", () => {
 
     const lobbies: LobbySnapshot[] = [];
     table.asha.socket.on("room:lobby", (lobby) => lobbies.push(lobby));
-    await table.host.emitWithAck("room:advance", {
-      roomId: roundRoom.roomId,
-      idempotencyKey: randomUUID(),
-    });
-    moveTo(table, leavesNearDeadline + DEFAULT_RECONNECT_GRACE_MS);
+    const hosted = await table.host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+    if (!hosted.ok || !hosted.round) throw new Error("no revealed Round");
+    await openNextAfterReveal(table.testServer, hosted.round);
+    advanceTo(
+      table.testServer.clock,
+      Math.max(
+        table.testServer.clock.now(),
+        table.asha.round.startsAt + leavesNearDeadline + DEFAULT_RECONNECT_GRACE_MS,
+      ),
+    );
+    table.testServer.deadlines.fireDue();
     await settle();
 
     expect(hostRounds.map((round) => [round.questionIndex, round.phase])).toEqual([
       [0, "QUESTION_REVEAL"],
       [1, "QUESTION_OPEN"],
     ]);
-    expect(lobbies.map((lobby) => lobby.phase)).toEqual(["QUESTION_OPEN"]);
+    expect(lobbies.map((lobby) => lobby.phase)).toEqual(["GETTING_READY", "QUESTION_OPEN"]);
   });
 });
 
@@ -282,17 +289,16 @@ describe("room:resume after the reveal", () => {
     expect(raviReveal.correctOptionId).toBe(optionIdFor(table.ravi.round, CORRECT_OPTION_TEXT));
   });
 
-  it("sends the next Round to the resumed socket after the Host advances", async () => {
+  it("sends the next Round to the resumed socket after the reveal countdown", async () => {
     const table = await openTable();
     await revealBoth(table);
     const fresh = await reconnect(table.testServer.port, table.ravi.socket);
     await resume(fresh, table.ravi.resumeToken, roundRoom.joinCode);
     const next = nextRound(fresh);
 
-    await table.host.emitWithAck("room:advance", {
-      roomId: roundRoom.roomId,
-      idempotencyKey: randomUUID(),
-    });
+    const hosted = await table.host.emitWithAck("room:host", { roomId: roundRoom.roomId });
+    if (!hosted.ok || !hosted.round) throw new Error("no revealed Round");
+    await openNextAfterReveal(table.testServer, hosted.round);
 
     const opened = await next;
     expect(opened).toMatchObject({ phase: "QUESTION_OPEN", questionIndex: 1, answer: null });

@@ -38,7 +38,7 @@ export function ParticipantRound({
       );
     case "QUESTION_REVEAL":
       return (
-        <RevealedQuestion view={view} viewerId={participantId}>
+        <RevealedQuestion clockOffsetMs={round.clockOffsetMs} view={view} viewerId={participantId}>
           <p className="mt-4 font-semibold text-stone-900" role="status">
             {roundResultLabel(view)}
           </p>

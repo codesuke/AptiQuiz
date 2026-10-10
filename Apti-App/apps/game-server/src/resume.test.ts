@@ -27,7 +27,13 @@ import {
   stopTestServer,
   type TestSocket,
 } from "./testing/room-harness.js";
-import { CORRECT_OPTION_TEXT, optionIdFor, submit } from "./testing/round-harness.js";
+import {
+  CORRECT_OPTION_TEXT,
+  finishReveal,
+  openNextAfterReveal,
+  optionIdFor,
+  submit,
+} from "./testing/round-harness.js";
 
 const MINIMUM_TOKEN_LENGTH = 32;
 
@@ -239,7 +245,7 @@ describe("room:resume during a Match", () => {
   });
 
   it("returns only points from revealed Rounds", async () => {
-    const { testServer, host, asha, ravi } = await openResumableTable();
+    const { testServer, asha, ravi } = await openResumableTable();
     const answerCorrectly = (socket: TestSocket, round: RoundView) =>
       submit(socket, round, optionIdFor(round, CORRECT_OPTION_TEXT));
     const resumeAsha = async () => {
@@ -261,10 +267,7 @@ describe("room:resume during a Match", () => {
     await expect(resumeAsha()).resolves.toBe(firstPoints);
 
     const nextOpen = nextRound(asha.socket);
-    await host.emitWithAck("room:advance", {
-      roomId: roundRoom.roomId,
-      idempotencyKey: randomUUID(),
-    });
+    await openNextAfterReveal(testServer, firstReveal);
     const secondRound = await nextOpen;
     await expect(
       submit(asha.socket, secondRound, optionIdFor(secondRound, "4")),
@@ -283,7 +286,9 @@ describe("room:resume during a Match", () => {
     testServer.clock.advance(60_000);
     testServer.deadlines.fireDue();
     await settle();
-    await host.emitWithAck("room:advance", { roomId: roomA.roomId, idempotencyKey: randomUUID() });
+    const hosted = await host.emitWithAck("room:host", { roomId: roomA.roomId });
+    if (!hosted.ok || !hosted.round) throw new Error("no revealed Round");
+    await finishReveal(testServer, hosted.round);
 
     const resumed = await resume(await connectAs(testServer.port), asha.resumeToken);
 

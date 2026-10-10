@@ -617,6 +617,49 @@ describe("room:start", () => {
 });
 
 describe("round:state", () => {
+  it("automatically shows the reveal, gets ready, and opens the next Question", async () => {
+    const { port, clock, deadlines } = await startWithRooms(roundRoom);
+    const host = await hostRoom(port, roundRoom.roomId);
+    const guest = await connectAs(port);
+    await join(guest, "Asha", roundRoom.joinCode);
+    const first = nextRound(guest);
+    await startRoom(host, roundRoom.roomId);
+    await expect(first).resolves.toMatchObject({ phase: "QUESTION_OPEN", questionIndex: 0 });
+
+    const revealed = nextRound(guest);
+    clock.advance(TEST_ROUND_DURATION_MS + 1);
+    deadlines.fireDue();
+    await expect(revealed).resolves.toMatchObject({
+      phase: "QUESTION_REVEAL",
+      questionIndex: 0,
+      revealEndsAt: clock.now() + 6_000,
+    });
+    await expect(
+      host.emitWithAck("room:advance", {
+        roomId: roundRoom.roomId,
+        idempotencyKey: randomUUID(),
+      }),
+    ).resolves.toEqual({ ok: false, error: "advance_disabled" });
+
+    const ready = nextLobby(guest, (lobby) => lobby.phase === "GETTING_READY");
+    clock.advance(6_000);
+    deadlines.fireDue();
+    await expect(ready).resolves.toMatchObject({
+      phase: "GETTING_READY",
+      ready: { questionIndex: 1, endsAt: clock.now() + TEST_READY_DURATION_MS },
+    });
+
+    const second = nextRound(guest);
+    clock.advance(TEST_READY_DURATION_MS);
+    deadlines.fireDue();
+    await expect(second).resolves.toMatchObject({
+      phase: "QUESTION_OPEN",
+      questionIndex: 1,
+      startsAt: clock.now(),
+      endsAt: clock.now() + TEST_ROUND_DURATION_MS,
+    });
+  });
+
   it("opens one server-timed Round with the same Question and deadline for each Participant", async () => {
     const { port } = await startWithRooms(roundRoom);
     const host = await hostRoom(port, roundRoom.roomId);
