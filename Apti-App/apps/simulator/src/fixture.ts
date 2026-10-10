@@ -44,7 +44,7 @@ export function fixtureMismatch(questionIndex: number, question: PublicQuestion)
   return null;
 }
 
-export function optionIdByText(question: PublicQuestion, text: string): string | null {
+function optionIdByText(question: PublicQuestion, text: string): string | null {
   return question.options.find((option) => option.text === text)?.id ?? null;
 }
 

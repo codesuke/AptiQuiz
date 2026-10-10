@@ -41,7 +41,7 @@ Built for **hackathon problem statement 3 — AptiQuiz**. See [the official brie
 
 ## Project status
 
-**The application is under active development.** Accounts are implemented and the web app and Game Server are deployed on Dokploy. Both public HTTPS health endpoints responded on 2026-10-10. A complete multiplayer match and the 50-Participant proof remain unfinished; consult [build memory](docs/build-memory.yaml) for verified feature delivery. The home page links to Question Set authoring and hosting setup, and labels Room creation and joining as upcoming.
+**The application is under active development.** Accounts are implemented and the web app and Game Server are deployed on Dokploy. Both public HTTPS health endpoints responded on 2026-10-10. A complete multiplayer match runs, and one 50-Participant Match passed on the deployed servers (see [50-Participant proof](#50-participant-proof)); consult [build memory](docs/build-memory.yaml) for verified feature delivery. The home page links to Question Set authoring and hosting setup, and labels Room creation and joining as upcoming.
 
 | Area | Current state |
 | --- | --- |
@@ -50,11 +50,11 @@ Built for **hackathon problem statement 3 — AptiQuiz**. See [the official brie
 | Game Engine | Tested initial phase transitions and provisional scoring rules |
 | Shared contracts | Zod validation and TypeScript types for current interfaces |
 | Database | PostgreSQL/Prisma schema and generated client; product persistence still planned |
-| Connection simulator | Verified 50 concurrent local connections and time-ping responses |
-| Gameplay | Question Set authoring, Room joining, live answers, reveal, and Leaderboard still planned |
+| Match simulator | Plays a full 50-Participant Match through the public Socket.IO interface, locally and on the deployed servers |
+| Gameplay | Question Set authoring, Room joining, live Rounds, reveal, Leaderboard, and saved results implemented |
 | Accounts & leagues | Core account flows implemented; reconnection, completed results, and College League still planned |
 
-The simulator currently measures connectivity, not complete-match capacity. The latest recorded relocation check connected **50/50 clients**, with **11 ms median / 13 ms p95** local time-ping round trip. Results are environment-specific; see [build memory](docs/build-memory.yaml) for verification history and limitations.
+The simulator proves one complete Room of 50 Participants, not capacity for many Rooms. Results are environment-specific; see [build memory](docs/build-memory.yaml) for verification history and limitations.
 
 ## Quick start
 
@@ -137,6 +137,45 @@ The simulator needs a signed-in Host with a Home College. Pass that Host's sessi
 The report is JSON. `connectedSockets` counts open sockets and `joinedParticipants` counts accepted joins; `lobbyParticipants` is read back from the public Lobby. `latencyMs` metrics are client-observed acknowledgement round trips in milliseconds (`timePingAck`, `roomJoinAck`, `roomHostAck`) with sample counts, p50, p95, and max. The `match` block counts accepted Answers, deliberate new-key duplicates rejected, exact-key replays, late Answers rejected (by error code), Questions completed, payloads scanned for pre-reveal disclosure, and the Game Server timing constants. A late Answer sent at the deadline is rejected as `answer_too_late` or, when the deadline timer has already closed the Round, as `round_not_open`; both count as rejected. `hostCommandToRoundState` is the time from a Host start or advance command until each viewer receives the open Round. `lastAnswerAckToReveal` is the time from the last Answer acknowledgement to the reveal, for early-closed Rounds. A full run lasts about one Round duration, because the first Round stays open for the late Answer check.
 
 The process exits nonzero when any setup, connection, join, Lobby, scoring, secrecy, or timeout check fails; `errors` names each broken check. During the second Question a subset of Participants disconnects and resumes with a Resume Token; `resumes` counts attempts and successes (same identity, score, Answer state, option order, and deadline). `leaderboardsConverged` counts Rounds whose ordered Leaderboard matched across the Host and every Participant and equalled the revealed Round points. `finalResultsVerified` counts saved results that match those totals. Resume Tokens are scrubbed from all output.
+
+### 50-Participant proof
+
+One full Match with 50 virtual Participants was run against the deployed servers on **2026-10-10 at 14:52 UTC**. The simulator process exited 0 and its report showed no errors.
+
+Command (the Host session is a secret and is not recorded here):
+
+```bash
+cd Apti-App
+SIMULATOR_WEB_URL=https://aptiquiz.codesuke.in \
+SIMULATOR_URL=https://game.aptiquiz.codesuke.in \
+SIMULATOR_HOST_COOKIE='<Cookie header of a signed-in Host with a Home College>' \
+pnpm simulate
+```
+
+| Item | Value |
+| --- | --- |
+| Runner | AMD Ryzen 7 5800H, 16 logical CPUs, 13 GiB RAM, WSL2 (Linux 6.18), Node.js 24.14; reached the servers over the public internet |
+| Game Server and web app | Dokploy deployment at `game.aptiquiz.codesuke.in` and `aptiquiz.codesuke.in`. The server hardware is not visible to the runner and is not recorded. |
+| Simulator code | commit `7298213` |
+| Question Set | Seeded starter set, 3 Questions |
+| Round timing | 30,000 ms Round; 100 ms delay-compensation cap; 100 ms score bucket |
+| Host | A throwaway account made for this run |
+
+Counts from the report: 50 sockets connected, 50 Participants joined, 50 distinct identities in the public Lobby; 3 Questions completed; 140 Answers accepted (30 of them wrong); 10 unanswered Participant-Rounds; 30 new-key duplicates rejected; 30 exact-key replays returned the first result; 10 late Answers rejected, all as `round_not_open` (the deadline timer had already closed the Round); 15 of 15 resumes restored identity, score, Answer state, option order, and deadline; Leaderboards were identical for all viewers after 3 of 3 Rounds; 50 saved results matched the revealed Round points; 2,056 pre-reveal payloads were scanned and none disclosed a correct option, correctness, explanation, or points. The run took about 32 s.
+
+Client-observed latency in milliseconds (the time from sending a command to its acknowledgement or event, measured in the simulator process, including the internet round trip):
+
+| Metric | Samples | p50 | p95 | max |
+| --- | ---: | ---: | ---: | ---: |
+| `timePingAck` | 50 | 34.8 | 55.9 | 57.5 |
+| `roomJoinAck` | 50 | 122.0 | 162.6 | 168.9 |
+| `roundAnswerAck` | 210 | 31.3 | 37.6 | 43.8 |
+| `roomResumeAck` | 15 | 29.4 | 34.5 | 34.5 |
+| `hostCommandToRoundState` | 153 | 38.2 | 44.1 | 51.6 |
+| `lastAnswerAckToReveal` | 102 | 41.9 | 67.4 | 76.9 |
+| `roomAdvanceAck` | 3 | 28.9 | 100.6 | 100.6 |
+
+This is one run of one Room. It shows that a 50-Participant Match completes correctly on the deployed Game Server from a single runner. It does not show capacity for many Rooms, other networks, or browsers. The simulator sets no latency pass threshold.
 
 ### Database commands
 

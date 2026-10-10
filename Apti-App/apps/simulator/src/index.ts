@@ -32,7 +32,8 @@ async function main(): Promise<number> {
     durationMs: 0,
   };
   let session: RoomSession | null = null;
-  const secrets = () => [...configSecrets, ...(session?.secretValues() ?? [])];
+  let hostTicket = "";
+  const secrets = () => [...configSecrets, hostTicket, ...(session?.secretValues() ?? [])];
   const finish = () => {
     report.latencyMs = recorder.summaries();
     report.durationMs = Math.round(performance.now() - startedAt);
@@ -47,6 +48,7 @@ async function main(): Promise<number> {
 
   try {
     const access = await obtainHostAccess(config.setup);
+    hostTicket = access.hostTicket;
     session = await openLobby(config, access, recorder);
     report.lobby = summarizeLobby(session, config.participantCount);
     const { roundPoints: _roundPoints, ...match } = await playMatch(session);

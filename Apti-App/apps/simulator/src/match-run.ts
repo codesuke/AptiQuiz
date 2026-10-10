@@ -139,12 +139,14 @@ class MatchRun {
           acknowledge,
         ),
       (response) => {
+        session.secrecy.inspect("Match start ack", response);
         const parsed = roomStartResponseSchema.parse(response);
         return parsed.ok ? parsed : refused("Match start", parsed);
       },
       "Match start",
     );
     this.invariants.check(start.lobby.phase !== "LOBBY", "Room stayed in LOBBY after start");
+    await this.checkHostOnlyCommands();
 
     let commandSentAt = startedAt;
     for (let index = 0; index < this.questionCount; index += 1) {
@@ -177,6 +179,28 @@ class MatchRun {
       },
       roundPoints: this.roundPoints,
     };
+  }
+
+  /** A Participant must not be able to drive the Room: Host commands are refused. */
+  private async checkHostOnlyCommands(): Promise<void> {
+    const intruder = this.session.participants[0];
+    if (!intruder) return;
+    const refusal = await timed(
+      this.session.recorder,
+      "hostOnlyRefusalAck",
+      (acknowledge) =>
+        intruder.socket.emit(
+          "room:advance",
+          { roomId: this.session.roomId, idempotencyKey: randomUUID() },
+          acknowledge,
+        ),
+      (reply) => roomAdvanceResponseSchema.parse(reply),
+      "Participant Host-command refusal",
+    );
+    this.invariants.check(
+      !refusal.ok && refusal.error === "not_room_host",
+      "A Participant's Host command was not refused as not_room_host",
+    );
   }
 
   private async playRound(index: number, commandSentAt: number): Promise<void> {
@@ -271,7 +295,10 @@ class MatchRun {
           { roomId: this.session.roomId, questionIndex: index, optionId, idempotencyKey: key },
           acknowledge,
         ),
-      (response) => roundAnswerResponseSchema.parse(response),
+      (response) => {
+        this.session.secrecy.inspect(`Participant ${participant.number} Answer ack`, response);
+        return roundAnswerResponseSchema.parse(response);
+      },
       `Participant ${participant.number} Answer`,
     );
   }

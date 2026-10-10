@@ -112,7 +112,7 @@ function checkStarterFixture(lobby: LobbySnapshot): void {
 }
 
 export function hostLobby(
-  session: Pick<RoomSession, "host" | "roomId" | "recorder">,
+  session: Pick<RoomSession, "host" | "roomId" | "recorder" | "secrecy">,
   step: string,
 ) {
   return timed(
@@ -120,6 +120,7 @@ export function hostLobby(
     "roomHostAck",
     (acknowledge) => session.host.socket.emit("room:host", { roomId: session.roomId }, acknowledge),
     (response) => {
+      session.secrecy.inspect(step, response);
       const parsed = roomHostResponseSchema.parse(response);
       return parsed.ok ? parsed.lobby : refused(step, parsed);
     },
